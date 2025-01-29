@@ -94,7 +94,7 @@ def parse_soun_tag(data):
         """, data[:header_size])
         name = name.rstrip(b'\0').decode('mac-roman')
         tag_type = tag_type.decode('mac-roman')
-        desc = desc.decode('mac-roman')
+        desc = desc.split(b'\0', 1)[0].decode('mac-roman')
         tag_id = tag_id.decode('mac-roman')
         tag_version = tag_version.decode('mac-roman')
 

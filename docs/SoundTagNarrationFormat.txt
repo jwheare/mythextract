@@ -2,104 +2,115 @@ First 192 bytes of tfl tag is header
 78 byte AIFC header dropped - need to rebuild using numSampleFrames from tag header
 remaining bytes are AIFC sound data
 
-variable bytes marked with ^
-
 example tag from artsound.gor "03 narration"
+
+byte description format:
+
+    decoded representation:        F O R M
+    hex:                          464F524D
+    description                   ckId
+
 
 -----------
 AIFC header
 
- F O R M                      A I F C
-464F524D   00724308          41494643
-           ^^^^^^^^
-ckId       ckSize (7488264)  formType
+ F O R M   dec: 7488264    A I F C
+464F524D   00724308       41494643
+ckId       ckSize         formType
 
  F V E R
 46564552   00000004     A2805140
 ckId       ckDataSize   AIFCVersion1
 
- C O M M
-434F4D4D   0000001E     0001           00005335                  0010          400DAC44000000000000
-                                       ^^^^^^^^
-ckId       ckSize (30)  numChannels    numSampleFrames (21301)   sampleSize    sampleRate (22050)
+ C O M M   dec: 30                     dec: 21301                         dec: 22050
+434F4D4D   0000001E     0001           00005335             0010          400DAC44000000000000
+ckId       ckSize       numChannels    numSampleFrames      sampleSize    sampleRate
 
  i m a 4                                          I M A   4 : 1
 696D6134         07                               494D4120343A31
 compressionType  length of compressionName (7)    compressionName
 
- S S N D
-53534E44   000B0D12              00000000   00000000     0000350029A9119001911929...
-           ^^^^^^^^
-ckId       ckDataSize (724242)   offset     blockSize    soundData
+ S S N D   dec: 724242
+53534E44   000B0D12        00000000   00000000     0000350029A9119001911929...
+ckId       ckDataSize      offset     blockSize    soundData
 
 --------------------
 TFL sound tag header
 
-[000:032] 32: text - name - right packed with null
-[032:036]  4: text - tag type
-[036:040]  4: text - tag ID
-[040:060] 20: unknown
-[060:064]  4: text - tag version
-[064:088] 24: unknown
-[088:092]  4: unknown
-[092:132] 40: unknown
-[132:136]  4: text - mission number - left packed with null
-[136:148] 12: unknown
-[148:176] 28: unknown
-[176:180]  4: unsigned long - numSampleFrames
-[180:192] 12: unknown
-[192:] --: soundData
-
  0 3   n a r r a t i o n
 3033206E6172726174696F6E0000000000000000000000000000000000000000
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-32: name packed with null
+32: name - right packed with null
 
  s o u n         0 3 n a
 736F756E        30336E61
-                ^^^^^^^^
 4: tag type     4: tag ID
 
-00000001 00050002 00000040 000B0D8A 00000000
-                ^          ^^^^^^^^
-20: unknown - varies       (724362) (see 000B0D2A below)
+00000001 00050002 00000040
+12: unknown
+
+dec: 724362
+000B0D8A
+4: unknown - possibly a length/offset value
+- always 64 bytes short of the full file byte length
+- see also 000B0D2A below
+
+00000000
+4: unknown
 
  m y t h
 6D797468
 4: tag version
 
 00000000 0001FFFF 01000100 00000100 0000FFFE 00000060
-24: unknown - constant
+24: unknown
 
+dec: 724266
 000B0D2A
-^^^^^^^^
-4: unknown - varies (724266) (diff between this and earlier 000B0D8A is 96)
+4: unknown - possibly a length/offset value
+- a variable (160-256) bytes short of the full file byte length
+- see also 000B0D8A above
 
 00000000 00000000 00000001 00000040 00000020 00000000 00000000 00000000 00000000 00000000
-40: unknown - constant
+40: unknown
 
-.... 0 3
-00003033
-^^^^^^^^
-4: mission number with null first - varies
+0000
+2: unknown
 
- c o m p   ..       t i o n   # 0
-636F6D70   00      74696F6E202330
-12: unknown - constant
 
-00000000 00000000 00000000
-12: unknown - constant
+# TODO multiple variations can exist here, need to work out how many to expect from
+# previous bytes. This point onwards only applies to single variation sounds, e.g. narration
+ 0 3 c o m p ..  t i o n   # 0
+3033636F6D70 00 74696F6E202330
+14: description - null terminated with "tion #0" as padding
 
-00000001 00100001 00010000 56220000
-16: unknown - constant
+00000000 00000000 00000000 00000001 00100001 00010000 56220000
+28: unknown
 
 00005335 (21301)
-^^^^^^^^
-4: numSampleFrames - varies - used to construct AIFC header
+4: numSampleFrames - used to construct AIFC header
 
 00000000 00000000 00000000
-12: null - constant
+12: unknown
 
 0000350029A9119001911929...
 sound data
 
+
+Offsets summary:
+
+[000:032] 32: text - name - right packed with null
+[032:036]  4: text - tag type
+[036:040]  4: text - tag ID
+[040:052] 12: unknown
+[052:056]  4: unsigned long - length_a
+[056:060]  4: unknown
+[060:064]  4: text - tag version
+[064:088] 24: unknown
+[088:092]  4: unsigned long - length_b
+[092:132] 40: unknown
+[132:134]  2: unknown
+[134:148] 14: text - desc
+[148:176] 28: unknown
+[176:180]  4: unsigned long - numSampleFrames
+[180:192] 12: unknown
+[192:] --: soundData
