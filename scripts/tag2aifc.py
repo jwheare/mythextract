@@ -25,7 +25,7 @@ def main(tag_path, aifc_path):
         if not aifc_path:
             aifc_path = f'./aifc/{tag_id}.aifc'
 
-        path = pathlib.Path(aifc_path)
+        path = pathlib.Path(aifc_path).with_suffix('.aifc')
 
         perm_count = len(permutations)
 
