@@ -27,12 +27,14 @@ def main(tag_path, aifc_path):
 
         path = pathlib.Path(aifc_path)
 
-        if prompt(aifc_path):
+        perm_count = len(permutations)
+
+        if prompt(perm_count, path):
             for i, (desc, num_channels, sample_size, num_sample_frames, sound_data) in enumerate(permutations):
                 aifc = generate_aifc(num_channels, sample_size, num_sample_frames, sound_data)
                 
                 perm_path = path
-                if (len(permutations) > 1):
+                if (perm_count > 1):
                     perm_path = path.with_stem(f'{path.stem}-{i}')
 
                 with open(perm_path, 'wb') as aifc_file:
@@ -43,14 +45,19 @@ def main(tag_path, aifc_path):
         print(f"Error: File not found - {tag_path}")
 
 
-def prompt(aifc_path):
+def prompt(perm_count, prompt_path):
     # return True
-    response = input(f"Write {aifc_path} [Y/n]: ").strip().lower()
+    prefix = ''
+    suffix = ''
+    if (perm_count > 1):
+        prompt_path = prompt_path.with_stem(f'{prompt_path.stem}-n')
+        prefix = f'{perm_count}x permutations '
+        suffix = ' (n=permutation)'
+    response = input(f"Write {prefix}to: {prompt_path}{suffix} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
 def parse_soun_tag(data):
     data_length = len(data)
-    print("Total data length: %i" % data_length)
     try:
         header = """>
             32s 4s 4s
@@ -158,12 +165,9 @@ def parse_soun_tag(data):
 
         DEBUG = True
         if DEBUG:
-            print(
-                f'perm_size = {permutation_count} x 32 = {permutations_size} '
-                f'({check_perm_size} = {actual_perm_size})'
-            )
-            print(
-                f"""meta_size = {permutation_count} x {meta_length} = {total_meta_length}
+            print(f"""Total data length: {data_length}
+perm_size = {permutation_count} x 32 = {permutations_size} ({check_perm_size} = {actual_perm_size})
+meta_size = {permutation_count} x {meta_length} = {total_meta_length}
   header[{header_size}] + soun_header[{soun_header_size}]
 + perm_size[{permutations_size}] + meta_size[{total_meta_length}]
 = header_end[{header_end}]
@@ -209,24 +213,24 @@ PSIZ: {permutations_size}
 ----- 0:{soun_header_end-header_size} = {soun_header_size}
 Perm: {len(p_descs)}"""
             )
-        for (p1, p2, p3, p_desc) in p_descs:
-            print(f"""      {p1} {p2} {p3} [{p_desc}]""")
-        print(
-            "----- "
-            f"""{soun_header_end}:{permutation_end} = {permutations_size} = {actual_perm_size}
+            for (p1, p2, p3, p_desc) in p_descs:
+                print(f"""      {p1} {p2} {p3} [{p_desc}]""")
+            print(
+                "----- "
+                f"""{soun_header_end}:{permutation_end} = {permutations_size} = {actual_perm_size}
 ----- {soun_header_end-header_size}:{permutation_end-header_size} = {permutations_size} = {actual_perm_size}
 Meta: {len(p_metas)}"""
-        )
-        for (
-            m1,
-            num_channels, sample_size,
-            m2, m3, m4,
-            sample_rate,
-            m5, m6,
-            num_sample_frames,
-            m7, m8, m9, m10, m11, m12
-        ) in p_metas:
-            print(f"""  unknown1: {m1}
+            )
+            for (
+                m1,
+                num_channels, sample_size,
+                m2, m3, m4,
+                sample_rate,
+                m5, m6,
+                num_sample_frames,
+                m7, m8, m9, m10, m11, m12
+            ) in p_metas:
+                print(f"""  unknown1: {m1}
   channels: {num_channels}
  samp_size: {sample_size}
   unknown2: {m2} {m3} {m4}
@@ -235,15 +239,15 @@ Meta: {len(p_metas)}"""
 samp_frame: {num_sample_frames}
   unknown4: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
       -----"""
-            )
-        print(
-            "----- "
-            f"""{permutation_end}:{header_end} = {total_meta_length}
+                )
+            print(
+                "----- "
+                f"""{permutation_end}:{header_end} = {total_meta_length}
 ----- {permutation_end-header_size}:{header_end-header_size} = {total_meta_length}
 AIFC: length = {sound_length}
 ----- {header_end}:{data_length} = {sound_length}
 ----- {header_end-header_size}:{data_length-header_size} = {sound_length}"""
-            )
+                )
 
         return (tag_id, permutations)
     except (struct.error, UnicodeDecodeError) as e:
