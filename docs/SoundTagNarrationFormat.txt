@@ -6,9 +6,9 @@ example tag from artsound.gor "03 narration"
 
 byte description format:
 
-    decoded representation:        F O R M
-    hex:                          464F524D
-    description                   ckId
+    representation:        F O R M
+    hex:                  464F524D (sometimes repr here)
+    description           ckId
 
 
 -----------
@@ -37,7 +37,9 @@ ckId       ckDataSize      offset     blockSize    soundData
 --------------------
 TFL sound tag header
 
- 0 3   n a r r a t i o n
+64 bytes, standard tag header
+
+ 0 3   n a r r a t i o n........................................
 3033206E6172726174696F6E0000000000000000000000000000000000000000
 32: name - right packed with null
 
@@ -45,52 +47,137 @@ TFL sound tag header
 736F756E        30336E61
 4: tag type     4: tag ID
 
-00000001 00050002 00000040
-12: unknown
+0000 0001 0005 0002 0000 
+10: unknown
 
-dec: 724362
-000B0D8A
-4: unknown - possibly a length/offset value
-- always 64 bytes short of the full file byte length
-- see also 000B0D2A below
+0040
+2: tag data offset (start of soun specific header)
+- taken from very start of tag (always 64, length of this standard header)
 
-00000000
+000B0D8A (dec: 724362)
+4: tag data size
+- size of tag data excluding this standard header
+
+0000 0000
 4: unknown
 
  m y t h
 6D797468
 4: tag version
 
-00000000 0001FFFF 01000100 00000100 0000FFFE 00000060
-24: unknown
+----
 
-dec: 724266
-000B0D2A
-4: unknown - possibly a length/offset value
-- a variable (160-256) bytes short of the full file byte length
-- see also 000B0D8A above
+64 bytes, soun specific header
 
-00000000 00000000 00000001 00000040 00000020 00000000 00000000 00000000 00000000 00000000
-40: unknown
+00 00 00 00
+4: flags - various bit flippers
+
+0001
+2: loudness
+
+FFFF
+2: play_fraction
+
+0100
+2: external_frequency_modifier
+
+0100
+2: pitch_lower_bound
+
+0000
+2: pitch_delta
+
+0100
+2: volume_lower_bound
+
+0000
+2: volume_delta
+
+FFFE
+2: first_subtitle_within_string_list_index
+
+00000060 (dec: 192)
+4: sound_offset
+- start of the permutation encoding metadata chunk
+- taken from the end of the standard tag header/start of the soun specific header
+
+000B0D2A (dec: 724266)
+4: sound size
+- this is the total length of the sound data plus the permutation encoding metadata
+
+00000000
+4: subtitle_string_list_tag
+
+0000
+2: subtitle_string_list_index
+
+0000
+2: unused
+
+00000001 (dec: 1)
+4: permutation count
+
+00000040  (dec: 64 - always)
+4: permutation offset
+- start of permutation info chunk
+- taken from the end of the standard tag header/start of the soun specific header
+
+00000020 (dec: 32)
+4: permutation size (32 * permutation count)
+
+0000 0000 0000 0000 0000 0000 0000 0000
+16: unknown
+
+---
+
+32 bytes of info for each permutation count
+
+0000 0000 0000
+6: unknown
+
+ 0 3 c o m p.. t i o n    # 0........................
+3033636F6D700074696F6E20 2330000000000000000000000000
+26: description - null terminated and padded
+anything after the first null byte is junk data
+e.g. "tion #0" is what remains of placeholder text "permutation #0"
+
+---
+
+32 bytes of encoding metadata for each permutation count
 
 0000
 2: unknown
 
+0001
+2: num_channels (always 1) - used to construct AIFC header
 
-# TODO multiple variations can exist here, need to work out how many to expect from
-# previous bytes. This point onwards only applies to single variation sounds, e.g. narration
- 0 3 c o m p ..  t i o n   # 0
-3033636F6D70 00 74696F6E202330
-14: description - null terminated with "tion #0" as padding
+0010
+2: sample_size (always 16) - used to construct AIFC header
 
-00000000 00000000 00000000 00000001 00100001 00010000 56220000
-28: unknown
+0001 0001 0000
+6: unknown
 
-00005335 (21301)
-4: numSampleFrames - used to construct AIFC header
+5622 (22050)
+2: sampleRate (always 22050Hz) - used to construct AIFC header
 
-00000000 00000000 00000000
+0000 0000
+4: unknown
+
+5335 (21301)
+2: numSampleFrames - used to construct AIFC header
+- multiply this value by 34 to get the length of this permutations sound data
+- see IMA 4:1 aka QuickTime ADPCM https://wiki.multimedia.cx/index.php/Apple_QuickTime_IMA_ADPCM
+  > In any given IMA-encoded QuickTime file, the size of an individual block of
+  > IMA nibbles is stored in the bytes/packet field present in the extended audio
+  > information portion in an audio stsd atom. However, this size always seems to
+  > be 34 bytes/block. Sometimes, IMA-encoded Quicktime files are missing the
+  > extended wave information header. In this case, assume that each IMA block is
+  > 34 bytes.
+
+0000 0000 0000 0000 0000 0000
 12: unknown
+
+---
 
 0000350029A9119001911929...
 sound data
@@ -102,15 +189,41 @@ Offsets summary:
 [032:036]  4: text - tag type
 [036:040]  4: text - tag ID
 [040:052] 12: unknown
-[052:056]  4: unsigned long - length_a
+[052:056]  4: tag_data_size
 [056:060]  4: unknown
 [060:064]  4: text - tag version
-[064:088] 24: unknown
-[088:092]  4: unsigned long - length_b
-[092:132] 40: unknown
-[132:134]  2: unknown
-[134:148] 14: text - desc
-[148:176] 28: unknown
-[176:180]  4: unsigned long - numSampleFrames
-[180:192] 12: unknown
-[192:] --: soundData
+------------- end of standard header -------------
+[064:068]  4: flags
+[068:070]  2: loudness
+[070:072]  2: play_fraction
+[072:074]  2: external_frequency_modifier
+[074:076]  2: pitch_lower_bound
+[076:078]  2: pitch_delta
+[078:080]  2: volume_lower_bound
+[080:082]  2: volume_delta
+[082:084]  2: first_subtitle_within_string_list_index
+[084:088]  4: sound_offset
+[088:092]  4: sound_size
+[092:096]  4: subtitle_string_list_tag
+[096:098]  2: subtitle_string_list_index
+[098:100]  2: unused
+[100:104]  4: permutation count
+[104:108]  4: permutation offset
+[108:112]  4: permutation size
+[112:128] 16: unknown
+------------- end of soun header -------------
+        repeat permutation count times
+[128:134]  6: unknown
+[134:160] 26: text - permutation name/desc
+------------- end of permutation info -------------
+        repeat permutation count times
+[000:+02]  2: unknown
+[+02:+04]  2: num_channels
+[+04:+06]  2: sample_size
+[+06:+12]  6: unknown
+[+12:+14]  2: sample_rate
+[+14:+18]  4: unknown
+[+18:+20]  2: numSampleFrames
+[+20:+32] 12: unknown
+------------- end of permutation encoding info -------------
+[:remain]  --: soundData

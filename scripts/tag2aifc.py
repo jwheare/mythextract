@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 import sys
 import struct
+import pathlib
 
+
+AIFC_VERSION_1 = 2726318400
+SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
+IMA4_BYTES_PER_FRAME = 34
 
 def main(tag_path, aifc_path):
     """
@@ -15,17 +20,24 @@ def main(tag_path, aifc_path):
         with open(tag_path, 'rb') as infile:
             data = infile.read()
 
-        (tag_id, num_sample_frames, sound_data) = parse_soun_tag(data)
+        (tag_id, permutations) = parse_soun_tag(data)
 
         if not aifc_path:
             aifc_path = f'./aifc/{tag_id}.aifc'
 
-        aifc = generate_aifc(num_sample_frames, sound_data)
-        
+        path = pathlib.Path(aifc_path)
+
         if prompt(aifc_path):
-            with open(aifc_path, 'wb') as aifc_file:
-                aifc_file.write(aifc)
-                print(f"AIFC extracted. Output saved to {aifc_path}")
+            for i, (desc, num_channels, sample_size, num_sample_frames, sound_data) in enumerate(permutations):
+                aifc = generate_aifc(num_channels, sample_size, num_sample_frames, sound_data)
+                
+                perm_path = path
+                if (len(permutations) > 1):
+                    perm_path = path.with_stem(f'{path.stem}-{i}')
+
+                with open(perm_path, 'wb') as aifc_file:
+                    aifc_file.write(aifc)
+                    print(f"AIFC extracted. Output saved to {perm_path} ({desc})")
     
     except FileNotFoundError:
         print(f"Error: File not found - {tag_path}")
@@ -36,110 +48,214 @@ def prompt(aifc_path):
     response = input(f"Write {aifc_path} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
-# [000:032] 32: text - name - right packed with null
-# [032:036]  4: text - tag type
-# [036:040]  4: text - tag ID
-# [040:052] 12: unknown
-# [052:056]  4: unsigned long - length_a
-# [056:060]  4: unknown
-# [060:064]  4: text - tag version
-# [064:088] 24: unknown
-# [088:092]  4: unsigned long - length_b
-# [092:132] 40: unknown
-# [132:134]  2: unknown
-# [134:148] 14: text - desc
-# [148:176] 28: unknown
-# [176:180]  4: unsigned long - numSampleFrames
-# [180:192] 12: unknown
-# [192:]    --: soundData
-
-
 def parse_soun_tag(data):
     data_length = len(data)
     print("Total data length: %i" % data_length)
-    header_size = 192
-
-    if data_length < header_size:
-        raise ValueError(
-            "Binary data is too short for expected header format (%i)" %
-            header_size
-        )
     try:
+        header = """>
+            32s 4s 4s
+            H H H H H H
+            I
+            H H
+            4s
+        """
+        header_size = struct.calcsize(header)
         (
             name, tag_type, tag_id,
-            a1, a2, a3,
-            length_a,
-            b1,
-            tag_version,
-            c1, c2, c3, c4, c5, c6,
-            length_b,
-            d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11,
-            desc,
-            e1, e2, e3, e4, e5, e6, e7,
-            num_sample_frames,
-            f1, f2, f3,
-        ) = struct.unpack(""">
-            32s 4s 4s
-            3I
-            I
-            I
-            4s
-            6I
-            I
-            10I h
-            14s
-            7I
-            I
-            3I
-        """, data[:header_size])
+            a1, a2, a3, a4, a5,
+            tag_data_offset, tag_data_size,
+            b1, b2,
+            tag_version
+        ) = struct.unpack(header, data[:header_size])
+        soun_header = """>
+            L h H H
+            H H H H
+
+            H
+            L L
+
+            L H H
+            L L L
+
+            I I I I
+        """
+        soun_header_size = struct.calcsize(soun_header)
+        soun_header_end = header_size + soun_header_size
+        (
+            flags, loudness, play_fraction, external_frequency_modifier,
+            pitch_lower_bound, pitch_delta, volume_lower_bound, volume_delta,
+
+            first_subtitle_within_string_list_index,
+            sound_offset, sound_size,
+
+            subtitle_string_list_tag, subtitle_string_list_index, unused,
+            permutation_count, permutations_offset, permutations_size,
+
+            d6, d7, d8, d9
+        ) = struct.unpack(soun_header, data[header_size:soun_header_end])
+
+        permutation_end = soun_header_end + permutations_size
+        meta_struct = """>
+            H
+            H H
+            H H H
+            H
+            H H
+            H
+            H H H H H H
+        """
+        perm_size = 32
+        check_perm_size = permutation_count * perm_size
+        actual_perm_size = permutation_end - soun_header_end
+        meta_length = struct.calcsize(meta_struct)
+        total_meta_length = (permutation_count * meta_length)
+
+        header_end = permutation_end + total_meta_length
+        sound_data = data[header_end:]
+        sound_length = len(sound_data)
+
+        # Accumulators
+        p_descs = []
+        p_metas = []
+        permutations = []
+
+        sound_data_offset = 0
+        total_sample_frames = 0
+        for perm_i in range(permutation_count):
+            start = soun_header_end + (perm_i * perm_size)
+            end = start + perm_size
+            (p1, p2, p3, p_desc,) = struct.unpack(">H H H 26s", data[start:end])
+            p_desc = p_desc.split(b'\0', 1)[0].decode('mac-roman')
+            p_descs.append((p1, p2, p3, p_desc))
+
+            meta_start = permutation_end + (perm_i * meta_length)
+            meta_end = meta_start + meta_length
+            p_meta = (
+                m1,
+                num_channels, sample_size,
+                m2, m3, m4,
+                sample_rate,
+                m5, m6,
+                num_sample_frames,
+                m7, m8, m9, m10, m11, m12
+            ) = struct.unpack(meta_struct, data[meta_start:meta_end])
+            permutation_sound_length = num_sample_frames * IMA4_BYTES_PER_FRAME
+            permutation_sound_end = sound_data_offset + permutation_sound_length
+            perm_sound_data = sound_data[sound_data_offset:permutation_sound_end]
+
+            permutations.append((p_desc, num_channels, sample_size, num_sample_frames, perm_sound_data))
+            p_metas.append(p_meta)
+
+            sound_data_offset = permutation_sound_end
+            total_sample_frames = total_sample_frames + num_sample_frames
+
         name = name.rstrip(b'\0').decode('mac-roman')
         tag_type = tag_type.decode('mac-roman')
-        # TODO variations, this only works for single variation sounds, e.g. narrations
-        # As such the later data is also incorrectly parsed and produces corrupt files
-        desc = desc.split(b'\0', 1)[0].decode('mac-roman')
         tag_id = tag_id.decode('mac-roman')
         tag_version = tag_version.decode('mac-roman')
 
-        sound_data = data[header_size:]
-        sound_length = len(sound_data)
-        print(""" Tag: [%s]
-Type: [%s]
-  ID: [%s]
-Vers: [%s]
-Desc: [%s]
-length_a=%i [diff=%i] length_b=%i [diff=%i]
-numSampleFrames: %i
-sound length: %i""" % (
-            name,
-            tag_type, tag_id,
-            tag_version, desc,
-            length_a, data_length - length_a, length_b, data_length - length_b,
-            num_sample_frames, sound_length
-        ))
-        print('a', a1, a2, a3)
-        print('b', b1)
-        print('c', c1, c2, c3, c4, c5, c6)
-        print('d', d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11)
-        print('e', e1, e2, e3, e4, e5, e6, e7)
-        print('f', f1, f2, f3)
-        print('from length_a', data[length_a:].hex())
-        print('from length_b', data[length_b:].hex())
+        total_sample_frames * IMA4_BYTES_PER_FRAME
+
+        DEBUG = True
+        if DEBUG:
+            print(
+                f'perm_size = {permutation_count} x 32 = {permutations_size} '
+                f'({check_perm_size} = {actual_perm_size})'
+            )
+            print(
+                f"""meta_size = {permutation_count} x {meta_length} = {total_meta_length}
+  header[{header_size}] + soun_header[{soun_header_size}]
++ perm_size[{permutations_size}] + meta_size[{total_meta_length}]
+= header_end[{header_end}]
+sound length: {sound_length}
+-----
+ Tag: [{name}]
+Type: [{tag_type}]
+  ID: [{tag_id}]
+  a1: {a1}
+  a2: {a2}
+  a3: {a3}
+  a4: {a4}
+  a5: {a5}
+TDOF: {tag_data_offset}
+TDSZ: {tag_data_size}
+  b1: {b1}
+  b2: {b2}
+Vers: [{tag_version}]
+----- 0:{header_size} = {header_size}
+flag: {flags}
+loud: {loudness}
+  pf: {play_fraction}
+ efm: {external_frequency_modifier}
+ plb: {pitch_lower_bound}
+  pd: {pitch_delta}
+ vlb: {volume_lower_bound}
+  vd: {volume_delta}
+-----
+fsli: {first_subtitle_within_string_list_index}
+SOFF: {sound_offset}
+SSIZ: {sound_size}
+ slt: {subtitle_string_list_tag}
+ sli: {subtitle_string_list_index}
+unus: {unused}
+PCNT: {permutation_count}
+POFF: {permutations_offset}
+PSIZ: {permutations_size}
+  d6: {d6}
+  d7: {d7}
+  d8: {d8}
+  d9: {d9}
+----- {header_size}:{soun_header_end} = {soun_header_size}
+----- 0:{soun_header_end-header_size} = {soun_header_size}
+Perm: {len(p_descs)}"""
+            )
+        for (p1, p2, p3, p_desc) in p_descs:
+            print(f"""      {p1} {p2} {p3} [{p_desc}]""")
+        print(
+            "----- "
+            f"""{soun_header_end}:{permutation_end} = {permutations_size} = {actual_perm_size}
+----- {soun_header_end-header_size}:{permutation_end-header_size} = {permutations_size} = {actual_perm_size}
+Meta: {len(p_metas)}"""
+        )
+        for (
+            m1,
+            num_channels, sample_size,
+            m2, m3, m4,
+            sample_rate,
+            m5, m6,
+            num_sample_frames,
+            m7, m8, m9, m10, m11, m12
+        ) in p_metas:
+            print(f"""  unknown1: {m1}
+  channels: {num_channels}
+ samp_size: {sample_size}
+  unknown2: {m2} {m3} {m4}
+ samp_rate: {sample_rate}
+  unknown3: {m5} {m6}
+samp_frame: {num_sample_frames}
+  unknown4: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
+      -----"""
+            )
+        print(
+            "----- "
+            f"""{permutation_end}:{header_end} = {total_meta_length}
+----- {permutation_end-header_size}:{header_end-header_size} = {total_meta_length}
+AIFC: length = {sound_length}
+----- {header_end}:{data_length} = {sound_length}
+----- {header_end-header_size}:{data_length-header_size} = {sound_length}"""
+            )
+
+        return (tag_id, permutations)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-    return (tag_id, num_sample_frames, sound_data)
 
-
-def generate_aifc(num_sample_frames, sound_data):
-    AIFC_VERSION_1 = 2726318400
-    sample_rate_80_float = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
-    num_channels = 1
-    sample_size = 16
+def generate_aifc(num_channels, sample_size, num_sample_frames, sound_data):
     offset = 0
     block_size = 0
     comm_data = struct.pack(
         ">h L h 10s 4s 8p", 
-        num_channels, num_sample_frames, sample_size, sample_rate_80_float,
+        num_channels, num_sample_frames, sample_size, SAMPLE_RATE_80_FLOAT_22050,
         b'ima4', b'IMA 4:1'
     )
     comm_length = len(comm_data)
