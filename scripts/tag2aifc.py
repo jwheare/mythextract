@@ -9,6 +9,7 @@ TAG_HEADER_SIZE = 64
 AIFC_VERSION_1 = 2726318400
 SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
 IMA4_BYTES_PER_FRAME = 34
+IMA_COMPRESSION_RATIO = 4
 
 TFLHeaderFmt = """>
     32s 4s 4s
@@ -160,8 +161,7 @@ def parse_soun_tag(data):
             H
             H
             H
-            H
-            H
+            I
             H
             I
             H H H H H H
@@ -197,11 +197,10 @@ def parse_soun_tag(data):
                 sample_size,
                 m3,
                 num_channels,
-                m4,
                 sample_rate,
-                m5,
+                m4,
                 num_sample_frames,
-                m7, m8, m9, m10, m11, m12
+                m5, m6, m7, m8, m9, m10
             ) = struct.unpack(meta_struct, data[meta_start:meta_end])
             permutation_sound_length = num_sample_frames * IMA4_BYTES_PER_FRAME
             permutation_sound_end = sound_data_offset + permutation_sound_length
@@ -272,14 +271,13 @@ Meta: {len(p_metas)}"""
                 sample_size,
                 m3,
                 num_channels,
-                m4,
                 sample_rate,
-                m5,
+                m4,
                 num_sample_frames,
-                m7, m8, m9, m10, m11, m12
+                m5, m6, m7, m8, m9, m10
             ) in p_metas:
                 perm_size = num_sample_frames * IMA4_BYTES_PER_FRAME
-                perm_s = round(num_sample_frames / sample_rate * num_channels * sample_size, 3)
+                perm_s = round((IMA_COMPRESSION_RATIO * sample_size * num_sample_frames) / (num_channels * sample_rate), 3)
                 perm_m = round(perm_s // 60)
                 perm_rem_s = round(perm_s % 60, 3)
 
@@ -287,11 +285,10 @@ Meta: {len(p_metas)}"""
   channels: {num_channels}
   unknown2: {m3}
  samp_size: {sample_size}
-  unknown3: {m4}
  samp_rate: {sample_rate}
-  unknown4: {m5}
+  unknown4: {m4}
 samp_frame: {num_sample_frames}
-  unknown5: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
+  unknown5: {m5} {m6} {m7} {m8} {m9} {m10}
 [soun_len]: {num_sample_frames} * {IMA4_BYTES_PER_FRAME} = {perm_size}
 [soun_dur]: {perm_s}s / {perm_m}m{perm_rem_s}s
       -----"""
