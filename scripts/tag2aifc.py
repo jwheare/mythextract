@@ -103,9 +103,11 @@ def parse_soun_tag(data):
 
         permutation_end = soun_header_end + permutations_size
         meta_struct = """>
-            H
             H H
-            H H H
+            H
+            H
+            H
+            H
             H
             H H
             H
@@ -138,9 +140,11 @@ def parse_soun_tag(data):
             meta_start = permutation_end + (perm_i * meta_length)
             meta_end = meta_start + meta_length
             p_meta = (
-                m1,
-                num_channels, sample_size,
-                m2, m3, m4,
+                m1, m2,
+                sample_size,
+                m3,
+                num_channels,
+                m4,
                 sample_rate,
                 m5, m6,
                 num_sample_frames,
@@ -222,22 +226,26 @@ Perm: {len(p_descs)}"""
 Meta: {len(p_metas)}"""
             )
             for (
-                m1,
-                num_channels, sample_size,
-                m2, m3, m4,
+                m1, m2,
+                sample_size,
+                m3,
+                num_channels,
+                m4,
                 sample_rate,
                 m5, m6,
                 num_sample_frames,
                 m7, m8, m9, m10, m11, m12
             ) in p_metas:
-                print(f"""  unknown1: {m1}
+                print(f"""  unknown1: {m1} {m2}
   channels: {num_channels}
+  unknown2: {m3}
  samp_size: {sample_size}
-  unknown2: {m2} {m3} {m4}
+  unknown3: {m4}
  samp_rate: {sample_rate}
-  unknown3: {m5} {m6}
+  unknown4: {m5} {m6}
 samp_frame: {num_sample_frames}
-  unknown4: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
+  unknown5: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
+[soun_len]: {num_sample_frames} * {IMA4_BYTES_PER_FRAME} = {num_sample_frames * IMA4_BYTES_PER_FRAME}
       -----"""
                 )
             print(
