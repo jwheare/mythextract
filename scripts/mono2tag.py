@@ -9,6 +9,7 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 GOR_HEADER_SIZE = 64
 TAG_HEADER_SIZE = 64
+PRE_TAG_HEADER_SIZE = 112
 SB_INSTALL_HEADER_SIZE = 128
 
 # 
@@ -124,37 +125,67 @@ def main(mono_path, tag_type, tag_id, output_file):
     try:
         data_size = len(data)
 
-        game_version = data[:4]
-        is_tfl = game_version == b'\x00\x01\x00\x01'
-        is_sb = game_version == b'\x00\x03\x00\x00'
+        game_version = data[:2]
+        is_tfl = game_version == b'\x00\x01'
+        is_sb = game_version == b'\x00\x03' or game_version == b'\x00\x02'
 
         if not is_tfl and not is_sb:
-            raise ValueError(f"Incompatible game version: {game_version}")
+            raise ValueError(f"Incompatible game version: {game_version.hex()}")
 
         if is_tfl:
             header = parse_gor_header(data[:GOR_HEADER_SIZE])
 
             tag_count = header.tag_list_count
             header_size = header.header_size
+
+            pre_tag_count = 0
+            pre_tag_list_start = header_size
+            pre_tag_size = 0
+
             tag_list_start = header.tag_list_offset
 
             print(header)
         elif is_sb:
             # For SB install files we just assume the header size and read the tag count
             # from a hard coded offset, the tag list starts immediately after the header
-            (tag_count,) = struct.unpack('>H', data[102:104])
+            (pre_tag_count, tag_count) = struct.unpack('>H H', data[100:104])
             header_size = SB_INSTALL_HEADER_SIZE
-            tag_list_start = header_size
+
+            pre_tag_list_start = header_size
+            pre_tag_size = pre_tag_count * PRE_TAG_HEADER_SIZE
+
+            tag_list_start = pre_tag_list_start + pre_tag_size
 
         tag_list_size = data_size - tag_list_start
         print('   tag list start', tag_list_start)
         print('total file length', data_size)
-        print('    tag list size', tag_list_size)
+        print('    pre tag count', pre_tag_count)
+        print('     pre tag size', pre_tag_size)
         print('        tag count', tag_count)
+        print('    tag list size', tag_list_size)
         print('      header size', header_size)
+
+        if pre_tag_count:
+            print(
+                """
+Pre tags
+------+----------------------------------+------------------------------------------------------------------+
+ id   | name                             | long
+------+----------------------------------+------------------------------------------------------------------+"""
+            )
+        for i in range(pre_tag_count):
+            start = pre_tag_list_start + (i * PRE_TAG_HEADER_SIZE)
+            end = start + PRE_TAG_HEADER_SIZE
+            pre_tag_header_data = data[start:end]
+            (p_tag_id, p_tag_name, p_tag_long_name) = struct.unpack('>16s 32s 64s', pre_tag_header_data)
+            p_tag_id = p_tag_id.rstrip(b'\0').decode('mac-roman')
+            p_tag_name = p_tag_name.rstrip(b'\0').decode('mac-roman')
+            p_tag_long_name = p_tag_long_name.rstrip(b'\0').decode('mac-roman')
+            print(f' {p_tag_id: <4} | {p_tag_name: <32} | {p_tag_long_name: <64}')
 
         print(
             """
+Tags
 -----+------+------+------+-------
  idx | game | type | id   | name 
 -----+------+------+------+-------"""
