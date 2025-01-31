@@ -8,23 +8,52 @@ from collections import namedtuple
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 GOR_HEADER_SIZE = 64
+SB_MONO_HEADER_SIZE = 128
 TAG_HEADER_SIZE = 64
 PRE_TAG_HEADER_SIZE = 112
-SB_INSTALL_HEADER_SIZE = 128
 
 # 
-# Myth II: international large install header
+# Myth II: monolith header
 # 
-# 00030000
-# ^ 4: mth2 install file identifier
+# 0003          0000
+# 2: unknown    2: unknown
+# 
 # 696E7465726E6174696F6E616C206C6172676520696E7374616C6C0005920848
-# ^ 32: name
-# 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-# 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-# 0000 0000 0000 001A 8194 DA46 0000 0000 03A6 99D0 A9C6 F5AF 4200 0028 646E 6732
-#                ^ 2: tag count (at offset 102)
+# 0000000000000000000000000000000000000000000000000000000000000000
+# 0000000000000000000000000000000000000000000000000000000000000000
+# 96: name
+# 
+# 0000
+# 2: pre tag count (at offset 100)
+# 
+# 001A
+# 2: tag count (at offset 102)
+# 
+# 8194 DA46 0000 0000 03A6 99D0 A9C6 F5AF 4200 0028
+# 20: unknown
+# 
+#  d n g 2
+# 646E6732
+# 4: myth 2 tag format signature
+#  
 # list of tags starts here
-
+SBMonoHeaderFmt = """>
+    h h
+    32s
+    64s
+    H H
+    H H I H H H H H H
+    4s
+"""
+SBMonoHeader = namedtuple('SBMonoHeader', [
+    'u1', 'u2',
+    'name',
+    'description',
+    'pre_tag_count',
+    'tag_list_count',
+    'u3', 'u4', 'u5', 'u6', 'u7', 'u8', 'u9', 'u10', 'u11',
+    'identifier'
+])
 
 #
 # artsound.gor header
@@ -125,15 +154,16 @@ def main(mono_path, tag_type, tag_id, output_file):
     try:
         data_size = len(data)
 
-        game_version = data[:2]
-        is_tfl = game_version == b'\x00\x01'
-        is_sb = game_version == b'\x00\x03' or game_version == b'\x00\x02'
+        is_tfl = data[:4] == b'\x00\x01\x00\x01'
+        is_sb = data[124:128] == b'dng2'
 
         if not is_tfl and not is_sb:
-            raise ValueError(f"Incompatible game version: {game_version.hex()}")
+            raise ValueError("Incompatible game version")
 
         if is_tfl:
             header = parse_gor_header(data[:GOR_HEADER_SIZE])
+            print(header)
+            print(header.name)
 
             tag_count = header.tag_list_count
             header_size = header.header_size
@@ -143,20 +173,21 @@ def main(mono_path, tag_type, tag_id, output_file):
             pre_tag_size = 0
 
             tag_list_start = header.tag_list_offset
-
-            print(header)
         elif is_sb:
-            # For SB install files we just assume the header size and read the tag count
-            # from a hard coded offset, the tag list starts immediately after the header
-            (pre_tag_count, tag_count) = struct.unpack('>H H', data[100:104])
-            header_size = SB_INSTALL_HEADER_SIZE
+            header = parse_sb_mono_header(data[:SB_MONO_HEADER_SIZE])
+            print(header)
+            print(header.name)
+            print(header.description)
+            tag_count = header.tag_list_count
+            header_size = SB_MONO_HEADER_SIZE
 
+            pre_tag_count = header.pre_tag_count
             pre_tag_list_start = header_size
             pre_tag_size = pre_tag_count * PRE_TAG_HEADER_SIZE
 
             tag_list_start = pre_tag_list_start + pre_tag_size
 
-        tag_list_size = data_size - tag_list_start
+        tag_list_size = tag_list_start + (tag_count * TAG_HEADER_SIZE)
         print('   tag list start', tag_list_start)
         print('total file length', data_size)
         print('    pre tag count', pre_tag_count)
@@ -178,9 +209,9 @@ Pre tags
             end = start + PRE_TAG_HEADER_SIZE
             pre_tag_header_data = data[start:end]
             (p_tag_id, p_tag_name, p_tag_long_name) = struct.unpack('>16s 32s 64s', pre_tag_header_data)
-            p_tag_id = p_tag_id.rstrip(b'\0').decode('mac-roman')
-            p_tag_name = p_tag_name.rstrip(b'\0').decode('mac-roman')
-            p_tag_long_name = p_tag_long_name.rstrip(b'\0').decode('mac-roman')
+            p_tag_id = p_tag_id.split(b'\0', 1)[0].decode('mac-roman')
+            p_tag_name = p_tag_name.split(b'\0', 1)[0].decode('mac-roman')
+            p_tag_long_name = p_tag_long_name.split(b'\0', 1)[0].decode('mac-roman')
             print(f' {p_tag_id: <4} | {p_tag_name: <32} | {p_tag_long_name: <64}')
 
         print(
@@ -240,7 +271,13 @@ def prompt(prompt_path):
 def parse_gor_header(header):
     gor = GORHeader._make(struct.unpack(GORHeaderFmt, header))
     return gor._replace(
-        name=gor.name.rstrip(b'\0').decode('mac-roman'),
+        name=gor.name.split(b'\0', 1)[0].decode('mac-roman'),
+    )
+def parse_sb_mono_header(header):
+    mono = SBMonoHeader._make(struct.unpack(SBMonoHeaderFmt, header))
+    return mono._replace(
+        name=mono.name.split(b'\0', 1)[0].decode('mac-roman'),
+        description=mono.description.split(b'\0', 1)[0].decode('mac-roman'),
     )
 
 def parse_tfl_header(header):
@@ -251,7 +288,7 @@ def parse_sb_header(header):
 
 def decode_header(header):
     return header._replace(
-        name=header.name.rstrip(b'\0').decode('mac-roman'),
+        name=header.name.split(b'\0', 1)[0].decode('mac-roman'),
         tag_type=header.tag_type.decode('mac-roman'),
         tag_id=header.tag_id.decode('mac-roman'),
         tag_version=header.tag_version.decode('mac-roman')

@@ -107,7 +107,7 @@ def parse_sb_header(header):
 
 def decode_header(header):
     return header._replace(
-        name=header.name.rstrip(b'\0').decode('mac-roman'),
+        name=header.name.split(b'\0', 1)[0].decode('mac-roman'),
         tag_type=header.tag_type.decode('mac-roman'),
         tag_id=header.tag_id.decode('mac-roman'),
         tag_version=header.tag_version.decode('mac-roman')
