@@ -162,8 +162,8 @@ def parse_soun_tag(data):
             H
             H
             H
-            H H
             H
+            I
             H H H H H H
         """
         perm_size = 32
@@ -199,7 +199,7 @@ def parse_soun_tag(data):
                 num_channels,
                 m4,
                 sample_rate,
-                m5, m6,
+                m5,
                 num_sample_frames,
                 m7, m8, m9, m10, m11, m12
             ) = struct.unpack(meta_struct, data[meta_start:meta_end])
@@ -274,20 +274,26 @@ Meta: {len(p_metas)}"""
                 num_channels,
                 m4,
                 sample_rate,
-                m5, m6,
+                m5,
                 num_sample_frames,
                 m7, m8, m9, m10, m11, m12
             ) in p_metas:
+                perm_size = num_sample_frames * IMA4_BYTES_PER_FRAME
+                perm_s = round(num_sample_frames / sample_rate * num_channels * sample_size, 3)
+                perm_m = round(perm_s // 60)
+                perm_rem_s = round(perm_s % 60, 3)
+
                 print(f"""  unknown1: {m1} {m2}
   channels: {num_channels}
   unknown2: {m3}
  samp_size: {sample_size}
   unknown3: {m4}
  samp_rate: {sample_rate}
-  unknown4: {m5} {m6}
+  unknown4: {m5}
 samp_frame: {num_sample_frames}
   unknown5: {m7} {m7} {m8} {m9} {m10} {m11} {m12}
-[soun_len]: {num_sample_frames} * {IMA4_BYTES_PER_FRAME} = {num_sample_frames * IMA4_BYTES_PER_FRAME}
+[soun_len]: {num_sample_frames} * {IMA4_BYTES_PER_FRAME} = {perm_size}
+[soun_dur]: {perm_s}s / {perm_m}m{perm_rem_s}s
       -----"""
                 )
             print(
