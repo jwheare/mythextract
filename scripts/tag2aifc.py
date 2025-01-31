@@ -2,6 +2,7 @@
 import sys
 import struct
 import pathlib
+from collections import namedtuple
 
 
 AIFC_VERSION_1 = 2726318400
@@ -20,10 +21,10 @@ def main(tag_path, aifc_path):
         with open(tag_path, 'rb') as infile:
             data = infile.read()
 
-        (tag_id, permutations) = parse_soun_tag(data)
+        (game_version, tag_id, permutations) = parse_soun_tag(data)
 
         if not aifc_path:
-            aifc_path = f'./aifc/{tag_id}.aifc'
+            aifc_path = f'./aifc/{game_version}-{tag_id}.aifc'
 
         path = pathlib.Path(aifc_path).with_suffix('.aifc')
 
@@ -56,29 +57,83 @@ def prompt(perm_count, prompt_path):
     response = input(f"Write {prefix}to: {prompt_path}{suffix} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
+TAG_HEADER_SIZE = 64
+TFLHeader = namedtuple('TFLHeader', [
+    # 3033206E6172726174696F6E0000000000000000000000000000000000000000
+    'name',
+    # 736F756E   30336E61
+    'tag_type', 'tag_id',
+    # 0000 0001  0005  0002
+    'u1', 'u2', 'u3', 'u4',
+    # 00000040          000B0D8A
+    'tag_data_offset', 'tag_data_size',
+    # 0000 0000
+    'u5', 'u6',
+    # 6D797468
+    'tag_version'
+])
+TFLHeaderFmt = """>
+    32s 4s 4s
+    H H H H
+    i l
+    H H
+    4s
+"""
+def parse_tfl_header(header):
+    return decode_header(TFLHeader._make(struct.unpack(TFLHeaderFmt, header)))
+
+SBHeader = namedtuple('SBHeader', [
+    # FFFF         00       00
+    'identifier', 'flags', 'type',
+    # 6E61722030320000000000000000000000000000000000000000000000000000
+    'name',
+    # 736F756E   6E613032
+    'tag_type', 'tag_id',
+    # 00000040          001A5CB4
+    'tag_data_offset', 'tag_data_size',
+    # 00000000    0001       FF             FF
+    'user_data', 'version', 'destination', 'owner_index',
+    # 6D746832
+    'tag_version'
+])
+SBHeaderFmt = """>
+    h b b
+    32s 4s 4s
+    i l
+    L h b b
+    4s
+"""
+def parse_sb_header(header):
+    return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
+
+def decode_header(header):
+    return header._replace(
+        name=header.name.rstrip(b'\0').decode('mac-roman'),
+        tag_type=header.tag_type.decode('mac-roman'),
+        tag_id=header.tag_id.decode('mac-roman'),
+        tag_version=header.tag_version.decode('mac-roman')
+    )
+
 def parse_soun_tag(data):
-    data_length = len(data)
     try:
-        header = """>
-            32s 4s 4s
-            H H H H H H
-            I
-            H H
-            4s
-        """
-        header_size = struct.calcsize(header)
-        (
-            name, tag_type, tag_id,
-            a1, a2, a3, a4, a5,
-            tag_data_offset, tag_data_size,
-            b1, b2,
-            tag_version
-        ) = struct.unpack(header, data[:header_size])
+        data_length = len(data)
+
+        game_version = data[60:64]
+        is_tfl = game_version == b'myth'
+        is_sb = game_version == b'mth2'
+
+        if not is_tfl and not is_sb:
+            raise ValueError(f"Incompatible game version: {game_version}")
+
+        if is_tfl:
+            header = parse_tfl_header(data[:TAG_HEADER_SIZE])
+        elif is_sb:
+            header = parse_sb_header(data[:TAG_HEADER_SIZE])
         soun_header = """>
-            L h H H
+            L h h H
             H H H H
 
-            H
+            h
             L L
 
             L H H
@@ -87,7 +142,7 @@ def parse_soun_tag(data):
             I I I I
         """
         soun_header_size = struct.calcsize(soun_header)
-        soun_header_end = header_size + soun_header_size
+        soun_header_end = TAG_HEADER_SIZE + soun_header_size
         (
             flags, loudness, play_fraction, external_frequency_modifier,
             pitch_lower_bound, pitch_delta, volume_lower_bound, volume_delta,
@@ -99,7 +154,7 @@ def parse_soun_tag(data):
             permutation_count, permutations_offset, permutations_size,
 
             d6, d7, d8, d9
-        ) = struct.unpack(soun_header, data[header_size:soun_header_end])
+        ) = struct.unpack(soun_header, data[TAG_HEADER_SIZE:soun_header_end])
 
         permutation_end = soun_header_end + permutations_size
         meta_struct = """>
@@ -160,11 +215,6 @@ def parse_soun_tag(data):
             sound_data_offset = permutation_sound_end
             total_sample_frames = total_sample_frames + num_sample_frames
 
-        name = name.rstrip(b'\0').decode('mac-roman')
-        tag_type = tag_type.decode('mac-roman')
-        tag_id = tag_id.decode('mac-roman')
-        tag_version = tag_version.decode('mac-roman')
-
         total_sample_frames * IMA4_BYTES_PER_FRAME
 
         DEBUG = True
@@ -172,25 +222,19 @@ def parse_soun_tag(data):
             print(f"""Total data length: {data_length}
 perm_size = {permutation_count} x 32 = {permutations_size} ({check_perm_size} = {actual_perm_size})
 meta_size = {permutation_count} x {meta_length} = {total_meta_length}
-  header[{header_size}] + soun_header[{soun_header_size}]
+  header[{TAG_HEADER_SIZE}] + soun_header[{soun_header_size}]
 + perm_size[{permutations_size}] + meta_size[{total_meta_length}]
 = header_end[{header_end}]
 sound length: {sound_length}
 -----
- Tag: [{name}]
-Type: [{tag_type}]
-  ID: [{tag_id}]
-  a1: {a1}
-  a2: {a2}
-  a3: {a3}
-  a4: {a4}
-  a5: {a5}
-TDOF: {tag_data_offset}
-TDSZ: {tag_data_size}
-  b1: {b1}
-  b2: {b2}
-Vers: [{tag_version}]
------ 0:{header_size} = {header_size}
+ Tag: [{header.name}]
+Type: [{header.tag_type}]
+  ID: [{header.tag_id}]
+TDOF: {header.tag_data_offset}
+TDSZ: {header.tag_data_size}
+head: {header}
+Vers: [{header.tag_version}]
+----- 0:{TAG_HEADER_SIZE} = {TAG_HEADER_SIZE}
 flag: {flags}
 loud: {loudness}
   pf: {play_fraction}
@@ -213,8 +257,8 @@ PSIZ: {permutations_size}
   d7: {d7}
   d8: {d8}
   d9: {d9}
------ {header_size}:{soun_header_end} = {soun_header_size}
------ 0:{soun_header_end-header_size} = {soun_header_size}
+----- {TAG_HEADER_SIZE}:{soun_header_end} = {soun_header_size}
+----- 0:{soun_header_end-TAG_HEADER_SIZE} = {soun_header_size}
 Perm: {len(p_descs)}"""
             )
             for (p1, p2, p3, p_desc) in p_descs:
@@ -222,7 +266,7 @@ Perm: {len(p_descs)}"""
             print(
                 "----- "
                 f"""{soun_header_end}:{permutation_end} = {permutations_size} = {actual_perm_size}
------ {soun_header_end-header_size}:{permutation_end-header_size} = {permutations_size} = {actual_perm_size}
+----- {soun_header_end-TAG_HEADER_SIZE}:{permutation_end-TAG_HEADER_SIZE} = {permutations_size} = {actual_perm_size}
 Meta: {len(p_metas)}"""
             )
             for (
@@ -251,13 +295,13 @@ samp_frame: {num_sample_frames}
             print(
                 "----- "
                 f"""{permutation_end}:{header_end} = {total_meta_length}
------ {permutation_end-header_size}:{header_end-header_size} = {total_meta_length}
+----- {permutation_end-TAG_HEADER_SIZE}:{header_end-TAG_HEADER_SIZE} = {total_meta_length}
 AIFC: length = {sound_length}
 ----- {header_end}:{data_length} = {sound_length}
------ {header_end-header_size}:{data_length-header_size} = {sound_length}"""
+----- {header_end-TAG_HEADER_SIZE}:{data_length-TAG_HEADER_SIZE} = {sound_length}"""
                 )
 
-        return (tag_id, permutations)
+        return (header.tag_version, header.tag_id, permutations)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
