@@ -4,60 +4,19 @@ import struct
 import pathlib
 from collections import namedtuple
 
+TAG_HEADER_SIZE = 64
 
 AIFC_VERSION_1 = 2726318400
 SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
 IMA4_BYTES_PER_FRAME = 34
 
-def main(tag_path, aifc_path):
-    """
-    Parse a Myth TFL soun tag file and output the aifc file
-    
-    Args:
-        tag_path (str): Path to the soun tag file
-        aifc_path (str): Path to save the aifc
-    """
-    try:
-        with open(tag_path, 'rb') as infile:
-            data = infile.read()
-
-        (game_version, tag_id, permutations) = parse_soun_tag(data)
-
-        if not aifc_path:
-            aifc_path = f'./aifc/{game_version}-{tag_id}.aifc'
-
-        path = pathlib.Path(aifc_path).with_suffix('.aifc')
-
-        perm_count = len(permutations)
-
-        if prompt(perm_count, path):
-            for i, (desc, num_channels, sample_size, num_sample_frames, sound_data) in enumerate(permutations):
-                aifc = generate_aifc(num_channels, sample_size, num_sample_frames, sound_data)
-                
-                perm_path = path
-                if (perm_count > 1):
-                    perm_path = path.with_stem(f'{path.stem}-{i}')
-
-                with open(perm_path, 'wb') as aifc_file:
-                    aifc_file.write(aifc)
-                    print(f"AIFC extracted. Output saved to {perm_path} ({desc})")
-    
-    except FileNotFoundError:
-        print(f"Error: File not found - {tag_path}")
-
-
-def prompt(perm_count, prompt_path):
-    # return True
-    prefix = ''
-    suffix = ''
-    if (perm_count > 1):
-        prompt_path = prompt_path.with_stem(f'{prompt_path.stem}-n')
-        prefix = f'{perm_count}x permutations '
-        suffix = ' (n=permutation)'
-    response = input(f"Write {prefix}to: {prompt_path}{suffix} [Y/n]: ").strip().lower()
-    return response in {"", "y", "yes"}
-
-TAG_HEADER_SIZE = 64
+TFLHeaderFmt = """>
+    32s 4s 4s
+    H H H H
+    i l
+    H H
+    4s
+"""
 TFLHeader = namedtuple('TFLHeader', [
     # 3033206E6172726174696F6E0000000000000000000000000000000000000000
     'name',
@@ -72,16 +31,14 @@ TFLHeader = namedtuple('TFLHeader', [
     # 6D797468
     'tag_version'
 ])
-TFLHeaderFmt = """>
+
+SBHeaderFmt = """>
+    h b b
     32s 4s 4s
-    H H H H
     i l
-    H H
+    L h b b
     4s
 """
-def parse_tfl_header(header):
-    return decode_header(TFLHeader._make(struct.unpack(TFLHeaderFmt, header)))
-
 SBHeader = namedtuple('SBHeader', [
     # FFFF         00       00
     'identifier', 'flags', 'type',
@@ -96,13 +53,54 @@ SBHeader = namedtuple('SBHeader', [
     # 6D746832
     'tag_version'
 ])
-SBHeaderFmt = """>
-    h b b
-    32s 4s 4s
-    i l
-    L h b b
-    4s
-"""
+
+def main(tag_path, aifc_path):
+    """
+    Parse a Myth TFL or Myth II soun tag file and output the aifc file
+    """
+    try:
+        with open(tag_path, 'rb') as infile:
+            data = infile.read()
+    except FileNotFoundError:
+        print(f"Error: File not found - {tag_path}")
+        sys.exit(1)
+
+    (game_version, tag_id, permutations) = parse_soun_tag(data)
+
+    if not aifc_path:
+        aifc_path = f'./aifc/{game_version}-{tag_id}.aifc'
+
+    path = pathlib.Path(aifc_path).with_suffix('.aifc')
+
+    perm_count = len(permutations)
+
+    if prompt(perm_count, path):
+        for i, (desc, num_channels, sample_size, num_sample_frames, sound_data) in enumerate(permutations):
+            aifc = generate_aifc(num_channels, sample_size, num_sample_frames, sound_data)
+            
+            perm_path = path
+            if (perm_count > 1):
+                perm_path = path.with_stem(f'{path.stem}-{i}')
+
+            with open(perm_path, 'wb') as aifc_file:
+                aifc_file.write(aifc)
+                print(f"AIFC extracted. Output saved to {perm_path} ({desc})")
+
+
+def prompt(perm_count, prompt_path):
+    # return True
+    prefix = ''
+    suffix = ''
+    if (perm_count > 1):
+        prompt_path = prompt_path.with_stem(f'{prompt_path.stem}-n')
+        prefix = f'{perm_count}x permutations '
+        suffix = ' (n=permutation)'
+    response = input(f"Write {prefix}to: {prompt_path}{suffix} [Y/n]: ").strip().lower()
+    return response in {"", "y", "yes"}
+
+def parse_tfl_header(header):
+    return decode_header(TFLHeader._make(struct.unpack(TFLHeaderFmt, header)))
+
 def parse_sb_header(header):
     return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
 
@@ -116,7 +114,7 @@ def decode_header(header):
 
 def parse_soun_tag(data):
     try:
-        data_length = len(data)
+        data_size = len(data)
 
         game_version = data[60:64]
         is_tfl = game_version == b'myth'
@@ -219,7 +217,7 @@ def parse_soun_tag(data):
 
         DEBUG = True
         if DEBUG:
-            print(f"""Total data length: {data_length}
+            print(f"""Total data length: {data_size}
 perm_size = {permutation_count} x 32 = {permutations_size} ({check_perm_size} = {actual_perm_size})
 meta_size = {permutation_count} x {meta_length} = {total_meta_length}
   header[{TAG_HEADER_SIZE}] + soun_header[{soun_header_size}]
@@ -297,8 +295,8 @@ samp_frame: {num_sample_frames}
                 f"""{permutation_end}:{header_end} = {total_meta_length}
 ----- {permutation_end-TAG_HEADER_SIZE}:{header_end-TAG_HEADER_SIZE} = {total_meta_length}
 AIFC: length = {sound_length}
------ {header_end}:{data_length} = {sound_length}
------ {header_end-TAG_HEADER_SIZE}:{data_length-TAG_HEADER_SIZE} = {sound_length}"""
+----- {header_end}:{data_size} = {sound_length}
+----- {header_end-TAG_HEADER_SIZE}:{data_size-TAG_HEADER_SIZE} = {sound_length}"""
                 )
 
         return (header.tag_version, header.tag_id, permutations)
