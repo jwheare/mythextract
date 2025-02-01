@@ -187,14 +187,16 @@ def main(mono_path, tag_type, tag_id, output_file):
 
             tag_list_start = pre_tag_list_start + pre_tag_size
 
-        tag_list_size = tag_list_start + (tag_count * TAG_HEADER_SIZE)
-        print('   tag list start', tag_list_start)
+        tag_list_size = tag_count * TAG_HEADER_SIZE
         print('total file length', data_size)
-        print('    pre tag count', pre_tag_count)
-        print('     pre tag size', pre_tag_size)
+        print('      header size', header_size)
+        if pre_tag_count:
+            print('    pre tag start', pre_tag_list_start)
+            print('    pre tag count', pre_tag_count)
+            print('     pre tag size', pre_tag_size)
+        print('   tag list start', tag_list_start)
         print('        tag count', tag_count)
         print('    tag list size', tag_list_size)
-        print('      header size', header_size)
 
         if pre_tag_count:
             print(
