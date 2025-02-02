@@ -51,4 +51,4 @@ Mostly just figuring things out with [HexFiend](https://github.com/HexFiend/HexF
 
 # Extras
 
-* [hexfiend_templates/](hexfiend_templates/) — Basic *Binary Templates* for HexFiend (macOS) that parse the standard *TFL* and *SB* header (not for individual tags). Copy these to `~/Library/Application Support/com.ridiculousfish.HexFiend/Templates`
+* [hexfiend_templates/](hexfiend_templates/) — Basic *[Binary Templates](https://github.com/HexFiend/HexFiend/blob/master/templates/Tutorial.md)* for HexFiend (macOS) that parse the standard *TFL* and *SB* header (not for individual tags). Copy these to `~/Library/Application Support/com.ridiculousfish.HexFiend/Templates`
