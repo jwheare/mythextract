@@ -243,12 +243,12 @@ Tags
                     f'{tag_header.name}'
                 )
                 if tag_id and tag_type:
-                    export_tag(tag_header_data, tag_header, data, output_file)
+                    export_tag(tag_header, data, output_file)
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def export_tag(tag_header_data, tag_header, data, output_file):
+def export_tag(tag_header, data, output_file):
     tag_start = tag_header.tag_data_offset
     tag_end = tag_start + tag_header.tag_data_size
     tag_data = data[tag_start:tag_end]
@@ -261,7 +261,7 @@ def export_tag(tag_header_data, tag_header, data, output_file):
     if prompt(tag_path):
         pathlib.Path(tag_path.parent).mkdir(parents=True, exist_ok=True)
         with open(tag_path, 'wb') as tag_file:
-            tag_file.write(tag_header_data)
+            tag_file.write(encode_header(fix_tag_header_offset(tag_header)))
             tag_file.write(tag_data)
             print(f"Tag extracted. Output saved to {tag_path}")
 
@@ -287,6 +287,25 @@ def parse_tfl_header(header):
 
 def parse_sb_header(header):
     return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
+
+def fix_tag_header_offset(header_tuple):
+    return header_tuple._replace(tag_data_offset=64)
+
+def tag_header_fmt(header_tuple):
+    if header_tuple.tag_version == 'myth':
+        return TFLHeaderFmt
+    elif header_tuple.tag_version == 'mth2':
+        return SBHeaderFmt
+
+def encode_header(header):
+    encoded = header._replace(
+        name=header.name.encode('mac-roman'),
+        tag_type=header.tag_type.encode('mac-roman'),
+        tag_id=header.tag_id.encode('mac-roman'),
+        tag_version=header.tag_version.encode('mac-roman')
+    )
+    print(tag_header_fmt(header), *encoded)
+    return struct.pack(tag_header_fmt(header), *encoded)
 
 def decode_header(header):
     return header._replace(
