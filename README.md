@@ -48,3 +48,7 @@ Developed with python 3.13.1 on macOS Sequoia 15.2. Please file an issue if it d
 These tools were developed without access to the Myth source code. Some useful information was found in the source code for [Chaos](https://tain.totalcodex.net/items/show/chaos-source) by TarousZars.
 
 Mostly just figuring things out with [HexFiend](https://github.com/HexFiend/HexFiend).
+
+# Extras
+
+* [hexfiend_templates/](hexfiend_templates/) — Basic *Binary Templates* for HexFiend (macOS) that parse the standard *TFL* and *SB* header (not for individual tags). Copy these to `~/Library/Application Support/com.ridiculousfish.HexFiend/Templates`
