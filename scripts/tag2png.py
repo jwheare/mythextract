@@ -4,12 +4,13 @@ import pathlib
 import struct
 import enum
 import zlib
-
 from collections import namedtuple
+
 import myth_headers
 
 BITMAP_META_SIZE = 48
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
+
 DEBUG = False
 
 Header256Size = 320

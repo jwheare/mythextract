@@ -3,7 +3,10 @@ import signal
 import sys
 import struct
 import pathlib
+
 import myth_headers
+
+DEBUG = False
 
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
@@ -28,15 +31,16 @@ def main(mono_path, tag_type, tag_id, output_file):
             tag_count, tag_list_start, tag_list_size
         ) = myth_headers.parse_mono_header(data)
 
-        print('total file length', data_size)
-        print('      header size', header_size)
-        if pre_tag_count:
-            print('    pre tag start', pre_tag_list_start)
-            print('    pre tag count', pre_tag_count)
-            print('     pre tag size', pre_tag_size)
-        print('   tag list start', tag_list_start)
-        print('        tag count', tag_count)
-        print('    tag list size', tag_list_size)
+        if DEBUG:
+            print('total file length', data_size)
+            print('      header size', header_size)
+            if pre_tag_count:
+                print('    pre tag start', pre_tag_list_start)
+                print('    pre tag count', pre_tag_count)
+                print('     pre tag size', pre_tag_size)
+            print('   tag list start', tag_list_start)
+            print('        tag count', tag_count)
+            print('    tag list size', tag_list_size)
 
         if pre_tag_count:
             print(

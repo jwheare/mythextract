@@ -2,12 +2,15 @@
 import sys
 import struct
 import pathlib
+
 import myth_headers
 
 AIFC_VERSION_1 = 2726318400
 SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
 IMA4_BYTES_PER_FRAME = 34
 IMA_COMPRESSION_RATIO = 4
+
+DEBUG = False
 
 def main(tag_path, aifc_path):
     """
@@ -146,7 +149,6 @@ def parse_soun_tag(data):
 
         total_sample_frames * IMA4_BYTES_PER_FRAME
 
-        DEBUG = True
         if DEBUG:
             print(f"""Total data length: {data_size}
 perm_size = {permutation_count} x 32 = {permutations_size} ({check_perm_size} = {actual_perm_size})

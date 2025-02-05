@@ -163,7 +163,6 @@ def parse_mono_header(data):
 
     if is_tfl:
         header = parse_gor_header(data)
-        print(header)
         print(header.name)
 
         tag_count = header.tag_list_count
@@ -176,7 +175,6 @@ def parse_mono_header(data):
         tag_list_start = header.tag_list_offset
     elif is_sb:
         header = parse_sb_mono_header(data)
-        print(header)
         print(header.name)
         print(header.description)
         tag_count = header.tag_list_count
@@ -231,7 +229,6 @@ def encode_header(header):
         tag_id=encode_string(header.tag_id),
         tag_version=encode_string(header.tag_version)
     )
-    print(tag_header_fmt(header), *encoded)
     return struct.pack(tag_header_fmt(header), *encoded)
 
 def decode_header(header):
