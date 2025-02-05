@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import os
 import pathlib
 import struct
 import enum
@@ -11,7 +12,7 @@ import myth_headers
 BITMAP_META_SIZE = 48
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
 
-DEBUG = False
+DEBUG = (os.environ.get('DEBUG') == '1')
 
 Header256Size = 320
 Header256Fmt = """>

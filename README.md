@@ -40,6 +40,10 @@ Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note th
 * `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
 * `output_file`: **optional** — defaults to `./png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
 
+# Environment variables
+
+Run with DEBUG=1 to print extra debug output
+
 # Philosophy
 
 The goal for this project is to provide tools that are designed to be self contained and run without dependencies on all architectures for many years to come.

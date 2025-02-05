@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import signal
+import os
 import sys
 import struct
 import pathlib
 
 import myth_headers
 
-DEBUG = False
+DEBUG = (os.environ.get('DEBUG') == '1')
 
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 

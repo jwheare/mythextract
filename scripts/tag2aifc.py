@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import os
 import struct
 import pathlib
 
@@ -10,7 +11,7 @@ SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
 IMA4_BYTES_PER_FRAME = 34
 IMA_COMPRESSION_RATIO = 4
 
-DEBUG = False
+DEBUG = (os.environ.get('DEBUG') == '1')
 
 def main(tag_path, aifc_path):
     """
