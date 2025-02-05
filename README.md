@@ -31,6 +31,15 @@ See [docs/SoundTagNarrationFormat.txt](docs/SoundTagNarrationFormat.txt) and the
 
 AIFF file format described here: https://www.mmsp.ece.mcgill.ca/Documents/AudioFormats/AIFF/AIFF.html
 
+## [scripts/tag2png.py](scripts/tag2png.py)
+
+Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note that collections can contain multiple image. Each image is exported as a separate file.
+
+    Usage: python3 tag2png.py <input_file> [<output_file>]
+
+* `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
+* `output_file`: **optional** — defaults to `./png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
+
 # Philosophy
 
 The goal for this project is to provide tools that are designed to be self contained and run without dependencies on all architectures for many years to come.
