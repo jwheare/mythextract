@@ -25,7 +25,7 @@ Exports AIFC (AIFF-C, compressed sound file format) from *TFL* or *SB* `soun` ta
     Usage: python3 tag2aifc.py <input_file> [<output_file>]
 
 * `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
-* `output_file`: **optional** — defaults to `./aifc/[game_ver]-[tagid][-n].aifc` where `-n` is a permutation number prefix if there are more than 1
+* `output_file`: **optional** — defaults to `./output/aifc/[game_ver]-[tagid][-n].aifc` where `-n` is a permutation number prefix if there are more than 1
 
 See [docs/SoundTagNarrationFormat.txt](docs/SoundTagNarrationFormat.txt) and the source code for detailed notes on the binary format.
 
@@ -38,7 +38,9 @@ Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note th
     Usage: python3 tag2png.py <input_file> [<output_file>]
 
 * `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
-* `output_file`: **optional** — defaults to `./png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
+* `output_file`: **optional** — defaults to `./output/png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
+
+See [docs/256TagCollectionFormat.txt](docs/256TagCollectionFormat.txt) and the source code for detailed notes on the binary format.
 
 # Environment variables
 
@@ -46,7 +48,7 @@ Run with DEBUG=1 to print extra debug output
 
 # Philosophy
 
-The goal for this project is to provide tools that are designed to be self contained and run without dependencies on all architectures for many years to come.
+The goal for this project is to provide tools that are designed to be self contained and run on all architectures for many years to come without dependencies or the need for a build step.
 
 Written in python (a readable and widely used programming language) and open sourced under an MIT license to make it easy to learn from and adapt without restrictions.
 
@@ -54,11 +56,11 @@ There have been tools like this before but they historically become incompatible
 
 # Compatibility
 
-Developed with python 3.13.1 on macOS Sequoia 15.2. Please file an issue if it doesn't work on your platform.
+Initially developed with python 3.13.1 on macOS Sequoia 15.2. Please file an issue if it doesn't work on your platform.
 
 # Thanks
 
-These tools were developed without access to the Myth source code. Some useful information was found in the source code for [Chaos](https://tain.totalcodex.net/items/show/chaos-source) by TarousZars.
+These tools were developed without access to the Myth source code. Some useful information was found in the source code for [Chaos](https://tain.totalcodex.net/items/show/chaos-source) by TarousZars. Further information thanks to [Project Magma](https://projectmagma.net/) and [Oak](https://www.projectmagma.net/~melekor/oak/) developers.
 
 Mostly just figuring things out with [HexFiend](https://github.com/HexFiend/HexFiend).
 
