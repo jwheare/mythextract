@@ -2,6 +2,7 @@
 import sys
 import os
 import struct
+import signal
 import pathlib
 
 import myth_headers
@@ -12,17 +13,13 @@ IMA4_BYTES_PER_FRAME = 34
 IMA_COMPRESSION_RATIO = 4
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(tag_path, aifc_path):
     """
     Parse a Myth TFL or Myth II soun tag file and output the aifc file
     """
-    try:
-        with open(tag_path, 'rb') as infile:
-            data = infile.read()
-    except FileNotFoundError:
-        print(f"Error: File not found - {tag_path}")
-        sys.exit(1)
+    data = myth_headers.load_file(tag_path)
 
     (game_version, tag_id, permutations) = parse_soun_tag(data)
 

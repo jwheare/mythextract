@@ -1,11 +1,23 @@
 #!/usr/bin/env python3
 import struct
+import enum
+import sys
 from collections import namedtuple
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
 TAG_HEADER_SIZE = 64
-PRE_TAG_HEADER_SIZE = 112
+ENTRY_TAG_HEADER_SIZE = 112
+
+class ArchiveType(enum.Enum):
+    TAG = 0
+    PLUGIN = enum.auto()
+    PATCH = enum.auto()
+    FOUNDATION = enum.auto()
+    CACHE = enum.auto()
+    INTERFACE = enum.auto()
+    ADDON = enum.auto()
+    METASERVER = enum.auto()
 
 # 
 # Myth II: monolith header
@@ -19,16 +31,29 @@ PRE_TAG_HEADER_SIZE = 112
 # 96: name
 # 
 # 0000
-# 2: pre tag count (at offset 100)
+# 2: entrypoint tag count (at offset 100)
 # 
 # 001A
 # 2: tag count (at offset 102)
 # 
-# 8194 DA46 0000 0000 03A6 99D0 A9C6 F5AF 4200 0028
-# 20: unknown
+# 8194DA46
+# 4: checksum
+# 
+# 00000000
+# 4: flags
+# 
+# 03A699D0
+# 4: size
+# 
+# A9C6F5AF
+# 4: header_checksum
+# 
+# 42000028
+# 4: unused
 # 
 #  d n g 2
 # 646E6732
+# 
 # 4: myth 2 tag format signature
 #  
 # list of tags starts here
@@ -37,17 +62,25 @@ SBMonoHeaderFmt = """>
     32s
     64s
     H H
-    H H I H H H H H H
+    L
+    L
+    L
+    L
+    L
     4s
 """
 SBMonoHeader = namedtuple('SBMonoHeader', [
-    'u1', 'u2',
+    'type', 'version',
     'name',
     'description',
-    'pre_tag_count',
+    'entry_tag_count',
     'tag_list_count',
-    'u3', 'u4', 'u5', 'u6', 'u7', 'u8', 'u9', 'u10', 'u11',
-    'identifier'
+    'checksum',
+    'flags',
+    'size',
+    'header_checksum',
+    'unused',
+    'signature'
 ])
 
 #
@@ -73,7 +106,7 @@ GORHeaderFmt = """>
 """
 GORHeader = namedtuple('GORHeader', [
     # 0001 0001
-    'u1', 'u2',
+    'type', 'version',
     # 7075626C69632E676F7200000000000000000000000000000000000000000000
     'name',
     # A91A 76C1
@@ -134,6 +167,16 @@ SBHeader = namedtuple('SBHeader', [
     'tag_version'
 ])
 
+def load_file(path):
+    try:
+        with open(path, 'rb') as infile:
+            data = infile.read()
+    except FileNotFoundError:
+        print(f"Error: File not found - {path}")
+        sys.exit(1)
+
+    return data
+
 def parse_gor_header(header):
     gor = GORHeader._make(struct.unpack(GORHeaderFmt, header[:GOR_HEADER_SIZE]))
     return gor._replace(
@@ -152,45 +195,46 @@ def parse_sb_mono_header(header):
     return mono._replace(
         name=decode_string(mono.name),
         description=decode_string(mono.description),
+        type=ArchiveType(mono.type)
     )
 
 def parse_mono_header(data):
-    is_tfl = data[:4] == b'\x00\x01\x00\x01'
     is_sb = data[124:128] == b'dng2'
+    is_tfl = not is_sb and data[:4] == b'\x00\x01\x00\x01'
 
     if not is_tfl and not is_sb:
         raise ValueError("Incompatible game version")
 
     if is_tfl:
         header = parse_gor_header(data)
-        print(header.name)
+        # print(header.name)
 
         tag_count = header.tag_list_count
         header_size = header.header_size
 
-        pre_tag_count = 0
-        pre_tag_list_start = header_size
-        pre_tag_size = 0
+        entry_tag_count = 0
+        entry_tag_list_start = header_size
+        entry_tag_size = 0
 
         tag_list_start = header.tag_list_offset
     elif is_sb:
         header = parse_sb_mono_header(data)
-        print(header.name)
-        print(header.description)
+        # print(header.name)
+        # print(header.description)
         tag_count = header.tag_list_count
         header_size = SB_MONO_HEADER_SIZE
 
-        pre_tag_count = header.pre_tag_count
-        pre_tag_list_start = header_size
-        pre_tag_size = pre_tag_count * PRE_TAG_HEADER_SIZE
+        entry_tag_count = header.entry_tag_count
+        entry_tag_list_start = header_size
+        entry_tag_size = entry_tag_count * ENTRY_TAG_HEADER_SIZE
 
-        tag_list_start = pre_tag_list_start + pre_tag_size
+        tag_list_start = entry_tag_list_start + entry_tag_size
 
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
     return (
         header, header_size,
-        pre_tag_count, pre_tag_list_start, pre_tag_size,
+        entry_tag_count, entry_tag_list_start, entry_tag_size,
         tag_count, tag_list_start, tag_list_size
     )
 

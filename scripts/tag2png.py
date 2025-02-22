@@ -3,6 +3,7 @@ import sys
 import os
 import pathlib
 import struct
+import signal
 import enum
 import zlib
 from collections import namedtuple
@@ -13,6 +14,7 @@ BITMAP_META_SIZE = 48
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 Header256Size = 320
 Header256Fmt = """>
@@ -74,12 +76,7 @@ def main(tag_path, png_path):
     """
     Parse a Myth TFL or Myth II .256 tag file and output a PNG file
     """
-    try:
-        with open(tag_path, 'rb') as infile:
-            data = infile.read()
-    except FileNotFoundError:
-        print(f"Error: File not found - {tag_path}")
-        sys.exit(1)
+    data = myth_headers.load_file(tag_path)
 
     (game_version, tag_id, bitmaps) = parse_256_tag(data)
 
@@ -121,7 +118,7 @@ def parse_256_tag(data):
         coll_header = parse_collection_header(data, header)
         color_table = parse_color_table(data, coll_header)
         # parse_bitmap_instance(data, coll_header)
-        # sequence_names = parse_sequences(data, coll_header)
+        # parse_sequences(data, coll_header)
         bitmaps = parse_bitmaps(data, coll_header, color_table)
 
         return (header.tag_version, header.tag_id, bitmaps)
@@ -156,6 +153,7 @@ def parse_color_table(data, coll_header):
             if ((cc % 25) == 24):
                 print()
     if DEBUG:
+        # print(color_table)
         print('\n')
     return color_table
 
@@ -163,6 +161,7 @@ def parse_bitmap_instance(data, coll_header):
     bitmap_instance_each_size = (
         coll_header.bitmap_instances_size // coll_header.bitmap_instance_count
     )
+    bitmap_indices = []
     for c in range(coll_header.bitmap_instance_count):
         bitmap_instance_start = (
             coll_header.data_offset + coll_header.bitmap_instances_offset
@@ -171,18 +170,20 @@ def parse_bitmap_instance(data, coll_header):
 
         bitmap_instance_end = bitmap_instance_start + bitmap_instance_each_size
         bitmap_instance_data = data[bitmap_instance_start:bitmap_instance_end]
-        # (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', bitmap_instance_data)
+
+        (bitmap_index, ) = struct.unpack(">h", bitmap_instance_data[28:30])
+        bitmap_indices.append(bitmap_index)
         if DEBUG:
             print(
                 f'bitmap_instance: {c} {bitmap_instance_data.hex()}'
             )
+    return bitmap_indices
 
 def parse_sequences(data, coll_header):
-    print('sequence_reference')
     sequence_reference_each_size = (
         coll_header.sequence_references_size // coll_header.sequence_reference_count
     )
-    sequence_names = []
+    sequences = []
     for c in range(coll_header.sequence_reference_count):
         sequence_reference_start = (
             coll_header.data_offset + coll_header.sequence_references_offset
@@ -192,17 +193,33 @@ def parse_sequences(data, coll_header):
         sequence_reference_end = sequence_reference_start + sequence_reference_each_size
         sequence_data = data[sequence_reference_start:sequence_reference_end]
         (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', sequence_data)
-        # seq_start = coll_header.data_offset + seq_offset
-        # seq_end = seq_start + seq_size
-        # seq_data = data[seq_start:seq_end]
+        seq_start = coll_header.data_offset + seq_offset
+        seq_end = seq_start + seq_size
+        seq_data = data[seq_start:seq_end]
+
+        (num_frames,) = struct.unpack(">H", seq_data[10:12])
+        frame_instances = seq_data[64:]
+        frame_start = 0
+        frame_size = 48
+        instances_indices = []
+        for f in range(num_frames):
+            frame_end = frame_start + frame_size
+            (index, ) = struct.unpack(">H", frame_instances[frame_start:frame_end][46:])
+            instances_indices.append(index)
+
+            frame_start = frame_end
+
         name = myth_headers.decode_string(seq_name)
         if DEBUG:
             print(
                 f'{c} sequence_reference: {name: <32} unused={seq_unused.hex()}'
             )
-        sequence_names.append(name)
+        sequences.append({
+            'name': name,
+            'instance_indices': instances_indices
+        })
 
-    return sequence_names
+    return sequences
 
 def parse_bitmaps(data, coll_header, color_table):
     bitmaps = []
@@ -245,6 +262,8 @@ def parse_bitmaps(data, coll_header, color_table):
             bitdata_unused2
         ) = struct.unpack('>H H h H H H H H H 10s H H H H 12s', bitmap_head)
 
+        bitmap_flags = BitmapFlags(bitdata_flags)
+
         bitmap_address_table_start = bitmap_head_end
         bitmap_address_table_size = 4 * bitdata_height
         bitmap_address_table_end = bitmap_address_table_start + bitmap_address_table_size
@@ -255,8 +274,6 @@ def parse_bitmaps(data, coll_header, color_table):
         bitmap_data_size = bitref_size - bitmap_address_table_size - BITMAP_META_SIZE
         bitmap_data_end = bitmap_data_start + bitmap_data_size
         bitmap_data = data[bitmap_data_start:bitmap_data_end]
-
-        bitmap_flags = BitmapFlags(bitdata_flags)
 
         if DEBUG:
             print(
@@ -283,16 +300,16 @@ logical_bit_depth: {bitdata_logical_bit_depth}
 
          rows 1-10 columns 1-150:"""
             )
-
         if BitmapFlags.TRANSPARENCY_ENCODED_1BIT in bitmap_flags:
             rows = decode_compressed_bitmap(color_table, bitmap_data, bitdata_width, bitdata_height, bitmap_flags)
         else:
             rows = decode_bitmap(color_table, bitmap_data, bitdata_width, bitdata_height)
 
-        if DEBUG:
-            render_terminal(rows)
+        if rows:
+            if DEBUG:
+                render_terminal(rows)
 
-        bitmaps.append((bitdata_width, bitdata_height, rows))
+            bitmaps.append((bitdata_width, bitdata_height, rows))
     return bitmaps
 
 def decode_bitmap(color_table, bitmap_data, width, height):
@@ -353,6 +370,8 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
     for row_i in range(height):
         span_start = start + 4
         (num_spans, num_pixels) = struct.unpack('>H H', bitmap_data[start:span_start])
+        if num_spans > width or num_pixels > width:
+            return
         spans = []
         for span_i in range(num_spans):
             span_end = span_start + 4
@@ -376,18 +395,21 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
             span_size = span_range_end - span_range_start
             total_opaque += span_size
 
-            bpp = 1
-            if BitmapFlags.TRANSPARENCY_ENCODED_4BIT in flags:
-                # In 4bit transparency, pixel data is stored as a two byte sequence:
-                # alpha, index
-                bpp = 2
             for p_i in range(span_size):
-                pixel_end = pixel_start + bpp
-                (alpha, ct_idx) = struct.unpack(f'>{bpp}B', bitmap_data[pixel_start:pixel_end])
+                if BitmapFlags.TRANSPARENCY_ENCODED_4BIT in flags:
+                    # In 4bit transparency, pixel data is stored as a two byte sequence:
+                    # alpha, index
+                    pixel_end = pixel_start + 2
+                    (alpha, ct_idx) = struct.unpack('>B B', bitmap_data[pixel_start:pixel_end])
 
-                (r, g, b, _) = color_table[ct_idx]
-                row.append((r, g, b, decode_alpha(alpha)))
-                
+                    (r, g, b, _) = color_table[ct_idx]
+                    row.append((r, g, b, decode_alpha(alpha)))
+                else:
+                    pixel_end = pixel_start + 1
+                    (ct_idx,) = struct.unpack('>B', bitmap_data[pixel_start:pixel_end])
+
+                    (r, g, b, _) = color_table[ct_idx]
+                    row.append((r, g, b, 255))
                 pixel_start = pixel_end
 
             col_i = col_i + num_preceding_transparent + span_size
