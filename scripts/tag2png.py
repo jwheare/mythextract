@@ -81,9 +81,10 @@ def main(tag_path, png_path):
     (game_version, tag_id, bitmaps) = parse_256_tag(data)
 
     if not png_path:
-        png_path = f'./png/{game_version}-{tag_id}.png'
-
-    path = pathlib.Path(png_path).with_suffix('.png')
+        png_path = f'../output/png/{game_version}-{tag_id}.png'
+        path = pathlib.Path(sys.path[0], png_path).resolve()
+    else:
+        path = pathlib.Path(png_path).with_suffix('.png')
 
     bitmap_count = len(bitmaps)
 

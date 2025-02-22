@@ -124,9 +124,10 @@ def export_tag(tag_header, data, output_file):
     tag_data = data[tag_start:tag_end]
 
     if not output_file:
-        output_file = f'./tags/{tag_header.tag_version}-{tag_id}'
-
-    tag_path = pathlib.Path(output_file)
+        output_file = f'../tags/{tag_header.tag_version}-{tag_id}'
+        tag_path = pathlib.Path(sys.path[0], output_file).resolve()
+    else:
+        tag_path = pathlib.Path(output_file)
 
     if prompt(tag_path):
         pathlib.Path(tag_path.parent).mkdir(parents=True, exist_ok=True)

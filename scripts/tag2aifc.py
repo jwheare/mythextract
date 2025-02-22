@@ -24,9 +24,10 @@ def main(tag_path, aifc_path):
     (game_version, tag_id, permutations) = parse_soun_tag(data)
 
     if not aifc_path:
-        aifc_path = f'./aifc/{game_version}-{tag_id}.aifc'
-
-    path = pathlib.Path(aifc_path).with_suffix('.aifc')
+        aifc_path = f'../output/aifc/{game_version}-{tag_id}.aifc'
+        path = pathlib.Path(sys.path[0], aifc_path).resolve()
+    else:
+        path = pathlib.Path(aifc_path).with_suffix('.aifc')
 
     perm_count = len(permutations)
 
