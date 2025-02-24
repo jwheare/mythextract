@@ -118,7 +118,7 @@ def read_file_headers(path_dir, plugin_name):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 loadtags.py <game_directory> [<plugin>]")
+        print("Usage: python3 loadtags.py <game_directory> [<plugin_name>]")
         sys.exit(1)
     
     game_directory = sys.argv[1]

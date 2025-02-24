@@ -42,6 +42,35 @@ Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note th
 
 See [docs/256TagCollectionFormat.txt](docs/256TagCollectionFormat.txt) and the source code for detailed notes on the binary format.
 
+## [scripts/loadtags.py](scripts/loadtags.py)
+
+Loads all the core tag archives and optionally a plugin from a *SB* game directory and lists all levels and tags
+
+    Usage: python3 loadtags.py <game_directory> [<plugin_name>]
+
+* `game_directory`: path to a Myth II game directory
+* `plugin_name`: **optional** — if provided loads tags from a named plugin
+
+## [scripts/mesh2info.py](scripts/mesh2info.py)
+
+Prints lots of information about a mesh tag, including all markers and map actions
+
+    Usage: python3 mesh2info.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth II game directory
+* `level`: **optional** — if omitted just lists all levels
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
+## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
+
+Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes
+
+    Usage: python3 fixmeshactions.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth II game directory
+* `level`: **optional** — if omitted just lists all levels
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
 # Environment variables
 
 Run with DEBUG=1 to print extra debug output
