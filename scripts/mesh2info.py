@@ -50,14 +50,13 @@ def parse_mesh_tag(tags, data_map, mesh_id):
 
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
     mhd = mesh_header._asdict()
-    if DEBUG:
-        for f in mesh_header._fields:
-            val = mhd[f]
-            if type(val) is bytes and all(f == b'' for f in val.split(b'\x00')):
-                val = f'[00 x {len(val.split(b'\x00'))-1}]'
-            elif type(val) is bytes and all(f == b'' for f in val.split(b'\xff')):
-                val = f'[FF x {len(val.split(b'\xff'))-1}]'
-            print(f'{f:>42}', val)
+    for f in mesh_header._fields:
+        val = mhd[f]
+        if type(val) is bytes and all(f == b'' for f in val.split(b'\x00')):
+            val = f'[00 x {len(val.split(b'\x00'))-1}]'
+        elif type(val) is bytes and all(f == b'' for f in val.split(b'\xff')):
+            val = f'[FF x {len(val.split(b'\xff'))-1}]'
+        print(f'{f:>42}', val)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
     print_markers(tags, palette, orphans)
