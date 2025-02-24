@@ -33,7 +33,7 @@ AIFF file format described here: https://www.mmsp.ece.mcgill.ca/Documents/AudioF
 
 ## [scripts/tag2png.py](scripts/tag2png.py)
 
-Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note that collections can contain multiple image. Each image is exported as a separate file.
+Exports 32-bit alpha PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note that collections can contain multiple image. Each image is exported as a separate file.
 
     Usage: python3 tag2png.py <input_file> [<output_file>]
 
@@ -41,6 +41,16 @@ Exports 32-bit PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note th
 * `output_file`: **optional** — defaults to `./output/png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
 
 See [docs/256TagCollectionFormat.txt](docs/256TagCollectionFormat.txt) and the source code for detailed notes on the binary format.
+
+## [scripts/tag2font.py](scripts/tag2font.py)
+
+Extracts and lists glyph information from `font` tag files.
+
+    Usage: python3 tag2font.py <input_file>
+
+* `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
+
+See [docs/FontTagFormat.txt](docs/FontTagFormat.txt) and the source code for detailed notes on the binary format.
 
 ## [scripts/loadtags.py](scripts/loadtags.py)
 
