@@ -23,26 +23,28 @@ def main(mono_path, tag_type, tag_id, output_file):
         data_size = len(data)
 
         (
+            game_version,
             header, header_size,
-            entry_tag_count, entry_tag_list_start, entry_tag_size,
+            entry_tag_count, entry_tag_list_start,
             tag_count, tag_list_start, tag_list_size
         ) = myth_headers.parse_mono_header(data)
 
         if DEBUG:
             print(header)
+            print('     game version', game_version)
             print('total file length', data_size)
             print('      header size', header_size)
             if entry_tag_count:
                 print('    entry tag start', entry_tag_list_start)
                 print('    entry tag count', entry_tag_count)
-                print('     entry tag size', entry_tag_size)
+                print('     entry tag size', entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE)
             print('   tag list start', tag_list_start)
             print('        tag count', tag_count)
             print('    tag list size', tag_list_size)
 
-        if entry_tag_count:
-            entrypoints = get_entrypoints(data, entry_tag_count, entry_tag_list_start, entry_tag_size)
-            print_entrypoints(entrypoints)
+        entrypoints = get_entrypoints(data, header)
+        if len(entrypoints):
+            print_entrypoints(entrypoints, header.name)
 
         print(
             """
@@ -51,11 +53,7 @@ Tags
  idx | game | type | id   | name 
 -----+------+------+------+-------"""
         )
-        for i in range(tag_count):
-            start = tag_list_start + (i * myth_headers.TAG_HEADER_SIZE)
-            end = start + myth_headers.TAG_HEADER_SIZE
-            tag_header_data = data[start:end]
-            tag_header = myth_headers.parse_header(tag_header_data)
+        for (i, tag_header) in get_tags(data, header):
             if (
                 (not tag_id and not tag_type)
                 or (tag_type == tag_header.tag_type and tag_id == tag_header.tag_id)
@@ -69,38 +67,48 @@ Tags
                 )
                 if tag_id and tag_type:
                     export_tag(tag_header, data, output_file)
+                    return
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def get_entrypoints(data, entry_tag_count, entry_tag_list_start, entry_tag_size):
+def get_tags(data, header):
+    for i in range(header.tag_list_count):
+        start = myth_headers.tag_list_start(header) + (i * myth_headers.TAG_HEADER_SIZE)
+        end = start + myth_headers.TAG_HEADER_SIZE
+        tag_header_data = data[start:end]
+        yield (i, myth_headers.parse_header(tag_header_data))
+
+def get_entrypoints(data, header):
     entrypoints = OrderedDict()
-    for i in range(entry_tag_count):
-        start = entry_tag_list_start + (i * myth_headers.ENTRY_TAG_HEADER_SIZE)
+    for i in range(header.entry_tag_count):
+        start = myth_headers.mono_header_size(header) + (i * myth_headers.ENTRY_TAG_HEADER_SIZE)
         end = start + myth_headers.ENTRY_TAG_HEADER_SIZE
         entry_tag_header_data = data[start:end]
         (entry_id, entry_name, entry_long_name) = struct.unpack('>16s 32s 64s', entry_tag_header_data)
-        entry_id = entry_id.split(b'\0', 1)[0].decode('mac-roman')
-        entry_name = entry_name.split(b'\0', 1)[0].decode('mac-roman')
-        entry_long_name = entry_long_name.split(b'\0', 1)[0].decode('mac-roman')
+        entry_id = myth_headers.decode_string(entry_id)
+        entry_name = myth_headers.decode_string(entry_name)
+        entry_long_name = myth_headers.decode_string(entry_long_name)
         entrypoints[entry_id] = (entry_name, entry_long_name)
     return entrypoints
 
-def print_entrypoints(entrypoints):
+def print_entrypoints(entrypoints, header_name):
     print(
-        """
-Entrypoints
+        f"""
+Entrypoints: {header_name}
 ------+----------------------------------+------------------------------------------------------------------+
  id   | name                             | long
 ------+----------------------------------+------------------------------------------------------------------+"""
     )
     for entry_id, (entry_name, entry_long_name) in entrypoints.items():
         print(f' {entry_id: <4} | {entry_name: <32} | {entry_long_name: <64}')
+    print('---')
 
-def get_tag_data(data, tag_type, tag_id):
+def seek_tag_data(data, tag_type, tag_id):
     (
+        game_version,
         header, header_size,
-        _, _, _,
+        _, _,
         tag_count, tag_list_start, tag_list_size
     ) = myth_headers.parse_mono_header(data)
 
@@ -114,7 +122,7 @@ def get_tag_data(data, tag_type, tag_id):
             tag_end = tag_start + tag_header.tag_data_size
             tag_data = data[tag_start:tag_end]
             return (
-                myth_headers.encode_header(myth_headers.fix_tag_header_offset(tag_header))
+                myth_headers.encode_header(tag_header)
                 + tag_data
             )
 
@@ -132,7 +140,7 @@ def export_tag(tag_header, data, output_file):
     if prompt(tag_path):
         pathlib.Path(tag_path.parent).mkdir(parents=True, exist_ok=True)
         with open(tag_path, 'wb') as tag_file:
-            tag_file.write(myth_headers.encode_header(myth_headers.fix_tag_header_offset(tag_header)))
+            tag_file.write(myth_headers.encode_header(tag_header))
             tag_file.write(tag_data)
             print(f"Tag extracted. Output saved to {tag_path}")
 

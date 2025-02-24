@@ -121,7 +121,7 @@ def parse_soun_tag(data):
             start = soun_header_end + (perm_i * perm_size)
             end = start + perm_size
             (p1, p2, p3, p_desc,) = struct.unpack(">H H H 26s", data[start:end])
-            p_desc = p_desc.split(b'\0', 1)[0].decode('mac-roman')
+            p_desc = myth_headers.decode_string(p_desc)
             p_descs.append((p1, p2, p3, p_desc))
 
             meta_start = permutation_end + (perm_i * meta_length)

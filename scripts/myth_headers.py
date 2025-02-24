@@ -18,6 +18,16 @@ class ArchiveType(enum.Enum):
     INTERFACE = enum.auto()
     ADDON = enum.auto()
     METASERVER = enum.auto()
+ArchivePriority = {
+    ArchiveType.FOUNDATION: -3,
+    ArchiveType.CACHE: -2,
+    ArchiveType.PATCH: -2,
+    ArchiveType.ADDON: -1,
+    ArchiveType.PLUGIN: 0,
+    ArchiveType.INTERFACE: 0,
+    ArchiveType.TAG: 0,
+    ArchiveType.METASERVER: 0,
+}
 
 # 
 # Myth II: monolith header
@@ -58,7 +68,7 @@ class ArchiveType(enum.Enum):
 #  
 # list of tags starts here
 SBMonoHeaderFmt = """>
-    h h
+    h H
     32s
     64s
     H H
@@ -167,10 +177,13 @@ SBHeader = namedtuple('SBHeader', [
     'tag_version'
 ])
 
-def load_file(path):
+def load_file(path, length=None):
     try:
         with open(path, 'rb') as infile:
-            data = infile.read()
+            if length:
+                data = infile.read(length)
+            else:
+                data = infile.read()
     except FileNotFoundError:
         print(f"Error: File not found - {path}")
         sys.exit(1)
@@ -178,7 +191,10 @@ def load_file(path):
     return data
 
 def parse_gor_header(header):
-    gor = GORHeader._make(struct.unpack(GORHeaderFmt, header[:GOR_HEADER_SIZE]))
+    header_data = header[:GOR_HEADER_SIZE]
+    if len(header_data) < GOR_HEADER_SIZE:
+        raise ValueError("Invalid header")
+    gor = GORHeader._make(struct.unpack(GORHeaderFmt, header_data))
     return gor._replace(
         name=decode_string(gor.name),
     )
@@ -191,12 +207,23 @@ def encode_string(b):
 
 
 def parse_sb_mono_header(header):
-    mono = SBMonoHeader._make(struct.unpack(SBMonoHeaderFmt, header[:SB_MONO_HEADER_SIZE]))
+    header_data = header[:SB_MONO_HEADER_SIZE]
+    if len(header_data) < SB_MONO_HEADER_SIZE:
+        raise ValueError("Invalid header")
+
+    mono = SBMonoHeader._make(struct.unpack(SBMonoHeaderFmt, header_data))
     return mono._replace(
         name=decode_string(mono.name),
         description=decode_string(mono.description),
         type=ArchiveType(mono.type)
     )
+
+
+def mono_header_size(header):
+    if type(header).__name__ == 'GORHeader':
+        return GOR_HEADER_SIZE
+    elif type(header).__name__ == 'SBMonoHeader':
+        return SB_MONO_HEADER_SIZE
 
 def parse_mono_header(data):
     is_sb = data[124:128] == b'dng2'
@@ -206,6 +233,7 @@ def parse_mono_header(data):
         raise ValueError("Incompatible game version")
 
     if is_tfl:
+        game_version = 1
         header = parse_gor_header(data)
         # print(header.name)
 
@@ -214,10 +242,10 @@ def parse_mono_header(data):
 
         entry_tag_count = 0
         entry_tag_list_start = header_size
-        entry_tag_size = 0
 
         tag_list_start = header.tag_list_offset
     elif is_sb:
+        game_version = 2
         header = parse_sb_mono_header(data)
         # print(header.name)
         # print(header.description)
@@ -226,17 +254,22 @@ def parse_mono_header(data):
 
         entry_tag_count = header.entry_tag_count
         entry_tag_list_start = header_size
-        entry_tag_size = entry_tag_count * ENTRY_TAG_HEADER_SIZE
 
-        tag_list_start = entry_tag_list_start + entry_tag_size
+        tag_list_start = entry_tag_list_start + (entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
     return (
-        header, header_size,
-        entry_tag_count, entry_tag_list_start, entry_tag_size,
+        game_version, header, header_size,
+        entry_tag_count, entry_tag_list_start,
         tag_count, tag_list_start, tag_list_size
     )
+
+def tag_list_start(header):
+    if type(header).__name__ == 'GORHeader':
+        return header.tag_list_offset
+    elif type(header).__name__ == 'SBMonoHeader':
+        return SB_MONO_HEADER_SIZE + (header.entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
 def parse_header(data):
     game_version = data[60:64]
@@ -267,7 +300,7 @@ def tag_header_fmt(header_tuple):
         return SBHeaderFmt
 
 def encode_header(header):
-    encoded = header._replace(
+    encoded = fix_tag_header_offset(header)._replace(
         name=encode_string(header.name),
         tag_type=encode_string(header.tag_type),
         tag_id=encode_string(header.tag_id),
