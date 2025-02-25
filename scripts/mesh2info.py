@@ -22,41 +22,40 @@ def main(game_directory, level, plugin_name):
         if level:
             if level == 'all':
                 for header_name, entrypoints in entrypoint_map.items():
-                    for mid, (entry_name, entry_long_name) in entrypoints.items():
-                        print(f'[{header_name}] mesh={mid} [{entry_name}] [{entry_long_name}]')
-                        parse_mesh_tag(tags, data_map, mid)
+                    for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
+                        print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+                        parse_mesh_tag(tags, data_map, mesh_id)
             else:
-                parse_level(level, tags, entrypoint_map, data_map)
+                (mesh_id, header_name, entry_name, entry_long_name) = parse_level(level, entrypoint_map)
+                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+                parse_mesh_tag(tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
                 mono2tag.print_entrypoints(entrypoints, header_name)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_level(level, tags, entrypoint_map, data_map):
-    mesh_id = None
+def parse_level(level, entrypoint_map):
+    ret = None
+    level_mesh = level[5:] if level.startswith('mesh=') else None
     for header_name, entrypoints in entrypoint_map.items():
-        for mid, (entry_name, entry_long_name) in entrypoints.items():
-            if entry_name.startswith(f'{level} '):
-                print(f'mesh={mid} [{entry_name}] [{entry_long_name}]')
-                mesh_id = mid
-    if not mesh_id:
+        for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
+            if level_mesh:
+                if level_mesh == mesh_id:
+                    ret = (mesh_id, header_name, entry_name, entry_long_name)
+            elif entry_name.startswith(f'{level} '):
+                ret = (mesh_id, header_name, entry_name, entry_long_name)
+    if ret:
+        return ret
+    else:
         print("Invalid level")
         sys.exit(1)
-    parse_mesh_tag(tags, data_map, mesh_id)
 
 def parse_mesh_tag(tags, data_map, mesh_id):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
 
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
-    mhd = mesh_header._asdict()
-    for f in mesh_header._fields:
-        val = mhd[f]
-        if type(val) is bytes and all(f == b'' for f in val.split(b'\x00')):
-            val = f'[00 x {len(val.split(b'\x00'))-1}]'
-        elif type(val) is bytes and all(f == b'' for f in val.split(b'\xff')):
-            val = f'[FF x {len(val.split(b'\xff'))-1}]'
-        print(f'{f:>42}', val)
+    print_header(mesh_header)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
     print_markers(tags, palette, orphans)
@@ -67,6 +66,16 @@ def parse_mesh_tag(tags, data_map, mesh_id):
     if action_remainder:
         print(f'ACTION REMAINDER {len(action_remainder)}')
         print(action_remainder.hex())
+
+def print_header(mesh_header):
+    mhd = mesh_header._asdict()
+    for f in mesh_header._fields:
+        val = mhd[f]
+        if type(val) is bytes and all(f == b'' for f in val.split(b'\x00')):
+            val = f'[00 x {len(val.split(b'\x00'))-1}]'
+        elif type(val) is bytes and all(f == b'' for f in val.split(b'\xff')):
+            val = f'[FF x {len(val.split(b'\xff'))-1}]'
+        print(f'{f:<42} {val}')
 
 def print_markers(tags, palette, orphans):
     for palette_type, p_list in palette.items():
@@ -145,9 +154,6 @@ if __name__ == "__main__":
     plugin_name = None
     if len(sys.argv) > 2:
         level = sys.argv[2]
-        if len(level) < 2 or len(level) > 3:
-            print("Invalid level")
-            sys.exit(1)
         if len(sys.argv) == 4:
             plugin_name = sys.argv[3]
 

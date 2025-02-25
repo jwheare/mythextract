@@ -68,7 +68,7 @@ Prints lots of information about a mesh tag, including all markers and map actio
     Usage: python3 mesh2info.py <game_directory> [<level> [plugin_name]]
 
 * `game_directory`: path to a Myth II game directory
-* `level`: **optional** — if omitted just lists all levels
+* `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
@@ -78,7 +78,7 @@ Fixes mesh actions by removing any unused data stored at the end of the action b
     Usage: python3 fixmeshactions.py <game_directory> [<level> [plugin_name]]
 
 * `game_directory`: path to a Myth II game directory
-* `level`: **optional** — if omitted just lists all levels
+* `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 
 # Environment variables

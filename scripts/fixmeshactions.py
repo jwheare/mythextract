@@ -7,6 +7,7 @@ import signal
 
 import myth_headers
 import mesh_tag
+import mesh2info
 import mono2tag
 import loadtags
 
@@ -22,25 +23,15 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            parse_level(level, tags, entrypoint_map, data_map)
+            (mesh_id, header_name, entry_name, entry_long_name) = mesh2info.parse_level(level, entrypoint_map)
+            print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+            mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
+            fix_mesh_actions(mesh_tag_data)
         else:
             for header_name, entrypoints in entrypoint_map.items():
                 mono2tag.print_entrypoints(entrypoints, header_name)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
-
-def parse_level(level, tags, entrypoint_map, data_map):
-    mesh_id = None
-    for header_name, entrypoints in entrypoint_map.items():
-        for mid, (entry_name, entry_long_name) in entrypoints.items():
-            if entry_name.startswith(f'{level} '):
-                print(f'mesh={mid} [{entry_name}] [{entry_long_name}]')
-                mesh_id = mid
-    if not mesh_id:
-        print("Invalid level")
-        sys.exit(1)
-    mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
-    fix_mesh_actions(mesh_tag_data)
 
 def fix_mesh_actions(mesh_tag_data):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
@@ -119,9 +110,6 @@ if __name__ == "__main__":
     plugin_name = None
     if len(sys.argv) > 2:
         level = sys.argv[2]
-        if len(level) < 2 or len(level) > 3:
-            print("Invalid level")
-            sys.exit(1)
         if len(sys.argv) == 4:
             plugin_name = sys.argv[3]
 
