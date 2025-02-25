@@ -10,10 +10,7 @@ ACTION_HEAD_SIZE = 64
 PALETTE_SIZE = 32
 MARKER_SIZE = 64
 WORLD_POINT_SF = 512
-# Weird, but matches exported actions
-ANGLE_SF = (0xffff / 366) + 3
-# This would make more sense
-# (0xffff / 365)
+ANGLE_SF = (0xffff / 360)
 MeshHeaderFmt = """>
     4s 4s
 H H
@@ -25,40 +22,44 @@ L L L L
 L
 4s
 l
-h h
-8s
-8s
-l
-h
+
+h h 8s 8s
+l h
 H
 8s
 4s
 L L L
+
 4s
 4s
 4s
 4s
 4s 4s
 4s 4s 4s
-4s 4s 4s 4s
+4s 4s
+4s 4s
+
 L L L
 L L L
-8s
-h H
+8s h H
 4s
 4s 4s 4s
 8s
-4s 4s 4s 4s
+
+4s 4s
+4s 4s
 L f f f
 L L L L
 64s 64s 64s
 4s
-8s
-f
-4s 4s
+8s f
+
+4s
+4s
 32s
 L
 442s
+
 H
 H
 H
@@ -79,12 +80,14 @@ MeshHeader = namedtuple('MeshHeader', [
     'flags',
     'particle_system_tag',
     'team_count',
+
     'dark_fraction', 'light_fraction', 'dark_color', 'light_color',
     'transition_point', 'ceiling_height',
     'unused1',
     'edge_of_mesh_buffer_zones',
     'global_ambient_sound_tag',
     'map_action_count', 'map_actions_offset', 'map_action_buffer_size',
+    
     'map_description_string_list_tag',
     'postgame_collection_tag',
     'pregame_collection_tag',
@@ -93,27 +96,28 @@ MeshHeader = namedtuple('MeshHeader', [
     'cutscene_movie_tags_1', 'cutscene_movie_tags_2', 'cutscene_movie_tags_3',
     'storyline_string_tags_1', 'storyline_string_tags_2',
     'storyline_string_tags_3', 'storyline_string_tags_4',
+
     'media_coverage_region_offset', 'media_coverage_region_size', 'media_coverage_region_ptr',
     'mesh_LOD_data_offset', 'mesh_LOD_data_size', 'mesh_LOD_data_ptr',
-    'global_tint_color', 'global_tint_fraction',
-    'pad',
+    'global_tint_color', 'global_tint_fraction', 'pad',
     'wind_tag',
     'screen_collection_tags_1', 'screen_collection_tags_2', 'screen_collection_tags_3',
     'blood_color',
-    'picture_caption_string_list_tag',
-    'narration_sound_tag',
-    'win_ambient_sound_tag',
-    'loss_ambient_sound_tag',
+
+    'picture_caption_string_list_tag', 'narration_sound_tag',
+    'win_ambient_sound_tag', 'loss_ambient_sound_tag',
     'reverb_environment', 'reverb_volume', 'reverb_decay_time', 'reverb_damping',
     'connector_count', 'connectors_offset', 'connectors_size', 'connectors_ptr',
     'cutscene_names_1', 'cutscene_names_2', 'cutscene_names_3',
     'hints_string_list_tag',
     'fog_color', 'fog_density',
+
     'difficulty_level_override_string_list_tag',
     'team_names_override_string_list_tag',
     'plugin_name',
     'extra_flags',
     'unused',
+    
     'connector_type',
     'map_description_string_index',
     'overhead_map_collection_index',
@@ -324,6 +328,9 @@ def parse_header(data):
         flags=MeshFlags(mesh_header.flags),
         extra_flags=ExtraFlags(mesh_header.extra_flags)
     )
+
+def is_single_player(header):
+    return MeshFlags.SINGLE_PLAYER_MAP in header.flags
 
 def encode_header(header):
     return struct.pack(MeshHeaderFmt, *header)

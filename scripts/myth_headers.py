@@ -177,6 +177,12 @@ SBHeader = namedtuple('SBHeader', [
     'tag_version'
 ])
 
+def all_on(val):
+    return all(f == b'' for f in val.split(b'\xff'))
+
+def all_off(val):
+    return all(f == b'' for f in val.split(b'\x00'))
+
 def load_file(path, length=None):
     try:
         with open(path, 'rb') as infile:
@@ -233,7 +239,7 @@ def parse_mono_header(data):
         raise ValueError("Incompatible game version")
 
     if is_tfl:
-        game_version = 1
+        version = 1
         header = parse_gor_header(data)
         # print(header.name)
 
@@ -245,7 +251,7 @@ def parse_mono_header(data):
 
         tag_list_start = header.tag_list_offset
     elif is_sb:
-        game_version = 2
+        version = 2
         header = parse_sb_mono_header(data)
         # print(header.name)
         # print(header.description)
@@ -260,7 +266,7 @@ def parse_mono_header(data):
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
     return (
-        game_version, header, header_size,
+        version, header, header_size,
         entry_tag_count, entry_tag_list_start,
         tag_count, tag_list_start, tag_list_size
     )
@@ -272,12 +278,12 @@ def tag_list_start(header):
         return SB_MONO_HEADER_SIZE + (header.entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
 def parse_header(data):
-    game_version = data[60:64]
-    is_tfl = game_version == b'myth'
-    is_sb = game_version == b'mth2'
+    version = data[60:64]
+    is_tfl = version == b'myth'
+    is_sb = version == b'mth2'
 
     if not is_tfl and not is_sb:
-        raise ValueError(f"Incompatible game version: {game_version}")
+        raise ValueError(f"Incompatible game version: {version}")
 
     if is_tfl:
         return parse_tfl_header(data[:TAG_HEADER_SIZE])
@@ -290,13 +296,20 @@ def parse_tfl_header(header):
 def parse_sb_header(header):
     return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
 
+def game_version(header_tuple):
+    if header_tuple.tag_version == 'myth':
+        return 1
+    elif header_tuple.tag_version == 'mth2':
+        return 2
+
 def fix_tag_header_offset(header_tuple):
     return header_tuple._replace(tag_data_offset=TAG_HEADER_SIZE)
 
 def tag_header_fmt(header_tuple):
-    if header_tuple.tag_version == 'myth':
+    version = game_version(header_tuple)
+    if version == 1:
         return TFLHeaderFmt
-    elif header_tuple.tag_version == 'mth2':
+    elif version == 2:
         return SBHeaderFmt
 
 def encode_header(header):

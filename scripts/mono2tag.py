@@ -80,7 +80,7 @@ def get_tags(data, header):
         yield (i, myth_headers.parse_header(tag_header_data))
 
 def get_entrypoints(data, header):
-    entrypoints = OrderedDict()
+    entrypoints = []
     for i in range(header.entry_tag_count):
         start = myth_headers.mono_header_size(header) + (i * myth_headers.ENTRY_TAG_HEADER_SIZE)
         end = start + myth_headers.ENTRY_TAG_HEADER_SIZE
@@ -89,8 +89,8 @@ def get_entrypoints(data, header):
         entry_id = myth_headers.decode_string(entry_id)
         entry_name = myth_headers.decode_string(entry_name)
         entry_long_name = myth_headers.decode_string(entry_long_name)
-        entrypoints[entry_id] = (entry_name, entry_long_name)
-    return entrypoints
+        entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name))))
+    return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
 def print_entrypoints(entrypoints, header_name):
     print(

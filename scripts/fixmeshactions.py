@@ -101,7 +101,7 @@ def prompt(prompt_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 fixmeshactions.py <game_directory> [<level> [plugin_name]]")
+        print("Usage: python3 fixmeshactions.py <game_directory> [<level> [<plugin_name>]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]

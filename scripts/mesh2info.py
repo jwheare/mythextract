@@ -4,6 +4,7 @@ import os
 import struct
 import signal
 
+import myth_headers
 import mesh_tag
 import mono2tag
 import loadtags
@@ -13,7 +14,7 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(game_directory, level, plugin_name):
     """
-    Parse a Myth II mesh tag file and output header and scripting info
+    Load Myth II game tags and plugins and output header, markers and scripting info for a mesh
     """
     files = loadtags.build_file_list(game_directory, plugin_name)
     (tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
@@ -71,9 +72,9 @@ def print_header(mesh_header):
     mhd = mesh_header._asdict()
     for f in mesh_header._fields:
         val = mhd[f]
-        if type(val) is bytes and all(f == b'' for f in val.split(b'\x00')):
+        if type(val) is bytes and myth_headers.all_off(val):
             val = f'[00 x {len(val.split(b'\x00'))-1}]'
-        elif type(val) is bytes and all(f == b'' for f in val.split(b'\xff')):
+        elif type(val) is bytes and myth_headers.all_on(val):
             val = f'[FF x {len(val.split(b'\xff'))-1}]'
         print(f'{f:<42} {val}')
 

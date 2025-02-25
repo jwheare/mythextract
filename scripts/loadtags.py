@@ -23,11 +23,13 @@ def main(game_directory, plugin_name):
             mono2tag.print_entrypoints(entrypoints, header_name)
 
         for tag_type, tag_type_tags in tags.items():
-            print(tag_type, len(tag_type_tags))
+            print(f'{tag_type} num={len(tag_type_tags)}')
             for tag_id, tag_headers in tag_type_tags.items():
                 latest = tag_headers[-1]
                 if len(tag_headers) > 1 or latest[0] == plugin_name:
-                    print(f'{tag_type} {tag_id} [{latest[0]}] {latest[1].name}')
+                    print(f'{tag_type} {tag_id}')
+                    for headers in tag_headers:
+                        print(f' - {headers[1].name} [{headers[0]}]')
             print('---')
 
     except (struct.error, UnicodeDecodeError) as e:
