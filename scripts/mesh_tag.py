@@ -57,7 +57,8 @@ L L L L
 f
 4s 4s
 32s
-446s
+L
+442s
 H
 H
 H
@@ -74,7 +75,9 @@ MeshHeader = namedtuple('MeshHeader', [
     'data_offset', 'data_size', 'data_ptr',
     'marker_palette_entries', 'marker_palette_offset', 'marker_palette_size', 'marker_palette_ptr',
     'marker_count', 'markers_offset', 'markers_size', 'markers_ptr',
-    'mesh_lighting_tag', 'connector_tag', 'flags', 'particle_system_tag',
+    'mesh_lighting_tag', 'connector_tag',
+    'flags',
+    'particle_system_tag',
     'team_count',
     'dark_fraction', 'light_fraction', 'dark_color', 'light_color',
     'transition_point', 'ceiling_height',
@@ -109,6 +112,7 @@ MeshHeader = namedtuple('MeshHeader', [
     'difficulty_level_override_string_list_tag',
     'team_names_override_string_list_tag',
     'plugin_name',
+    'extra_flags',
     'unused',
     'connector_type',
     'map_description_string_index',
@@ -119,6 +123,43 @@ MeshHeader = namedtuple('MeshHeader', [
     'hints_string_list_index',
     'editor_data',
 ])
+
+class MeshFlags(enum.Flag, boundary=enum.CONFORM):
+    BODY_COUNT = enum.auto()
+    STEAL_THE_BACON = enum.auto()
+    LAST_MAN_ON_THE_HILL = enum.auto()
+    SCAVENGER_HUNT = enum.auto()
+    FLAG_RALLY = enum.auto()
+    CAPTURE_THE_FLAG = enum.auto()
+    BALLS_ON_PARADE = enum.auto()
+    TERRITORIES = enum.auto()
+    CAPTURES = enum.auto()
+    KING_OF_THE_HILL = enum.auto()
+    STAMPEDE = enum.auto()
+    ASSASSIN = enum.auto()
+    HUNTING = enum.auto()
+    CUSTOM = enum.auto()
+    UNKNOWN_1 = enum.auto()
+    UNKNOWN_2 = enum.auto()
+    SINGLE_PLAYER_MAP = enum.auto()
+    SUPPORTS_UNIT_TRADING = enum.auto()
+    SUPPORTS_VETERANS = enum.auto()
+    HAS_LIMITED_TERRAIN_VISIBILITY = enum.auto()
+    IS_COMPLETE = enum.auto()
+    CAN_BE_USED_BY_DEMO = enum.auto()
+    LEAVES_OVERHEAD_MAP_CLOSED = enum.auto()
+    IS_TRAINING_MAP = enum.auto()
+    CAN_CATCH_FIRE = enum.auto()
+    HAS_CEILING = enum.auto()
+    HAS_TERRAIN_FOLLOWING_CAMERA = enum.auto()
+    OVERHEAD_MAP_DOESNT_SCROLL = enum.auto()
+    MODELS_DONT_LIMIT_RENDERING = enum.auto()
+    USES_ANTICLUMP = enum.auto()
+    USES_VTFL = enum.auto()
+    REQUIRES_PLUGIN = enum.auto()
+
+class ExtraFlags(enum.Flag, boundary=enum.CONFORM):
+    LAST_LEVEL = enum.auto()
 
 class ActionFlag(enum.Flag):
     INITIALLY_ACTIVE = enum.auto()
@@ -210,7 +251,7 @@ class NetgameFlag(enum.Flag, boundary=enum.CONFORM):
     CAPTURES = enum.auto()
     KING_OF_THE_HILL = enum.auto()
     STAMPEDE = enum.auto()
-    ASSASSINATION = enum.auto()
+    ASSASSIN = enum.auto()
     HUNTING = enum.auto()
     CUSTOM = enum.auto()
 NetgameFlagInfo = {
@@ -225,7 +266,7 @@ NetgameFlagInfo = {
     NetgameFlag.CAPTURES: 'caps',
     NetgameFlag.KING_OF_THE_HILL: 'koth',
     NetgameFlag.STAMPEDE: 'stamp',
-    NetgameFlag.ASSASSINATION: 'ass',
+    NetgameFlag.ASSASSIN: 'ass',
     NetgameFlag.HUNTING: 'hunt',
     NetgameFlag.CUSTOM: 'custom',
 }
@@ -276,8 +317,12 @@ def align(align_bytes, value):
 def parse_header(data):
     mesh_header_start = myth_headers.TAG_HEADER_SIZE
     mesh_header_end = mesh_header_start + MESH_HEADER_SIZE
-    return MeshHeader._make(
+    mesh_header = MeshHeader._make(
         struct.unpack(MeshHeaderFmt, data[mesh_header_start:mesh_header_end])
+    )
+    return mesh_header._replace(
+        flags=MeshFlags(mesh_header.flags),
+        extra_flags=ExtraFlags(mesh_header.extra_flags)
     )
 
 def encode_header(header):
