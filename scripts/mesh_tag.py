@@ -92,8 +92,8 @@ MeshHeader = namedtuple('MeshHeader', [
     'postgame_collection_tag',
     'pregame_collection_tag',
     'overhead_map_collection_tag',
-    'next_mesh_tags_1', 'next_mesh_tags_2',
-    'cutscene_movie_tags_1', 'cutscene_movie_tags_2', 'cutscene_movie_tags_3',
+    'next_mesh', 'next_mesh_alternate',
+    'cutscene_movie_pregame', 'cutscene_movie_success', 'cutscene_movie_failure',
     'storyline_string_tags_1', 'storyline_string_tags_2',
     'storyline_string_tags_3', 'storyline_string_tags_4',
 
@@ -117,7 +117,7 @@ MeshHeader = namedtuple('MeshHeader', [
     'plugin_name',
     'extra_flags',
     'unused',
-    
+
     'connector_type',
     'map_description_string_index',
     'overhead_map_collection_index',
@@ -329,8 +329,21 @@ def parse_header(data):
         extra_flags=ExtraFlags(mesh_header.extra_flags)
     )
 
+def has_single_player_story(data):
+    if not data:
+        return False
+    mesh_header = parse_header(data)
+    if not is_single_player(mesh_header):
+        return False
+    if myth_headers.all_on(mesh_header.storyline_string_tags_1):
+        return False
+    return True
+
 def is_single_player(header):
     return MeshFlags.SINGLE_PLAYER_MAP in header.flags
+
+def is_vtfl(header):
+    return MeshFlags.USES_VTFL in header.flags
 
 def encode_header(header):
     return struct.pack(MeshHeaderFmt, *header)
