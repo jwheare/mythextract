@@ -374,6 +374,7 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
         if num_spans > width or num_pixels > width:
             return
         spans = []
+        span_end = span_start
         for span_i in range(num_spans):
             span_end = span_start + 4
             span = struct.unpack(
@@ -384,6 +385,7 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
             span_start = span_end
 
         pixel_start = span_end
+        pixel_end = pixel_start
         col_i = 0
         row = []
         total_opaque = 0
