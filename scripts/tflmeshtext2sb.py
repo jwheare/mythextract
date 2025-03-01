@@ -8,7 +8,6 @@ import time
 
 import myth_headers
 import mesh_tag
-import mono2tag
 import mesh2info
 import loadtags
 
@@ -54,6 +53,7 @@ def load_file(path):
 def main(game_directory, level):
     """
     Load Myth TFL game tags and convert text and stli tags for a given mesh to Myth II format
+    Also maps to the tag ids used by the ports of TFL to Myth II
     """
     (files, cutscene_paths) = loadtags.build_file_list(game_directory)
     (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
@@ -63,21 +63,17 @@ def main(game_directory, level):
         sys.exit(1)
 
     try:
-        if level:
-            if level == 'all':
-                for level in range(1, 26):
-                    (mesh_id, header_name, entry_name) = mesh2info.parse_level(f'{level:02}', tags)
-                    if DEBUG:
-                        print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
-                    convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
-            else:
-                (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
+        if level == 'all':
+            for level in range(1, 26):
+                (mesh_id, header_name, entry_name) = mesh2info.parse_level(f'{level:02}', tags)
                 if DEBUG:
                     print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                 convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
         else:
-            for header_name, entrypoints in entrypoint_map.items():
-                mono2tag.print_entrypoints(entrypoints, header_name)
+            (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
+            if DEBUG:
+                print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
+            convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
@@ -149,14 +145,12 @@ def prompt(prompt_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 tflmeshtext2sb.py <game_directory> [<level>]")
+        print("Usage: python3 tflmeshtext2sb.py <game_directory> <level>")
         sys.exit(1)
     
     game_directory = sys.argv[1]
 
-    level = None
-    if len(sys.argv) > 2:
-        level = sys.argv[2]
+    level = sys.argv[2]
 
     try:
         main(game_directory, level)

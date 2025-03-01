@@ -91,6 +91,16 @@ Prints map scripting actions from a mesh tag
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 
+## [scripts/mesh2text.py](scripts/mesh2text.py)
+
+Outputs pregame text data from a mesh tag
+
+    Usage: python3 mesh2text.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
 
 Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes
@@ -100,6 +110,16 @@ Fixes mesh actions by removing any unused data stored at the end of the action b
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
+## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
+
+Load Myth TFL game tags and convert text and stli tags for a given mesh to Myth II format.
+Also maps to the tag ids used by the ports of TFL to Myth II.
+
+    Usage: python3 tflmeshtext2sb.py <game_directory> [<level>]
+
+* `game_directory`: path to a Myth TFL game directory
+* `level`: can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 
 # Environment variables
 
