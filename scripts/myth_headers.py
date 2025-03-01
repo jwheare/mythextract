@@ -28,6 +28,50 @@ ArchivePriority = {
     ArchiveType.TAG: 0,
     ArchiveType.METASERVER: 0,
 }
+TagTypes = {
+    'amso': "Ambient Sounds",
+    'arti': "Artifacts",
+    'core': "Collection References",
+    'x256': "Collections",
+    'conn': "Connectors",
+    'ditl': "Dialog String Lists",
+    'd256': "Detail Collections",
+    'dmap': "Detail Maps",
+    'dtex': "Detail Textures",
+    'bina': "Dialogs",
+    'font': "Fonts",
+    'form': "Formations",
+    'geom': "Geometries",
+    'inte': "Interface",
+    'ligh': "Lightning",
+    'phys': "Local Physics",
+    'lpgr': "Local Projectile Groups",
+    'medi': "Media Types",
+    'meef': "Mesh Effect",
+    'meli': "Mesh Lighting",
+    'mesh': "Meshes",
+    'anim': "Model Animations",
+    'mode': "Models",
+    'mons': "Monsters",
+    'obje': "Objects",
+    'obpc': "Observer Constants",
+    'part': "Particle Systems",
+    'pref': "Preferences",
+    'prel': "Preloaded Data",
+    'prgr': "Projectile Groups",
+    'proj': "Projectiles",
+    'reco': "Recordings",
+    'save': "Saved Games",
+    'scen': "Scenery",
+    'scri': "Scripts",
+    'soli': "Sound Lists",
+    'soun': "Sounds",
+    'stli': "String Lists",
+    'temp': "Templates",
+    'text': "Text",
+    'unit': "Units",
+    'wind': "Wind",
+}
 
 # 
 # Myth II: monolith header
@@ -133,11 +177,26 @@ GORHeader = namedtuple('GORHeader', [
     'u6',     'u7',    'u8',    'u9'
 ])
 
+UnifiedHeader = namedtuple('UnifiedHeader', [
+    'game_version',
+    'type',
+    'version',
+    'name',
+    'description',
+    'header',
+    'header_size',
+    'entry_tag_count',
+    'entry_tag_list_start',
+    'tag_count',
+    'tag_list_start',
+    'tag_list_size',
+])
+
 TFLHeaderFmt = """>
     32s 4s 4s
-    H H H H
+    L H H
     i l
-    H H
+    L
     4s
 """
 TFLHeader = namedtuple('TFLHeader', [
@@ -145,14 +204,14 @@ TFLHeader = namedtuple('TFLHeader', [
     'name',
     # 736F756E   30336E61
     'tag_type', 'tag_id',
-    # 0000 0001  0005  0002
-    'u1', 'u2', 'u3', 'u4',
+    # 00000001  0005           0002
+    'version', 'tag_version', 'flags',
     # 00000040          000B0D8A
     'tag_data_offset', 'tag_data_size',
-    # 0000 0000
-    'u5', 'u6',
+    # 00000000
+    'user_data',
     # 6D797468
-    'tag_version'
+    'signature'
 ])
 
 SBHeaderFmt = """>
@@ -174,8 +233,29 @@ SBHeader = namedtuple('SBHeader', [
     # 00000000    0001       FF             FF
     'user_data', 'version', 'destination', 'owner_index',
     # 6D746832
-    'tag_version'
+    'signature'
 ])
+
+def tfl2sb(tfl_header, tag_content):
+    sb_header = SBHeader(
+        identifier=-1,
+        flags=0,
+        type=0,
+        name=tfl_header.name,
+        tag_type=tfl_header.tag_type,
+        tag_id=tfl_header.tag_id,
+        tag_data_offset=tfl_header.tag_data_offset,
+        tag_data_size=len(tag_content),
+        user_data=tfl_header.user_data,
+        version=tfl_header.version,
+        destination=-1,
+        owner_index=-1,
+        signature='mth2'
+    )
+    return encode_header(sb_header) + tag_content
+
+def local_folder(tag_header):
+    return TagTypes[tag_header.tag_type.lower()].lower()
 
 def all_on(val):
     return all(f == b'' for f in val.split(b'\xff'))
@@ -209,7 +289,10 @@ def decode_string(s):
     return s.split(b'\0', 1)[0].decode('mac-roman')
 
 def encode_string(b):
-    return b.encode('mac-roman')
+    if b is None:
+        return b''
+    else:
+        return b.encode('mac-roman')
 
 
 def parse_sb_mono_header(header):
@@ -241,7 +324,7 @@ def parse_mono_header(data):
     if is_tfl:
         version = 1
         header = parse_gor_header(data)
-        # print(header.name)
+        description = None
 
         tag_count = header.tag_list_count
         header_size = header.header_size
@@ -253,8 +336,7 @@ def parse_mono_header(data):
     elif is_sb:
         version = 2
         header = parse_sb_mono_header(data)
-        # print(header.name)
-        # print(header.description)
+        description = header.description
         tag_count = header.tag_list_count
         header_size = SB_MONO_HEADER_SIZE
 
@@ -263,19 +345,30 @@ def parse_mono_header(data):
 
         tag_list_start = entry_tag_list_start + (entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
+    # print(header.name)
+    # print(description)
+
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
+    return UnifiedHeader(
+        game_version=version,
+        type=header.type,
+        version=header.version,
+        name=header.name,
+        description=description,
+        header=header,
+        header_size=header_size,
+        entry_tag_count=entry_tag_count,
+        entry_tag_list_start=entry_tag_list_start,
+        tag_count=tag_count,
+        tag_list_start=tag_list_start,
+        tag_list_size=tag_list_size,
+    )
     return (
         version, header, header_size,
         entry_tag_count, entry_tag_list_start,
         tag_count, tag_list_start, tag_list_size
     )
-
-def tag_list_start(header):
-    if type(header).__name__ == 'GORHeader':
-        return header.tag_list_offset
-    elif type(header).__name__ == 'SBMonoHeader':
-        return SB_MONO_HEADER_SIZE + (header.entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
 def parse_header(data):
     version = data[60:64]
@@ -297,9 +390,9 @@ def parse_sb_header(header):
     return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
 
 def game_version(header_tuple):
-    if header_tuple.tag_version == 'myth':
+    if header_tuple.signature == 'myth':
         return 1
-    elif header_tuple.tag_version == 'mth2':
+    elif header_tuple.signature == 'mth2':
         return 2
 
 def fix_tag_header_offset(header_tuple):
@@ -317,7 +410,7 @@ def encode_header(header):
         name=encode_string(header.name),
         tag_type=encode_string(header.tag_type),
         tag_id=encode_string(header.tag_id),
-        tag_version=encode_string(header.tag_version)
+        signature=encode_string(header.signature)
     )
     return struct.pack(tag_header_fmt(header), *encoded)
 
@@ -326,5 +419,5 @@ def decode_header(header):
         name=decode_string(header.name),
         tag_type=decode_string(header.tag_type),
         tag_id=decode_string(header.tag_id),
-        tag_version=decode_string(header.tag_version)
+        signature=decode_string(header.signature)
     )

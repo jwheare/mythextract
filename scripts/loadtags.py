@@ -13,11 +13,11 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(game_directory, plugin_name):
     """
-    Load Myth II game tags and plugins
+    Load Myth game tags and plugins
     """
     try:
-        files = build_file_list(game_directory, plugin_name)
-        (tags, entrypoint_map, data_map) = build_tag_map(files)
+        (files, cutscenes) = build_file_list(game_directory, plugin_name)
+        (game_version, tags, entrypoint_map, data_map) = build_tag_map(files)
 
         for header_name, entrypoints in entrypoint_map.items():
             mono2tag.print_entrypoints(entrypoints, header_name)
@@ -26,7 +26,7 @@ def main(game_directory, plugin_name):
             print(f'{tag_type} num={len(tag_type_tags)}')
             for tag_id, tag_headers in tag_type_tags.items():
                 latest = tag_headers[-1]
-                if len(tag_headers) > 1 or latest[0] == plugin_name:
+                if tag_type == 'mesh' or len(tag_headers) > 1 or latest[0] == plugin_name:
                     print(f'{tag_type} {tag_id}')
                     for headers in tag_headers:
                         print(f' - {headers[1].name} [{headers[0]}]')
@@ -40,14 +40,22 @@ def lookup_tag_header(tags, tag_type, tag_id):
         return tags[tag_type][tag_id][-1]
     return (None, None)
 
-def build_file_list(game_directory, plugin_name):
+def build_file_list(game_directory, plugin_name=None):
     files = []
+    cutscenes = {}
 
     for tag_dir in ['tags', 'plugins', 'local']:
         tags_dir = pathlib.Path(game_directory, tag_dir)
-        files += read_file_headers(tags_dir, plugin_name)
+        if tags_dir.exists():
+            files += read_file_headers(tags_dir, plugin_name)
 
-    return sorted(files)
+    cutscene_dir = pathlib.Path(game_directory, 'cutscenes')
+    if cutscene_dir.exists():
+        for cutscene in os.scandir(cutscene_dir):
+            if cutscene.is_file() and not cutscene.name.startswith('.'):
+                cutscenes[cutscene.name] = cutscene
+
+    return (sorted(files), cutscenes)
 
 def get_tag_data(tags, data_map, tag_type, tag_id):
     (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)
@@ -60,21 +68,26 @@ def build_tag_map(files):
     tags = {}
     data_map = {}
     entrypoint_map = {}
-    for (pri, ver, name, path_dir, path, header) in files:
+    game_version = None
+    for (pri, ver, name, path_dir, path, mono_header) in files:
         if DEBUG:
             print(
-                f'{path_dir.name} - [{header.type}] \x1b[1m{header.name}\x1b[0m v={header.version} '
-                f'entrypoints={header.entry_tag_count} tags={header.tag_list_count}'
+                f'{path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{name} - {mono_header.name}\x1b[0m v={mono_header.version} '
+                f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
             )
 
+        # Take the version from the first tag loaded
+        if not game_version:
+            game_version = mono_header.game_version
+
         data = myth_headers.load_file(path)
-        data_map[header.name] = data
+        data_map[name] = data
 
-        if header.entry_tag_count:
-            entrypoints = mono2tag.get_entrypoints(data, header)
-            entrypoint_map[header.name] = entrypoints
+        if mono_header.entry_tag_count:
+            entrypoints = mono2tag.get_entrypoints(data, mono_header)
+            entrypoint_map[name] = entrypoints
 
-        for (i, tag_header) in mono2tag.get_tags(data, header):
+        for (i, tag_header) in mono2tag.get_tags(data, mono_header):
             tag_type_tags = tags.get(tag_header.tag_type, {})
 
             if tag_header.tag_id in tag_type_tags:
@@ -82,36 +95,39 @@ def build_tag_map(files):
             else:
                 tag_id_list = []
 
-            tag_id_list.append((header.name, tag_header))
+            tag_id_list.append((name, tag_header))
 
             tag_type_tags[tag_header.tag_id] = tag_id_list
             tags[tag_header.tag_type] = tag_type_tags
 
-    return (tags, entrypoint_map, data_map)
+    return (game_version, tags, entrypoint_map, data_map)
 
 
 def read_file_headers(path_dir, plugin_name):
     for dirfile in os.scandir(path_dir):
-        if dirfile.is_file() and not dirfile.name.startswith('.'):
+        if dirfile.is_file() and not dirfile.name.startswith('.') and not dirfile.name == 'scrap.gor':
             header_data = myth_headers.load_file(dirfile.path, myth_headers.SB_MONO_HEADER_SIZE)
             try:
-                header = myth_headers.parse_sb_mono_header(header_data)
-                priority = myth_headers.ArchivePriority[header.type]
+                mono_header = myth_headers.parse_mono_header(header_data)
+                if mono_header.game_version == 1:
+                    priority = -1
+                else:
+                    priority = myth_headers.ArchivePriority[mono_header.type]
                 # Only include foundation, patches, addons and named plugins
-                if priority < 0 or header.name == plugin_name:
+                if priority < 0 or dirfile.name == plugin_name:
                     yield (
                         priority,
-                        header.version,
+                        mono_header.version,
                         dirfile.name,
                         path_dir,
                         dirfile.path,
-                        header
+                        mono_header
                     )
                 else:
                     if DEBUG:
                         print(
-                            f'EXCLUDE {path_dir.name} - [{header.type}] \x1b[1m{header.name}\x1b[0m v={header.version} '
-                            f'entrypoints={header.entry_tag_count} tags={header.tag_list_count}'
+                            f'EXCLUDE {path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{dirfile.name} - {mono_header.name}\x1b[0m v={mono_header.version} '
+                            f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
                         )
             except ValueError:
                 pass

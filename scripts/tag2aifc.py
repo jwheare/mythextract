@@ -163,7 +163,7 @@ Type: [{header.tag_type}]
 TDOF: {header.tag_data_offset}
 TDSZ: {header.tag_data_size}
 head: {header}
-Vers: [{header.tag_version}]
+Vers: [{header.signature}]
 ----- 0:{myth_headers.TAG_HEADER_SIZE} = {myth_headers.TAG_HEADER_SIZE}
 flag: {flags}
 loud: {loudness}
@@ -235,7 +235,7 @@ AIFC: length = {sound_length}
 ----- {header_end-myth_headers.TAG_HEADER_SIZE}:{data_size-myth_headers.TAG_HEADER_SIZE} = {sound_length}"""
                 )
 
-        return (header.tag_version, header.tag_id, permutations)
+        return (header.signature, header.tag_id, permutations)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

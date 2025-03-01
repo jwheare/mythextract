@@ -14,10 +14,10 @@ signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(game_directory, level, plugin_name):
     """
-    Load Myth II game tags and plugins and output header, markers and scripting info for a mesh
+    Load Myth game tags and plugins and output header, markers and scripting info for a mesh
     """
-    files = loadtags.build_file_list(game_directory, plugin_name)
-    (tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
+    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
 
     try:
         if level:
@@ -25,50 +25,53 @@ def main(game_directory, level, plugin_name):
                 for header_name, entrypoints in entrypoint_map.items():
                     for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
                         print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
-                        parse_mesh_tag(tags, data_map, mesh_id)
+                        parse_mesh_tag(game_version, tags, data_map, mesh_id)
             else:
-                (mesh_id, header_name, entry_name, entry_long_name) = parse_level(level, entrypoint_map)
-                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
-                parse_mesh_tag(tags, data_map, mesh_id)
+                (mesh_id, header_name, entry_name) = parse_level(level, tags)
+                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
+                parse_mesh_tag(game_version, tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
                 mono2tag.print_entrypoints(entrypoints, header_name)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_level(level, entrypoint_map):
+def parse_level(level, tags):
     ret = None
     level_mesh = level[5:] if level.startswith('mesh=') else None
-    for header_name, entrypoints in entrypoint_map.items():
-        for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
-            if level_mesh:
-                if level_mesh == mesh_id:
-                    ret = (mesh_id, header_name, entry_name, entry_long_name)
-            elif entry_name.startswith(f'{level} '):
-                ret = (mesh_id, header_name, entry_name, entry_long_name)
+    if level_mesh:
+        if level_mesh in tags['mesh']:
+            latest = tags['mesh'][level_mesh][-1]
+            ret = (level_mesh, latest[0], latest[1].name)
+    else:
+        for mesh_id, tag_headers in tags['mesh'].items():
+            latest = tag_headers[-1]
+            if latest[1].name.startswith(f'{level} '):
+                ret = (mesh_id, latest[0], latest[1].name)
     if ret:
         return ret
     else:
         print("Invalid level")
         sys.exit(1)
 
-def parse_mesh_tag(tags, data_map, mesh_id):
+def parse_mesh_tag(game_version, tags, data_map, mesh_id):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
 
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
-    print_header(mesh_header)
+    locations = [l for (l, th) in tags['mesh'][mesh_id]]
+    print_header(mesh_header, mesh_id, locations)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
     print_markers(tags, palette, orphans)
 
-    (actions, action_remainder) = mesh_tag.parse_map_actions(mesh_header, mesh_tag_data)
+    (actions, action_remainder) = mesh_tag.parse_map_actions(game_version, mesh_header, mesh_tag_data)
     print_actions(actions)
 
     if action_remainder:
         print(f'ACTION REMAINDER {len(action_remainder)}')
         print(action_remainder.hex())
 
-def print_header(mesh_header):
+def print_header(mesh_header, mesh_id, locations):
     mhd = mesh_header._asdict()
     for f in mesh_header._fields:
         val = mhd[f]
@@ -76,7 +79,10 @@ def print_header(mesh_header):
             val = f'[00 x {len(val.split(b'\x00'))-1}]'
         elif type(val) is bytes and myth_headers.all_on(val):
             val = f'[FF x {len(val.split(b'\xff'))-1}]'
+        elif f.startswith('cutscene_file'):
+            val = val.rstrip(b'\x00')
         print(f'{f:<42} {val}')
+        # print(f'[{mesh_id}] {f} {val} {locations}')
 
 def print_markers(tags, palette, orphans):
     for palette_type, p_list in palette.items():

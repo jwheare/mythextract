@@ -18,13 +18,13 @@ def main(game_directory, level, plugin_name):
     """
     Parse a Myth II mesh tag file removes extra data from actions buffer
     """
-    files = loadtags.build_file_list(game_directory, plugin_name)
-    (tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (files, _) = loadtags.build_file_list(game_directory, plugin_name)
+    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
 
     try:
         if level:
-            (mesh_id, header_name, entry_name, entry_long_name) = mesh2info.parse_level(level, entrypoint_map)
-            print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+            (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, entrypoint_map)
+            print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
             mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
             fix_mesh_actions(mesh_tag_data)
         else:

@@ -93,8 +93,8 @@ MeshHeader = namedtuple('MeshHeader', [
     'pregame_collection_tag',
     'overhead_map_collection_tag',
     'next_mesh', 'next_mesh_alternate',
-    'cutscene_movie_pregame', 'cutscene_movie_success', 'cutscene_movie_failure',
-    'storyline_string_tags_1', 'storyline_string_tags_2',
+    'cutscene_tag_pregame', 'cutscene_tag_success', 'cutscene_tag_failure',
+    'pregame_storyline_tag', 'storyline_string_tags_2',
     'storyline_string_tags_3', 'storyline_string_tags_4',
 
     'media_coverage_region_offset', 'media_coverage_region_size', 'media_coverage_region_ptr',
@@ -108,7 +108,7 @@ MeshHeader = namedtuple('MeshHeader', [
     'win_ambient_sound_tag', 'loss_ambient_sound_tag',
     'reverb_environment', 'reverb_volume', 'reverb_decay_time', 'reverb_damping',
     'connector_count', 'connectors_offset', 'connectors_size', 'connectors_ptr',
-    'cutscene_names_1', 'cutscene_names_2', 'cutscene_names_3',
+    'cutscene_file_pregame', 'cutscene_file_success', 'cutscene_file_failure',
     'hints_string_list_tag',
     'fog_color', 'fog_density',
 
@@ -192,7 +192,7 @@ class ParamType(enum.Enum):
     PROJECTILE = enum.auto()
     STRING_LIST = enum.auto()
     SOUND = enum.auto()
-    PROJECTILE2 = enum.auto()
+    PROJECTILE_OR_WORLD_POINT_2D = enum.auto() # TFL = WORLD_POINT_2D / SB = PROJECTILE
     WORLD_POINT_2D = enum.auto()
     WORLD_RECTANGLE_2D = enum.auto()
     OBJECT_IDENTIFIER = enum.auto()
@@ -329,13 +329,16 @@ def parse_header(data):
         extra_flags=ExtraFlags(mesh_header.extra_flags)
     )
 
-def has_single_player_story(data):
+def has_single_player_story(game_version, data):
     if not data:
         return False
     mesh_header = parse_header(data)
+    # Long awaited party in TFL isn't marked as single player (secret)
+    if game_version == 1 and mesh_header.pregame_storyline_tag == b'18al':
+        return True
     if not is_single_player(mesh_header):
         return False
-    if myth_headers.all_on(mesh_header.storyline_string_tags_1):
+    if myth_headers.all_on(mesh_header.pregame_storyline_tag):
         return False
     return True
 
@@ -344,6 +347,12 @@ def is_single_player(header):
 
 def is_vtfl(header):
     return MeshFlags.USES_VTFL in header.flags
+
+def cutscenes(game_version, header):
+    return (
+        myth_headers.decode_string(header.cutscene_file_pregame),
+        myth_headers.decode_string(header.cutscene_file_success)
+    )
 
 def encode_header(header):
     return struct.pack(MeshHeaderFmt, *header)
@@ -469,7 +478,7 @@ def parse_markers(mesh_header, data):
     return (palette, orphans)
 
 
-def parse_map_actions(mesh_header, data):
+def parse_map_actions(game_version, mesh_header, data):
     map_action_start = get_offset(mesh_header.map_actions_offset)
     map_action_end = map_action_start + mesh_header.map_action_buffer_size
     map_action_data = data[map_action_start:map_action_end]
@@ -541,7 +550,9 @@ def parse_map_actions(mesh_header, data):
                 align_num_values = align(4, num_values)
                 param_bytes = align_num_values
                 param_struct = f'{align_num_values}s'
-            elif param_type == ParamType.WORLD_POINT_2D:
+            elif param_type == ParamType.WORLD_POINT_2D or (
+                game_version == 1 and param_type == ParamType.PROJECTILE_OR_WORLD_POINT_2D
+            ):
                 num_values = (num_values * 2)
                 param_bytes = num_values * 4
                 scale_factor = WORLD_POINT_SF

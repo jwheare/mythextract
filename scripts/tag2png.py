@@ -122,7 +122,7 @@ def parse_256_tag(data):
         # parse_sequences(data, coll_header)
         bitmaps = parse_bitmaps(data, coll_header, color_table)
 
-        return (header.tag_version, header.tag_id, bitmaps)
+        return (header.signature, header.tag_id, bitmaps)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
