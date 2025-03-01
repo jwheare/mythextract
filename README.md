@@ -58,17 +58,37 @@ Loads all the core tag archives and optionally a plugin from a *SB* game directo
 
     Usage: python3 loadtags.py <game_directory> [<plugin_name>]
 
-* `game_directory`: path to a Myth II game directory
+* `game_directory`: path to a Myth game directory
 * `plugin_name`: **optional** — if provided loads tags from a named plugin
 
 ## [scripts/mesh2info.py](scripts/mesh2info.py)
 
-Prints lots of information about a mesh tag, including all markers and map actions
+Prints the headers of a mesh tag, or tags including all markers and map actions
 
     Usage: python3 mesh2info.py <game_directory> [<level> [plugin_name]]
 
-* `game_directory`: path to a Myth II game directory
-* `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
+## [scripts/mesh2markers.py](scripts/mesh2markers.py)
+
+Prints all markers from a mesh tag
+
+    Usage: python3 mesh2markers.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
+## [scripts/mesh2actions.py](scripts/mesh2actions.py)
+
+Prints map scripting actions from a mesh tag
+
+    Usage: python3 mesh2actions.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
@@ -77,7 +97,7 @@ Fixes mesh actions by removing any unused data stored at the end of the action b
 
     Usage: python3 fixmeshactions.py <game_directory> [<level> [plugin_name]]
 
-* `game_directory`: path to a Myth II game directory
+* `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 

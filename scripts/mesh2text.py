@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import pathlib
-import re
 import struct
 import sys
 import signal
@@ -71,6 +70,7 @@ def extract_sb_epilogue(tags, data_map, cutscene_paths):
     mesh_id = level
     level_name = 'Epilogue'
     caption_data = None
+    desc_data = None
     plugin = None
 
     storyline_data = loadtags.get_tag_data(tags, data_map, 'text', 'epil')
@@ -78,7 +78,7 @@ def extract_sb_epilogue(tags, data_map, cutscene_paths):
     output_text(
         game_version, plugin, mesh_id,
         storyline_data, caption_data,
-        prefix, level, level_name
+        prefix, level, desc_data, level_name
     )
 
 def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output):
@@ -123,7 +123,7 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
 def output_text(
     game_version, plugin, mesh_id,
     storyline_data, caption_data,
-    prefix, level, desc_data
+    prefix, level, desc_data, level_name=None
 ):
     # Extract intro text
     intro_text = ''
@@ -132,9 +132,11 @@ def output_text(
         (intro_header, intro_text) = parse_text_tag(storyline_data)
         intro_tag_values = (intro_header.tag_id, intro_header.name)
 
-    (desc_header, desc_text) = parse_text_tag(desc_data)
-    desc_tag_values = (desc_header.tag_id, desc_header.name)
-    level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
+    desc_tag_values = (None, None)
+    if desc_data:
+        (desc_header, desc_text) = parse_text_tag(desc_data)
+        desc_tag_values = (desc_header.tag_id, desc_header.name)
+        level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
 
     # Extract caption
     caption = ''
@@ -144,7 +146,8 @@ def output_text(
         caption_tag_values = (caption_header.tag_id, caption_header.name)
         caption = myth_headers.decode_string(caption_text.split(b'\r')[0])
 
-    print(level, intro_tag_values, desc_tag_values, caption_tag_values, level_name)
+    if DEBUG:
+        print(level, intro_tag_values, desc_tag_values, caption_tag_values, level_name)
 
     output_dir = f'../output/text/{prefix}'
     output_path = pathlib.Path(sys.path[0], output_dir).resolve()
@@ -155,9 +158,9 @@ def output_text(
         ouput_text = f"""Level: {level_name.replace("'", "’")}
 Caption: {caption.replace("'", "’")}
 
-{text2html(intro_text)}"""
+{decode_text(intro_text)}"""
         
-        file_name = str(level)[-2:]
+        file_name = level
         file_path = (output_path / f'{file_name}.txt')
         with open(file_path, 'w') as text_file:
             text_file.write(ouput_text)
@@ -171,9 +174,8 @@ def parse_text_tag(data):
 
     return (header, text)
 
-def text2html(text):
-    lbr = text.decode('mac-roman').replace('\r', '<br>\n').replace("'", "’")
-    return re.sub(r'[\\|]i([^|]+)[\\|]p', '<i>\\1</i>', lbr)
+def decode_text(text):
+    return text.decode('mac-roman').replace('\r', '\n')
 
 def prompt(prompt_path):
     return True
