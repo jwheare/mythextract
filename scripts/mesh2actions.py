@@ -21,7 +21,7 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            for mesh_id in mesh2info.mesh_entries(level, entrypoint_map):
+            for mesh_id in mesh2info.mesh_entries(level, entrypoint_map, tags):
                 parse_mesh_actions(game_version, tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
@@ -46,14 +46,34 @@ def print_actions(actions):
         prefix = ''
         if act['type']:
             prefix = f'{act['type'].upper()}.'
-        line = f'{i:03} [{action_id}] {indent_space}{prefix}{act['name']}'
+
+        action_vars = []
+        if len(act['parameters']):
+            if act['flags']:
+                action_vars.append(','.join([f.name.lower() for f in act['flags']]))
+            if act['expiration_mode'] != mesh_tag.ActionExpiration.TRIGGER:
+                action_vars.append(f'expiry={act['expiration_mode'].name.lower()}')
+            if act['trigger_time_start']:
+                action_vars.append(f'delay={round(act['trigger_time_start'], 3)}s')
+            if act['trigger_time_duration']:
+                action_vars.append(f'dur={round(act['trigger_time_duration'], 3)}s')
+
+        if len(act['parameters']):
+            id_prefix = f'[{action_id}] '
+        else:
+            id_prefix = '        '
+        line = f'{id_prefix}{indent_space}{prefix}{act['name']}'
         if mesh_tag.ActionFlag.INITIALLY_ACTIVE in act['flags']:
             print(f'\x1b[1m{line}\x1b[0m')
         else:
             print(line)
         for p in act['parameters']:
-            if p['name'] != 'name':
-                print(' -', p['name'], p['type']._name_, p['values'])
+            print(f'        {indent_space}- {p['name']} {p['type'].name}={p['values']}')
+
+        if len(action_vars):
+            print(f'\x1b[3m[{' '.join(action_vars)}]\x1b[0m')
+
+        print()
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

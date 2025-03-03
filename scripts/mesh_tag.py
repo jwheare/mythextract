@@ -11,6 +11,7 @@ PALETTE_SIZE = 32
 MARKER_SIZE = 64
 WORLD_POINT_SF = 512
 ANGLE_SF = (0xffff / 360)
+TIME_SF = 30
 MeshHeaderFmt = """>
     4s 4s
 H H
@@ -201,6 +202,14 @@ class ParamType(enum.Enum):
     WORLD_POINT_3D = enum.auto()
     LOCAL_PROJECTILE_GROUP_IDENTIFIER = enum.auto()
     MODEL_ANIMATION_IDENTIFIER = enum.auto()
+
+def param_id_marker(param_type, param_name):
+    if param_type == ParamType.MONSTER_IDENTIFIER:
+        return MarkerType.UNIT
+    if param_type == ParamType.SOUND_SOURCE_IDENTIFIER:
+        return MarkerType.AMBIENT_SOUND
+    if param_type == ParamType.OBJECT_IDENTIFIER:
+        return MarkerType.PROJECTILE
 
 class MarkerType(enum.Enum):
     OBSERVER = 0
@@ -546,13 +555,20 @@ def parse_map_actions(game_version, mesh_header, data):
 
             param_type = ParamType(param_type)
             scale_factor = None
+
+            tfl = (game_version == 1)
+            if param_type == ParamType.PROJECTILE_OR_WORLD_POINT_2D:
+                param_type = ParamType.WORLD_POINT_2D if tfl else ParamType.PROJECTILE
+            if tfl and param_type == ParamType.WORLD_RECTANGLE_2D:
+                param_type = ParamType.OBJECT_IDENTIFIER
+            if tfl and param_type == ParamType.MODEL_IDENTIFIER:
+                param_type = ParamType.SOUND_SOURCE_IDENTIFIER
+
             if param_type == ParamType.STRING:
                 align_num_values = align(4, num_values)
                 param_bytes = align_num_values
                 param_struct = f'{align_num_values}s'
-            elif param_type == ParamType.WORLD_POINT_2D or (
-                game_version == 1 and param_type == ParamType.PROJECTILE_OR_WORLD_POINT_2D
-            ):
+            elif param_type == ParamType.WORLD_POINT_2D:
                 num_values = (num_values * 2)
                 param_bytes = num_values * 4
                 scale_factor = WORLD_POINT_SF
@@ -589,10 +605,13 @@ def parse_map_actions(game_version, mesh_header, data):
             param_values = struct.unpack(param_fmt, param_data)
 
             # Post process
-            # _remainder = None
+            remainder = None
             if param_type == ParamType.STRING:
-                # _remainder = param_values[0][num_values:]
+                remainder = param_values[0][num_values:]
                 param_values = myth_headers.decode_string(param_values[0][:num_values])
+            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+                remainder = param_values[num_values:]
+                param_values = [myth_headers.decode_string(value) for value in param_values[:num_values]]
             elif param_type == ParamType.FLAG:
                 # Only look at the first byte
                 if len(param_values):
@@ -600,22 +619,35 @@ def parse_map_actions(game_version, mesh_header, data):
                 else:
                     param_values = True
             else:
-                # _remainder = param_values[num_values:]
+                remainder = param_values[num_values:]
                 param_values = param_values[:num_values]
 
             if scale_factor:
                 param_values = [p / scale_factor for p in param_values]
 
-            # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{_remainder}\x1b[0m', param_fmt, param_data.hex())
-            parameters.append({
-                'type': param_type,
-                'count': num_values,
-                'name': param_name,
-                'values': param_values
-            })
+            if param_type == ParamType.WORLD_POINT_2D:
+                world_points = []
+                for i in range(0, len(param_values), 2):
+                    world_points.append((param_values[i], param_values[i+1]))
+                param_values = world_points
+
+            # if param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+            #     print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
 
             if param_name == 'name':
                 name = param_values
+            else:
+                if hasattr(param_values, '__iter__'):
+                    param_values = list(param_values)
+                else:
+                    param_values = [param_values]
+
+                parameters.append({
+                    'type': param_type,
+                    'count': num_values,
+                    'name': param_name,
+                    'values': param_values
+                })
 
             param_start = param_end
             param_remain = param_remain - 1
@@ -628,14 +660,14 @@ def parse_map_actions(game_version, mesh_header, data):
             'expiration_mode': ActionExpiration(expiration_mode),
             'name': name,
             'flags': ActionFlag(flags),
-            'trigger_time_start': trigger_time_start,
-            'trigger_time_duration': trigger_time_duration,
+            'trigger_time_start': trigger_time_start / TIME_SF,
+            'trigger_time_duration': trigger_time_duration / TIME_SF,
             'parameters': parameters,
             'size': size,
             'offset': offset,
             'indent': indent,
-            'unknown': unknown,
-            'unused': unused,
+            # 'unknown': unknown,
+            # 'unused': unused,
         }
         action_start = action_end
     action_remainder = map_action_data[max(ends):]
