@@ -122,7 +122,14 @@ def actions_tui(actions, palette, tags, action_help):
                     if tag_header:
                         suffix = f'{suffix} {tag_header.name}'
                 if p['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
-                    suffix = f' {actions[value]['name']}'
+                    if value in actions:
+                        suffix = f' {actions[value]['name']}'
+                    else:
+                        suffix = ' [missing]'
+                elif p['type'] == mesh_tag.ParamType.SOUND:
+                    (location, tag_header) = loadtags.lookup_tag_header(tags, 'soun', value)
+                    if tag_header:
+                        suffix = f' - {tag_header.name}'
                 else:
                     palette_type = mesh_tag.param_id_marker(p['type'], p['name'])
                     if palette_type:

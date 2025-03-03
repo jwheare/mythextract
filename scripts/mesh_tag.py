@@ -631,8 +631,7 @@ def parse_map_actions(game_version, mesh_header, data):
                     world_points.append((param_values[i], param_values[i+1]))
                 param_values = world_points
 
-            # if param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
-            #     print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
+            # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
 
             if param_name == 'name':
                 name = param_values
