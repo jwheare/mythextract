@@ -91,6 +91,16 @@ Prints map scripting actions from a mesh tag
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 
+## [scripts/action_browser.py](scripts/action_browser.py)
+
+Runs a map scripting actions terminal browser for a mesh tag
+
+    Usage: python3 action_browser.py <game_directory> [<level> [plugin_name]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+
 ## [scripts/mesh2text.py](scripts/mesh2text.py)
 
 Outputs pregame text data from a mesh tag
