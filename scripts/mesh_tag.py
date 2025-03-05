@@ -11,6 +11,7 @@ PALETTE_SIZE = 32
 MARKER_SIZE = 64
 WORLD_POINT_SF = 512
 ANGLE_SF = (0xffff / 360)
+FIXED_SF = 1 << 16
 TIME_SF = 30
 MeshHeaderFmt = """>
     4s 4s
@@ -574,12 +575,11 @@ def parse_map_actions(game_version, mesh_header, data):
                 scale_factor = WORLD_POINT_SF
                 param_struct = f'{num_values}L'
             elif param_type == ParamType.FIXED:
-                num_values = (num_values * 2)
-                param_bytes = num_values * 2
-                param_struct = f'{num_values}H'
-            elif param_type == ParamType.INTEGER:
                 param_bytes = num_values * 4
                 param_struct = f'{num_values}L'
+            elif param_type == ParamType.INTEGER:
+                param_bytes = num_values * 4
+                param_struct = f'{num_values}l'
             elif param_type == ParamType.WORLD_DISTANCE:
                 param_bytes = num_values * 4
                 scale_factor = WORLD_POINT_SF
@@ -614,6 +614,7 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_values = [myth_headers.decode_string(value) for value in param_values[:num_values]]
             elif param_type == ParamType.FLAG:
                 # Only look at the first byte
+                remainder = param_values[1:]
                 if len(param_values):
                     param_values = param_values[0]
                 else:
@@ -625,7 +626,9 @@ def parse_map_actions(game_version, mesh_header, data):
             if scale_factor:
                 param_values = [p / scale_factor for p in param_values]
 
-            if param_type == ParamType.WORLD_POINT_2D:
+            if param_type == ParamType.FIXED:
+                param_values = [round(val / FIXED_SF, 4) for val in param_values]
+            elif param_type == ParamType.WORLD_POINT_2D:
                 world_points = []
                 for i in range(0, len(param_values), 2):
                     world_points.append((param_values[i], param_values[i+1]))

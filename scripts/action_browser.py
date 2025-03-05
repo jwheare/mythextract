@@ -38,19 +38,19 @@ def build_action_help(tags, data_map):
         params = {}
         for param in template_lines[2:]:
             if param.strip():
-                p_parts = param.lstrip('\t').split(' / ')
-                p_parts2 = p_parts[0].split(' ')
+                p_parts = param.strip().split('/')
+                p_parts2 = p_parts[0].strip().split(' ')
 
-                param_field = p_parts2[2]
+                param_field = p_parts2[2].strip()
                 params[param_field] = {
-                    'name': p_parts[1],
-                    'type': p_parts2[1],
-                    'requirement': p_parts2[0],
-                    'desc': p_parts[2],
+                    'name': p_parts[1].strip(),
+                    'type': p_parts2[1].strip(),
+                    'requirement': p_parts2[0].strip(),
+                    'desc': p_parts[2].strip(),
                 }
         action_help[action_type] = {
-            'name': template_lines[0],
-            'expiration_mode': template_lines[1],
+            'name': template_lines[0].strip(),
+            'expiration_mode': template_lines[1].strip(),
             'params': params
         }
     return action_help
@@ -138,14 +138,19 @@ def actions_tui(actions, palette, tags, action_help):
                                 (location, tag_header) = loadtags.lookup_tag_header(tags, mesh_tag.Marker2Tag.get(palette_type), tag_id)
                                 if tag_header:
                                     suffix = f'{suffix} {tag_header.name}'
+                color = 'alt_color4'
+                if p['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
+                    color = 'alt_color2'
+                elif p['type'] == mesh_tag.ParamType.MONSTER_IDENTIFIER:
+                    color = 'alt_color3'
                 param_children.append(tree_curses.TreeNode(
                     f'{indent_space}       {value}',
                     action_id,
                     options={
-                        'id_link': value if mesh_tag.ParamType.ACTION_IDENTIFIER else None,
+                        'id_link': value if p['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER else None,
                         'suffix': suffix,
                         'more_help': p['type'].name,
-                        'alt_color2': True,
+                        'color': color,
                     }
                 ))
             # Action params
@@ -171,13 +176,9 @@ def actions_tui(actions, palette, tags, action_help):
                 options={
                     'help': help_text,
                     'more_help': more_help,
-                    'alt_color': True,
+                    'color': 'alt_color',
                 }
             ))
-
-        suffix = None
-        if len(action_vars):
-            suffix = f' [{' '.join(action_vars)}]'
 
         # Action
         help_text = None
@@ -188,9 +189,15 @@ def actions_tui(actions, palette, tags, action_help):
             more_help = f'[{act['type'].upper()}] {help_obj['name']} '
             if 'expiration_mode' in help_obj:
                 more_help += f'({help_obj['expiration_mode']}) '
+
+        if len(action_vars):
+            children.insert(0, tree_curses.TreeNode(f'    {indent_space}[{' '.join(action_vars)}]', action_id, options={
+                'bold': bold,
+                'color': 'alt_color',
+            }))
+
         nodes.append(tree_curses.TreeNode(name, action_id, children=children, options={
             'bold': bold,
-            'suffix': suffix,
             'help': help_text,
             'more_help': more_help,
         }))

@@ -20,6 +20,8 @@ class TreeNavigator:
         self.root = root
         self.cursor_index = 0
         self.visible_nodes = []
+        self.node_back = []
+        self.node_forward = []
         self.scroll_offset = 0  # Scroll position
         self.update_visible_nodes()
         self.run()
@@ -38,33 +40,24 @@ class TreeNavigator:
         traverse(self.root)
 
     def jump_to_identifier(self):
-        node, _ = self.visible_nodes[self.cursor_index]
+        node = self.get_cursor_node()
         identifier = node.options.get('id_link')
         if identifier:
             for i, (vis_node, depth) in enumerate(self.visible_nodes):
                 if depth == 0 and vis_node.identifier == identifier:
-                    self.cursor_index = i
-                    self.ensure_cursor_visible()
-
-    def toggle_expand(self):
-        """ Expands/collapses the selected node (except first-level nodes) """
-        node, _ = self.visible_nodes[self.cursor_index]
-        if node.children and node.parent != self.root:  # Don't allow first-level nodes to collapse
-            node.expanded = not node.expanded
-            self.update_visible_nodes()
+                    self.set_index(i)
 
     def expand_and_select_child(self):
         """ Expands a node and moves cursor to the first child """
-        node, _ = self.visible_nodes[self.cursor_index]
+        node = self.get_cursor_node()
         if node.children and not node.expanded:
             node.expanded = True
             self.update_visible_nodes()
-            self.cursor_index += 1
-            self.ensure_cursor_visible()
+            self.move_cursor(1)
 
     def collapse_or_go_to_parent(self):
         """ Collapses the node, or if already collapsed, moves to the parent and collapses it """
-        node, _ = self.visible_nodes[self.cursor_index]
+        node = self.get_cursor_node()
 
         if node.expanded:
             node.expanded = False
@@ -74,11 +67,12 @@ class TreeNavigator:
             parent_index = next((i for i, (n, _) in enumerate(self.visible_nodes) if n == node.parent), self.cursor_index)
             node.parent.expanded = False
             self.update_visible_nodes()
-            self.cursor_index = parent_index
-            self.ensure_cursor_visible()
+            self.set_index(parent_index)
 
     def expand_up_to_level(self, level):
         """ Expands all nodes up to the given depth level (excluding the root) """
+        current_node = self.get_cursor_node()
+
         def traverse(node, depth=0):
             if node != self.root:
                 node.expanded = depth < level  # Expand nodes only up to the given level
@@ -86,10 +80,25 @@ class TreeNavigator:
                 traverse(child, depth + (0 if node == self.root else 1))
 
         traverse(self.root)
+        self.select_node(current_node)
+
+    def get_cursor_node(self):
+        node, _ = self.visible_nodes[self.cursor_index]
+        return node
+
+    def select_node(self, node):
+        self.expand_to_node(node)
         self.update_visible_nodes()
+        for i, (vis_node, depth) in enumerate(self.visible_nodes):
+            if vis_node == node:
+                self.cursor_index = i
+                self.ensure_cursor_visible()
+                return
 
     def collapse_all(self):
         """ Collapses all nodes in the tree except first-level nodes """
+        current_node = self.get_cursor_node()
+
         def traverse(node):
             if node != self.root:
                 node.expanded = False
@@ -97,12 +106,34 @@ class TreeNavigator:
                 traverse(child)
 
         traverse(self.root)
-        self.update_visible_nodes()
+        self.select_node(current_node)
+
+    def expand_to_node(self, node):
+        while node.parent:
+            node = node.parent
+            node.expanded = True
 
     def move_cursor(self, direction):
         """ Moves the cursor and adjusts scrolling """
-        self.cursor_index = max(0, min(self.cursor_index + direction, len(self.visible_nodes) - 1))
+        self.set_index(max(0, min(self.cursor_index + direction, len(self.visible_nodes) - 1)))
+
+    def set_index(self, index):
+        self.node_forward = []
+        self.node_back.append(self.get_cursor_node())
+        self.cursor_index = index
         self.ensure_cursor_visible()
+
+    def go_back(self):
+        if len(self.node_back):
+            prev_node = self.node_back.pop()
+            self.node_forward.append(self.get_cursor_node())
+            self.select_node(prev_node)
+
+    def go_forward(self):
+        if len(self.node_forward):
+            next_node = self.node_forward.pop()
+            self.node_back.append(self.get_cursor_node())
+            self.select_node(next_node)
 
     def max_lines(self):
         return self.stdscr.getmaxyx()[0] - 2
@@ -111,9 +142,11 @@ class TreeNavigator:
         """ Adjust scrolling to keep cursor within view """
         max_lines = self.max_lines()  # Visible screen height
         if self.cursor_index < self.scroll_offset:
+            # Cursor above scroll, set scroll to cursor
             self.scroll_offset = self.cursor_index
         elif self.cursor_index >= self.scroll_offset + max_lines:
-            self.scroll_offset = self.cursor_index - max_lines + 1
+            # Cursor below scroll, set scroll to cursor
+            self.scroll_offset = self.cursor_index
 
     def page_down(self):
         max_lines = self.max_lines()
@@ -140,10 +173,14 @@ class TreeNavigator:
                 attr = attr | curses.A_REVERSE
             if node.options.get('bold'):
                 attr = attr | curses.A_BOLD
-            if node.options.get('alt_color'):
+            if node.options.get('color') == 'alt_color':
                 attr = attr | curses.color_pair(2)
-            if node.options.get('alt_color2'):
+            if node.options.get('color') == 'alt_color2':
                 attr = attr | curses.color_pair(3)
+            if node.options.get('color') == 'alt_color3':
+                attr = attr | curses.color_pair(5)
+            if node.options.get('color') == 'alt_color4':
+                attr = attr | curses.color_pair(6)
 
             name_line = line[:w-1]
             end_of_text = len(name_line)
@@ -202,6 +239,10 @@ class TreeNavigator:
                 self.page_down()
             elif key == ord("u"):  # Page up
                 self.page_up()
+            elif key == ord("["):  # Go back
+                self.go_back()
+            elif key == ord("]"):  # Go forward
+                self.go_forward()
             elif key == ord("q"):  # Quit
                 break
 
@@ -212,9 +253,11 @@ def curses_wrapper(stdscr, tree):
 
     # Define grey color (dark white approximation)
     curses.init_pair(1, -1, curses.COLOR_WHITE)  # Normal text
-    curses.init_pair(2, curses.COLOR_WHITE, 24)  # Alt text
+    curses.init_pair(2, curses.COLOR_WHITE, 25)  # Alt text
     curses.init_pair(3, curses.COLOR_WHITE, 23)  # Alt text 2
-    curses.init_pair(4, curses.COLOR_BLACK, 67)  # Alt text 3
+    curses.init_pair(4, curses.COLOR_BLACK, 67)  # Hel text
+    curses.init_pair(5, curses.COLOR_WHITE, 96)  # Alt text 3
+    curses.init_pair(6, curses.COLOR_WHITE, 63)  # Alt text 4
 
     stdscr.clear()
     TreeNavigator(stdscr, tree)
