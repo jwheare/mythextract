@@ -136,7 +136,7 @@ class TreeNavigator:
             self.select_node(next_node)
 
     def max_lines(self):
-        return self.stdscr.getmaxyx()[0] - 2
+        return curses.LINES - 2
 
     def ensure_cursor_visible(self):
         """ Adjust scrolling to keep cursor within view """
@@ -159,7 +159,6 @@ class TreeNavigator:
     def draw(self):
         """ Renders the tree on the screen with scrolling """
         self.stdscr.clear()
-        h, w = self.stdscr.getmaxyx()
 
         max_lines = self.max_lines()
 
@@ -182,7 +181,7 @@ class TreeNavigator:
             if node.options.get('color') == 'alt_color4':
                 attr = attr | curses.color_pair(6)
 
-            name_line = line[:w-1]
+            name_line = line[:curses.COLS-1]
             end_of_text = len(name_line)
             line_y = i - self.scroll_offset
             self.stdscr.addstr(line_y, 0, name_line, attr)
@@ -195,23 +194,23 @@ class TreeNavigator:
             help_text = node.options.get('help')
             if help_text:
                 help_text = f'{help_text} '
-                help_x = w - len(help_text)
+                help_x = curses.COLS - len(help_text)
                 filler = ' ' * (help_x - end_of_text)
                 self.stdscr.addstr(line_y, end_of_text, filler, attr)
                 self.stdscr.addstr(line_y, help_x, help_text, attr | curses.A_DIM | curses.A_ITALIC)
-            else:
-                filler = ' ' * (w - end_of_text)
+            elif end_of_text < curses.COLS:
+                filler = ' ' * (curses.COLS - end_of_text)
                 self.stdscr.addstr(line_y, end_of_text, filler, attr)
 
             if i == self.cursor_index:
                 more_help_text = node.options.get('more_help')
                 if more_help_text:
                     more_help_len = len(more_help_text)
-                    self.stdscr.addnstr(h - 1, 0, more_help_text, w-1, curses.color_pair(4))
-                    filler_len = w - 1 - more_help_len
+                    self.stdscr.addnstr(curses.LINES - 1, 0, more_help_text, curses.COLS-1, curses.color_pair(4))
+                    filler_len = curses.COLS - 1 - more_help_len
                     if filler_len > 0:
                         filler = ' ' * filler_len
-                        self.stdscr.addstr(h - 1, more_help_len, filler, curses.color_pair(4))
+                        self.stdscr.addstr(curses.LINES - 1, more_help_len, filler, curses.color_pair(4))
 
         self.stdscr.refresh()
 
@@ -243,8 +242,11 @@ class TreeNavigator:
                 self.go_back()
             elif key == ord("]"):  # Go forward
                 self.go_forward()
+            elif key == curses.KEY_RESIZE:
+                curses.update_lines_cols()
             elif key == ord("q"):  # Quit
                 break
+
 
 def curses_wrapper(stdscr, tree):
     curses.curs_set(0)  # Hide cursor
