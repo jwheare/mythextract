@@ -93,7 +93,7 @@ Prints map scripting actions from a mesh tag
 
 ## [scripts/action_browser.py](scripts/action_browser.py)
 
-Runs a map scripting actions terminal browser for a mesh tag
+Runs a map scripting actions terminal browser for a mesh tag. **requires `windows-curses` on Windows**
 
     Usage: python3 action_browser.py <game_directory> [<level> [plugin_name]]
 
