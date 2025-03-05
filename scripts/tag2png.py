@@ -3,7 +3,6 @@ import sys
 import os
 import pathlib
 import struct
-import signal
 import enum
 import zlib
 from collections import namedtuple
@@ -14,7 +13,6 @@ BITMAP_META_SIZE = 48
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 Header256Size = 320
 Header256Fmt = """>
@@ -500,3 +498,5 @@ if __name__ == "__main__":
         main(input_file, output_file)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)

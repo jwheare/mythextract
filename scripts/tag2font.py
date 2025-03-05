@@ -3,14 +3,12 @@ import sys
 import os
 import pathlib
 import struct
-import signal
 from collections import OrderedDict
 
 import myth_headers
 import tag2png
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(tag_path):
     """
@@ -183,3 +181,5 @@ if __name__ == "__main__":
         main(input_file)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)

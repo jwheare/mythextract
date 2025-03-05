@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import signal
 import os
 import sys
 import struct
@@ -9,8 +8,6 @@ from collections import OrderedDict
 import myth_headers
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(mono_path, tag_type, tag_id, output_file):
     """
@@ -159,3 +156,5 @@ if __name__ == "__main__":
         main(input_file, tag_type, tag_id, output_file)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)

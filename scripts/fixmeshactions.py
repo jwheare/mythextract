@@ -3,7 +3,6 @@ import sys
 import os
 import pathlib
 import struct
-import signal
 
 import myth_headers
 import mesh_tag
@@ -12,7 +11,6 @@ import mono2tag
 import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(game_directory, level, plugin_name):
     """
@@ -117,3 +115,5 @@ if __name__ == "__main__":
         main(game_directory, level, plugin_name)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)

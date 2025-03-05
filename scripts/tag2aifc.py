@@ -2,7 +2,6 @@
 import sys
 import os
 import struct
-import signal
 import pathlib
 
 import myth_headers
@@ -13,7 +12,6 @@ IMA4_BYTES_PER_FRAME = 34
 IMA_COMPRESSION_RATIO = 4
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 def main(tag_path, aifc_path):
     """
@@ -285,3 +283,5 @@ if __name__ == "__main__":
         main(input_file, output_file)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)

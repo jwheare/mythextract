@@ -3,7 +3,6 @@ import os
 import pathlib
 import struct
 import sys
-import signal
 import time
 
 import myth_headers
@@ -13,7 +12,6 @@ import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 TIME = (os.environ.get('TIME') == '1')
-signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 TFLTagMap = {
     '01': (('30cb', '301 crows bridge'), ('30cc', '301 crows bridge'), ('30cb', '301 captions')),
@@ -156,3 +154,5 @@ if __name__ == "__main__":
         main(game_directory, level)
     except KeyboardInterrupt:
         sys.exit(130)
+    except BrokenPipeError:
+        sys.exit(1)
