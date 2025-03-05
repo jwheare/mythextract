@@ -3,10 +3,10 @@
 import curses
 
 class TreeNode:
-    def __init__(self, name, identifier, children=None, options={}):
+    def __init__(self, name, identifier, children=[], options={}):
         self.name = name
         self.identifier = identifier
-        self.children = children or []
+        self.children = children
         self.expanded = False
         self.parent = None  # Track parent for left-arrow navigation
         self.options = options
@@ -45,21 +45,44 @@ class TreeNavigator:
         if identifier:
             for i, (vis_node, depth) in enumerate(self.visible_nodes):
                 if depth == 0 and vis_node.identifier == identifier:
-                    self.set_index(i)
+                    link_children = node.options.get('id_link_children')
+                    if link_children:
+                        selected_node = vis_node
+                        for child_i in link_children:
+                            if selected_node.children and len(selected_node.children) > child_i:
+                                selected_node = selected_node.children[child_i]
+                        self.select_node(selected_node)
+                    else:
+                        self.set_index(i)
 
     def expand_and_select_child(self):
         """ Expands a node and moves cursor to the first child """
         node = self.get_cursor_node()
-        if node.children and not node.expanded:
+        if len(node.children) and not node.expanded:
             node.expanded = True
             self.update_visible_nodes()
             self.move_cursor(1)
+
+    def fully_expand_node_tree(self):
+        """ Fully expands tree path for the current node"""
+        current_node = self.get_cursor_node()
+        top_node = current_node
+        while top_node.parent and top_node.parent != self.root:
+            top_node = top_node.parent
+
+        def traverse(node):
+            node.expanded = True
+            for child in node.children:
+                traverse(child)
+
+        traverse(top_node)
+        self.select_node(current_node)
 
     def collapse_or_go_to_parent(self):
         """ Collapses the node, or if already collapsed, moves to the parent and collapses it """
         node = self.get_cursor_node()
 
-        if node.expanded:
+        if len(node.children) and node.expanded:
             node.expanded = False
             self.update_visible_nodes()
         elif node.parent and node.parent != self.root:
@@ -68,6 +91,20 @@ class TreeNavigator:
             node.parent.expanded = False
             self.update_visible_nodes()
             self.set_index(parent_index)
+
+    def fully_collapse_node_tree(self):
+        """ Fully collapses tree path for the current node"""
+        top_node = self.get_cursor_node()
+        while top_node.parent and top_node.parent != self.root:
+            top_node = top_node.parent
+
+        def traverse(node):
+            node.expanded = False
+            for child in node.children:
+                traverse(child)
+
+        traverse(top_node)
+        self.select_node(top_node)
 
     def expand_up_to_level(self, level):
         """ Expands all nodes up to the given depth level (excluding the root) """
@@ -164,14 +201,12 @@ class TreeNavigator:
 
         for i in range(self.scroll_offset, min(self.scroll_offset + max_lines, len(self.visible_nodes))):
             node, depth = self.visible_nodes[i]
-            prefix = ("[-] " if node.expanded else "[+] ") if node.children else "    "
-            line = " " * (depth * 4) + prefix + node.name
+            prefix = ("[-] " if node.expanded else "[+] ") if len(node.children) else "    "
+            line = prefix + " " * (depth * 4) + node.name
 
             attr = 0
             if i == self.cursor_index:
                 attr = attr | curses.A_REVERSE
-            if node.options.get('bold'):
-                attr = attr | curses.A_BOLD
             if node.options.get('color') == 'alt_color':
                 attr = attr | curses.color_pair(2)
             if node.options.get('color') == 'alt_color2':
@@ -180,15 +215,21 @@ class TreeNavigator:
                 attr = attr | curses.color_pair(5)
             if node.options.get('color') == 'alt_color4':
                 attr = attr | curses.color_pair(6)
+            if node.options.get('color') == 'alt_color5':
+                attr = attr | curses.color_pair(7)
+
+            value_attr = attr
+            if node.options.get('bold'):
+                value_attr = attr | curses.A_BOLD
 
             name_line = line[:curses.COLS-1]
             end_of_text = len(name_line)
             line_y = i - self.scroll_offset
-            self.stdscr.addstr(line_y, 0, name_line, attr)
+            self.stdscr.addstr(line_y, 0, name_line, value_attr)
 
             suffix = node.options.get('suffix', '')
             if suffix:
-                self.stdscr.addstr(line_y, end_of_text, suffix, attr | curses.A_ITALIC)
+                self.stdscr.addstr(line_y, end_of_text, suffix, value_attr | curses.A_ITALIC)
                 end_of_text += len(suffix)
 
             help_text = node.options.get('help')
@@ -228,8 +269,12 @@ class TreeNavigator:
                 self.jump_to_identifier()
             elif key == curses.KEY_RIGHT:  # Expand and select first child
                 self.expand_and_select_child()
+            elif key == curses.KEY_SRIGHT:  # Fulls expand selected node tree
+                self.fully_expand_node_tree()
             elif key == curses.KEY_LEFT:  # Collapse or move to parent
                 self.collapse_or_go_to_parent()
+            elif key == curses.KEY_SLEFT:  # Fully collapse selected node tree
+                self.fully_collapse_node_tree()
             elif ord("1") <= key <= ord("9"):  # Expand up to levels 1-9
                 self.expand_up_to_level(int(chr(key)))
             elif key == ord("0"):  # Collapse all nodes except first-level
@@ -260,6 +305,7 @@ def curses_wrapper(stdscr, tree):
     curses.init_pair(4, curses.COLOR_BLACK, 67)  # Hel text
     curses.init_pair(5, curses.COLOR_WHITE, 96)  # Alt text 3
     curses.init_pair(6, curses.COLOR_WHITE, 63)  # Alt text 4
+    curses.init_pair(7, curses.COLOR_WHITE, 98)  # Alt text 5
 
     stdscr.clear()
     TreeNavigator(stdscr, tree)

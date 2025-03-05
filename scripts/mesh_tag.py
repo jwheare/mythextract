@@ -576,6 +576,7 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_struct = f'{num_values}L'
             elif param_type == ParamType.FIXED:
                 param_bytes = num_values * 4
+                scale_factor = FIXED_SF
                 param_struct = f'{num_values}L'
             elif param_type == ParamType.INTEGER:
                 param_bytes = num_values * 4
@@ -624,11 +625,9 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_values = param_values[:num_values]
 
             if scale_factor:
-                param_values = [p / scale_factor for p in param_values]
+                param_values = [round(p / scale_factor, 4) for p in param_values]
 
-            if param_type == ParamType.FIXED:
-                param_values = [round(val / FIXED_SF, 4) for val in param_values]
-            elif param_type == ParamType.WORLD_POINT_2D:
+            if param_type == ParamType.WORLD_POINT_2D:
                 world_points = []
                 for i in range(0, len(param_values), 2):
                     world_points.append((param_values[i], param_values[i+1]))
