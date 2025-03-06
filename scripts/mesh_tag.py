@@ -523,20 +523,21 @@ def parse_map_actions(game_version, mesh_header, data):
         action_end = action_start + ACTION_HEAD_SIZE
 
         (
-            action_id, expiration_mode, action_type, flags, trigger_time_start, trigger_time_duration, num_params, size, offset, indent, unknown, unused
+            action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent, unused
         ) = struct.unpack(
             # 887E <- action_id
             # 0000 <- expiration_mode
             # 61636C69 <- action_type
             # 0000 0001 <- flags
-            # 0000 0000 <- trigger_time_start
-            # 0000 0000 <- trigger_time_duration
+            # 0000 0000 <- trigger_time_lower_bound
+            # 0000 0000 <- trigger_time_delta
             # 0002 <- num_params
             # 002C <- size
             # 0000 320C <- offset
             # 0000 <- indent
-            # 0000 <- unknown
-            # 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+
+            # unused
+            # 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
             """>
             H H
             4s
@@ -544,8 +545,8 @@ def parse_map_actions(game_version, mesh_header, data):
             H
             H
             L
-            H H
-            32s
+            H
+            34s
             """,
             map_action_data[action_start:action_end]
         )
@@ -693,14 +694,12 @@ def parse_map_actions(game_version, mesh_header, data):
             'expiration_mode': ActionExpiration(expiration_mode),
             'name': name,
             'flags': ActionFlag(flags),
-            'trigger_time_start': trigger_time_start / TIME_SF,
-            'trigger_time_duration': trigger_time_duration / TIME_SF,
+            'trigger_time_lower_bound': trigger_time_lower_bound / TIME_SF,
+            'trigger_time_delta': trigger_time_delta / TIME_SF,
             'parameters': parameters,
             'size': size,
             'offset': offset,
             'indent': indent,
-            # 'unknown': unknown,
-            # 'unused': unused,
         }
         action_start = action_end
     action_remainder = map_action_data[max(ends):]

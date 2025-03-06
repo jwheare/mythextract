@@ -60,10 +60,10 @@ def print_actions(actions, tag_header):
                 action_vars.append(','.join([f.name.lower() for f in act['flags']]))
             if act['expiration_mode'] != mesh_tag.ActionExpiration.TRIGGER:
                 action_vars.append(f'expiry={act['expiration_mode'].name.lower()}')
-            if act['trigger_time_start']:
-                action_vars.append(f'delay={round(act['trigger_time_start'], 3)}s')
-            if act['trigger_time_duration']:
-                action_vars.append(f'dur={round(act['trigger_time_duration'], 3)}s')
+            if act['trigger_time_lower_bound']:
+                action_vars.append(f'delay={round(act['trigger_time_lower_bound'], 3)}s')
+            if act['trigger_time_delta']:
+                action_vars.append(f'dur={round(act['trigger_time_delta'], 3)}s')
 
         if len(act['parameters']):
             id_prefix = f'[{action_id}] '
