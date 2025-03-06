@@ -13,6 +13,31 @@ WORLD_POINT_SF = 512
 ANGLE_SF = (0xffff / 360)
 FIXED_SF = 1 << 16
 TIME_SF = 30
+
+# 887E <- action_id
+# 0000 <- expiration_mode
+# 61636C69 <- action_type
+# 0000 0001 <- flags
+# 0000 0000 <- trigger_time_lower_bound
+# 0000 0000 <- trigger_time_delta
+# 0002 <- num_params
+# 002C <- size
+# 0000 320C <- offset
+# 0000 <- indent
+
+# unused
+# 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
+ActionHeadFmt = """>
+H H
+4s
+L L L
+H
+H
+L
+H
+34x
+"""
+
 MeshHeaderFmt = """>
     4s 4s
 H H
@@ -506,6 +531,142 @@ def parse_markers(mesh_header, data):
 
     return (palette, orphans)
 
+def encode_map_action_param(game_version, param):
+    param_type = param['type']
+    param_elems = param['elements']
+    num_elems = len(param_elems)
+
+    if param_type == ParamType.STRING:
+        string_enc = myth_headers.encode_string(param_elems[0])
+        elem_count = len(string_enc) + 1
+        align_string_len = align(4, elem_count)
+        elem_struct = f'{align_string_len}s'
+        elem_values = [myth_headers.encode_string(param_elems[0])]
+    elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+        elem_count = num_elems
+        elem_struct = num_elems * '4s'
+        elem_values = [myth_headers.encode_string(elem) for elem in param_elems]
+    elif param_type == ParamType.WORLD_POINT_2D:
+        elem_count = num_elems
+        elem_struct = f'{num_elems * 2}L'
+        elem_values = [round(val * WORLD_POINT_SF) for pair in param_elems for val in pair]
+    elif param_type == ParamType.WORLD_POINT_3D:
+        elem_count = num_elems
+        elem_struct = f'{num_elems * 3}L'
+        elem_values = [round(val * WORLD_POINT_SF) for pair in param_elems for val in pair]
+    elif param_type == ParamType.FIXED:
+        elem_count = num_elems
+        elem_struct = f'{num_elems}L'
+        elem_values = [round(val * FIXED_SF) for val in param_elems]
+    elif param_type == ParamType.INTEGER:
+        elem_count = num_elems
+        elem_struct = f'{num_elems}l'
+        elem_values = param_elems
+    elif param_type == ParamType.WORLD_DISTANCE:
+        elem_count = num_elems
+        elem_struct = f'{num_elems}L'
+        elem_values = [round(val * WORLD_POINT_SF) for val in param_elems]
+    elif param_type == ParamType.FLAG:
+        elem_count = num_elems
+        align_struct_len = align(4, num_elems)
+        num_pad = align_struct_len - num_elems
+        elem_struct = f'{num_elems}?{num_pad}x'
+        elem_values = param_elems
+    else:
+        if param_type == ParamType.ANGLE:
+            elem_values = [round(val * ANGLE_SF) for val in param_elems]
+        else:
+            elem_values = param_elems
+        elem_count = num_elems
+        align_struct_len = align(2, num_elems)
+        num_pad = align_struct_len - num_elems
+        elem_struct = f'{num_elems}H{2 * num_pad}x'
+
+    return struct.pack(
+        f'>H H 4s {elem_struct}',
+        param_type.value, elem_count, myth_headers.encode_string(param['name']),
+        *elem_values
+    )
+
+def encode_map_action_data(game_version, actions):
+    action_data = b''
+    all_param_data = b''
+    param_offset = 0
+    for action_id, action in actions.items():
+        param_data = b''
+        num_params = len(action['parameters'])
+        if action['name']:
+            param_data += encode_map_action_param(game_version, {
+                'type': ParamType.STRING,
+                'name': 'name',
+                'elements': [action['name']]
+            })
+            num_params += 1
+        for param in action['parameters']:
+            param_data += encode_map_action_param(game_version, param)
+
+        if action['type']:
+            action_type = myth_headers.encode_string(action['type'])
+        else:
+            action_type = b'\xff\xff\xff\xff'
+
+        action_data += struct.pack(
+            ActionHeadFmt,
+            action_id, action['expiration_mode'].value, action_type, action['flags'].value,
+            round(action['trigger_time_lower_bound'] * TIME_SF), round(action['trigger_time_delta'] * TIME_SF),
+            num_params, len(param_data), param_offset, action['indent']
+        )
+        all_param_data += param_data
+
+        param_offset = param_offset + len(param_data)
+    return (len(actions), action_data + all_param_data)
+
+def encode_map_actions(mesh_tag_data, actions):
+    mesh_header = parse_header(mesh_tag_data)
+    tag_header = myth_headers.parse_header(mesh_tag_data)
+
+    (map_action_count, map_action_data) = encode_map_action_data(myth_headers.game_version(tag_header), actions)
+    map_action_buffer_size = len(map_action_data)
+    map_action_size_diff = map_action_buffer_size - mesh_header.map_action_buffer_size
+
+    # Adjust sizes and offsets
+    map_action_start = get_offset(mesh_header.map_actions_offset)
+    map_action_end = map_action_start + mesh_header.map_action_buffer_size
+
+    mesh_data = mesh_tag_data[get_offset(0):map_action_start] + map_action_data + mesh_tag_data[map_action_end:]
+    mesh_data_size = len(mesh_data)
+
+    media_coverage_region_offset = mesh_header.media_coverage_region_offset + map_action_size_diff
+    mesh_LOD_data_offset = mesh_header.mesh_LOD_data_offset + map_action_size_diff
+    connectors_offset = mesh_header.connectors_offset + map_action_size_diff
+
+    new_mesh_header = mesh_header._replace(
+        flags=mesh_header.flags.value,
+        extra_flags=mesh_header.extra_flags.value,
+        data_size=mesh_data_size,
+        map_action_count=map_action_count,
+        map_action_buffer_size=map_action_buffer_size,
+        media_coverage_region_offset=media_coverage_region_offset,
+        mesh_LOD_data_offset=mesh_LOD_data_offset,
+        connectors_offset=connectors_offset,
+    )
+    new_mesh_header_data = encode_header(new_mesh_header)
+    new_mesh_header_size = len(new_mesh_header_data)
+    new_tag_data_size = new_mesh_header_size + mesh_data_size
+
+    # Adjust tag header size
+    new_tag_header = tag_header._replace(
+        destination=-1,
+        identifier=-1,
+        type=0,
+        tag_data_size=new_tag_data_size
+    )
+
+    return (
+        myth_headers.encode_header(new_tag_header)
+        + new_mesh_header_data
+        + mesh_data
+    )
 
 def parse_map_actions(mesh_header, data):
     tag_header = myth_headers.parse_header(data)
@@ -525,33 +686,8 @@ def parse_map_actions(mesh_header, data):
         action_end = action_start + ACTION_HEAD_SIZE
 
         (
-            action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent, unused
-        ) = struct.unpack(
-            # 887E <- action_id
-            # 0000 <- expiration_mode
-            # 61636C69 <- action_type
-            # 0000 0001 <- flags
-            # 0000 0000 <- trigger_time_lower_bound
-            # 0000 0000 <- trigger_time_delta
-            # 0002 <- num_params
-            # 002C <- size
-            # 0000 320C <- offset
-            # 0000 <- indent
-
-            # unused
-            # 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-            """>
-            H H
-            4s
-            L L L
-            H
-            H
-            L
-            H
-            34s
-            """,
-            map_action_data[action_start:action_end]
-        )
+            action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent
+        ) = struct.unpack(ActionHeadFmt, map_action_data[action_start:action_end])
 
         if all(f == b'' for f in action_type.split(b'\xff')):
             action_type = None
@@ -593,6 +729,9 @@ def parse_map_actions(mesh_header, data):
                 align_num_elems = align(4, num_elems)
                 param_bytes = align_num_elems
                 param_struct = f'{align_num_elems}s'
+            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+                param_bytes = num_elems * 4
+                param_struct = num_elems * '4s'
             elif param_type == ParamType.WORLD_POINT_2D:
                 num_elems = (num_elems * 2)
                 param_bytes = num_elems * 4
@@ -614,9 +753,6 @@ def parse_map_actions(mesh_header, data):
                 param_bytes = num_elems * 4
                 scale_factor = WORLD_POINT_SF
                 param_struct = f'{num_elems}L'
-            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
-                param_bytes = num_elems * 4
-                param_struct = num_elems * '4s'
             elif param_type == ParamType.FLAG:
                 align_num_elems = align(4, num_elems)
                 param_bytes = align_num_elems
@@ -631,7 +767,7 @@ def parse_map_actions(mesh_header, data):
             param_end = param_head_end + param_bytes
             param_data = action_data[param_head_end:param_end]
             param_fmt = f">{param_struct}"
-            # print(param_type, param_fmt, param_data, param_bytes, len(param_data))
+            # print(param_type, param_fmt, param_data.hex(), param_bytes, len(param_data))
             param_elems = struct.unpack(param_fmt, param_data)
 
             # Post process
@@ -680,7 +816,6 @@ def parse_map_actions(mesh_header, data):
 
                 parameters.append({
                     'type': param_type,
-                    'count': num_elems,
                     'name': param_name,
                     'elements': param_elems
                 })
@@ -699,8 +834,6 @@ def parse_map_actions(mesh_header, data):
             'trigger_time_lower_bound': trigger_time_lower_bound / TIME_SF,
             'trigger_time_delta': trigger_time_delta / TIME_SF,
             'parameters': parameters,
-            'size': size,
-            'offset': offset,
             'indent': indent,
         }
         action_start = action_end
