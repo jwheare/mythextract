@@ -337,4 +337,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:
+        sys.stdout = None
         sys.exit(1)
