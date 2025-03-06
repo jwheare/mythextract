@@ -507,7 +507,9 @@ def parse_markers(mesh_header, data):
     return (palette, orphans)
 
 
-def parse_map_actions(game_version, mesh_header, data):
+def parse_map_actions(mesh_header, data):
+    tag_header = myth_headers.parse_header(data)
+    game_version = myth_headers.game_version(tag_header)
     map_action_start = get_offset(mesh_header.map_actions_offset)
     map_action_end = map_action_start + mesh_header.map_action_buffer_size
     map_action_data = data[map_action_start:map_action_end]

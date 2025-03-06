@@ -22,7 +22,7 @@ def main(game_directory, level, plugin_name):
     try:
         if level:
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
-                parse_mesh_actions(game_version, tags, data_map, mesh_id)
+                parse_mesh_actions(tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
                 mono2tag.print_entrypoints(entrypoints, header_name)
@@ -68,7 +68,7 @@ def lookup_action_help(action_help, action_type, param_type=None):
     else:
         return action
 
-def parse_mesh_actions(game_version, tags, data_map, mesh_id):
+def parse_mesh_actions(tags, data_map, mesh_id):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
@@ -76,7 +76,7 @@ def parse_mesh_actions(game_version, tags, data_map, mesh_id):
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
 
-    (actions, _) = mesh_tag.parse_map_actions(game_version, mesh_header, mesh_tag_data)
+    (actions, _) = mesh_tag.parse_map_actions(mesh_header, mesh_tag_data)
 
     actions_tui(actions, palette, tags, action_help)
 
