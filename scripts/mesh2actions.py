@@ -77,7 +77,7 @@ def print_actions(actions, tag_header):
         else:
             print(f'{tag_prefix}{line}')
         for p in act['parameters']:
-            print(f'{tag_prefix}        {indent_space}- {p['name']} {p['type'].name}={p['values']}')
+            print(f'{tag_prefix}        {indent_space}- {p['name']} {p['type'].name}={p['elements']}')
 
         if len(action_vars):
             print(f'{tag_prefix}\x1b[3m[{' '.join(action_vars)}]\x1b[0m')

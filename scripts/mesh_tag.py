@@ -567,7 +567,7 @@ def parse_map_actions(game_version, mesh_header, data):
             param_head_end = param_start + 8
             param_head_data = action_data[param_start:param_head_end]
             
-            (param_type, num_values, param_name) = struct.unpack(">H H 4s", param_head_data)
+            (param_type, num_elems, param_name) = struct.unpack(">H H 4s", param_head_data)
 
             param_name = myth_headers.decode_string(param_name)
 
@@ -587,99 +587,99 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_type = ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER
 
             if param_type == ParamType.STRING:
-                align_num_values = align(4, num_values)
-                param_bytes = align_num_values
-                param_struct = f'{align_num_values}s'
+                align_num_elems = align(4, num_elems)
+                param_bytes = align_num_elems
+                param_struct = f'{align_num_elems}s'
             elif param_type == ParamType.WORLD_POINT_2D:
-                num_values = (num_values * 2)
-                param_bytes = num_values * 4
+                num_elems = (num_elems * 2)
+                param_bytes = num_elems * 4
                 scale_factor = WORLD_POINT_SF
-                param_struct = f'{num_values}L'
+                param_struct = f'{num_elems}L'
             elif param_type == ParamType.WORLD_POINT_3D:
-                num_values = (num_values * 3)
-                param_bytes = num_values * 4
+                num_elems = (num_elems * 3)
+                param_bytes = num_elems * 4
                 scale_factor = WORLD_POINT_SF
-                param_struct = f'{num_values}L'
+                param_struct = f'{num_elems}L'
             elif param_type == ParamType.FIXED:
-                param_bytes = num_values * 4
+                param_bytes = num_elems * 4
                 scale_factor = FIXED_SF
-                param_struct = f'{num_values}L'
+                param_struct = f'{num_elems}L'
             elif param_type == ParamType.INTEGER:
-                param_bytes = num_values * 4
-                param_struct = f'{num_values}l'
+                param_bytes = num_elems * 4
+                param_struct = f'{num_elems}l'
             elif param_type == ParamType.WORLD_DISTANCE:
-                param_bytes = num_values * 4
+                param_bytes = num_elems * 4
                 scale_factor = WORLD_POINT_SF
-                param_struct = f'{num_values}L'
+                param_struct = f'{num_elems}L'
             elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
-                param_bytes = num_values * 4
-                param_struct = num_values * '4s'
+                param_bytes = num_elems * 4
+                param_struct = num_elems * '4s'
             elif param_type == ParamType.FLAG:
-                align_num_values = align(4, num_values)
-                param_bytes = align_num_values
-                param_struct = f'{align_num_values}?'
+                align_num_elems = align(4, num_elems)
+                param_bytes = align_num_elems
+                param_struct = f'{align_num_elems}?'
             else:
                 if param_type == ParamType.ANGLE:
                     scale_factor = ANGLE_SF
-                align_num_values = align(2, num_values)
-                param_bytes = align_num_values * 2
-                param_struct = f'{align_num_values}H'
+                align_num_elems = align(2, num_elems)
+                param_bytes = align_num_elems * 2
+                param_struct = f'{align_num_elems}H'
 
             param_end = param_head_end + param_bytes
             param_data = action_data[param_head_end:param_end]
             param_fmt = f">{param_struct}"
             # print(param_type, param_fmt, param_data, param_bytes, len(param_data))
-            param_values = struct.unpack(param_fmt, param_data)
+            param_elems = struct.unpack(param_fmt, param_data)
 
             # Post process
             remainder = None
             if param_type == ParamType.STRING:
-                remainder = param_values[0][num_values:]
-                param_values = myth_headers.decode_string(param_values[0][:num_values])
+                remainder = param_elems[0][num_elems:]
+                param_elems = myth_headers.decode_string(param_elems[0][:num_elems])
             elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
-                remainder = param_values[num_values:]
-                param_values = [myth_headers.decode_string(value) for value in param_values[:num_values]]
+                remainder = param_elems[num_elems:]
+                param_elems = [myth_headers.decode_string(elem) for elem in param_elems[:num_elems]]
             elif param_type == ParamType.FLAG:
                 # Only look at the first byte
-                remainder = param_values[1:]
-                if len(param_values):
-                    param_values = param_values[0]
+                remainder = param_elems[1:]
+                if len(param_elems):
+                    param_elems = param_elems[0]
                 else:
-                    param_values = True
+                    param_elems = True
             else:
-                remainder = param_values[num_values:]
-                param_values = param_values[:num_values]
+                remainder = param_elems[num_elems:]
+                param_elems = param_elems[:num_elems]
 
             if scale_factor:
-                param_values = [round(p / scale_factor, 4) for p in param_values]
+                param_elems = [round(p / scale_factor, 4) for p in param_elems]
 
             if param_type == ParamType.WORLD_POINT_2D:
                 world_points = []
-                for i in range(0, len(param_values), 2):
-                    world_points.append((param_values[i], param_values[i+1]))
-                param_values = world_points
+                for i in range(0, len(param_elems), 2):
+                    world_points.append((param_elems[i], param_elems[i+1]))
+                param_elems = world_points
 
             if param_type == ParamType.WORLD_POINT_3D:
                 world_points = []
-                for i in range(0, len(param_values), 3):
-                    world_points.append((param_values[i], param_values[i+1], param_values[i+2]))
-                param_values = world_points
+                for i in range(0, len(param_elems), 3):
+                    world_points.append((param_elems[i], param_elems[i+1], param_elems[i+2]))
+                param_elems = world_points
 
-            # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
+            # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_elems}] {param_elems} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
 
             if param_name == 'name':
-                name = param_values
+                name = param_elems
             else:
-                if hasattr(param_values, '__iter__'):
-                    param_values = list(param_values)
+                if hasattr(param_elems, '__iter__'):
+                    param_elems = list(param_elems)
                 else:
-                    param_values = [param_values]
+                    param_elems = [param_elems]
 
                 parameters.append({
                     'type': param_type,
-                    'count': num_values,
+                    'count': num_elems,
                     'name': param_name,
-                    'values': param_values
+                    'elements': param_elems
                 })
 
             param_start = param_end

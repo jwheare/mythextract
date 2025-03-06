@@ -83,13 +83,13 @@ def parse_mesh_actions(game_version, tags, data_map, mesh_id):
 def build_backrefs(actions):
     backrefs = {}
     for (action_id, action) in actions.items():
-        for pi, param in enumerate(action['parameters']):
-            for vi, value in enumerate(param['values']):
+        for param_i, param in enumerate(action['parameters']):
+            for elem_i, element in enumerate(param['elements']):
                 if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
-                    if value in actions:
-                        if value not in backrefs:
-                            backrefs[value] = []
-                        backrefs[value].append((action_id, pi, vi))
+                    if element in actions:
+                        if element not in backrefs:
+                            backrefs[element] = []
+                        backrefs[element].append((action_id, param_i, elem_i))
     return backrefs
 
 def build_action_vars(action):
@@ -176,8 +176,8 @@ def tag_to_suffix(tags, tag_type, tag_id):
     if tag_header:
         return f' - {tag_header.name}'
 
-def build_action_param_value_node(action, param, value, tags, actions, palette):
-    # Action param values
+def build_action_param_element_node(action, param, element, tags, actions, palette):
+    # Action param elements
     suffix = None
     action_ref = None
     color = 'alt_color4'
@@ -186,24 +186,24 @@ def build_action_param_value_node(action, param, value, tags, actions, palette):
             (action['type'] == 'geom' and param['name'] in ['type', 'hold', 'noho', 'holi', 'nhoi']) or
             (action['type'] == 'tuni' and param['name'] in ['hold', 'holi'])
         ):
-            suffix = tag_to_suffix(tags, 'proj', value)
+            suffix = tag_to_suffix(tags, 'proj', element)
         elif (
             (action['type'] == 'geom' and param['name'] in ['mons'])
         ):
             color = 'alt_color3'
-            suffix = tag_to_suffix(tags, 'unit', value)
+            suffix = tag_to_suffix(tags, 'unit', element)
     elif param['type'] == mesh_tag.ParamType.SOUND:
-        suffix = tag_to_suffix(tags, 'soun', value)
+        suffix = tag_to_suffix(tags, 'soun', element)
     if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
         color = 'alt_color2'
-        if value in actions:
-            action_ref = value
-            if actions[value]['type']:
-                suffix = f' {actions[value]['type'].upper()}.{actions[value]['name']}'
-            elif len(actions[value]['parameters']):
-                suffix = f' ({actions[value]['parameters'][0]['name']}) {actions[value]['name']}'
+        if element in actions:
+            action_ref = element
+            if actions[element]['type']:
+                suffix = f' {actions[element]['type'].upper()}.{actions[element]['name']}'
+            elif len(actions[element]['parameters']):
+                suffix = f' ({actions[element]['parameters'][0]['name']}) {actions[element]['name']}'
             else:
-                suffix = f' {actions[value]['name']}'
+                suffix = f' {actions[element]['name']}'
         else:
             suffix = ' [missing]'
     else:
@@ -212,7 +212,7 @@ def build_action_param_value_node(action, param, value, tags, actions, palette):
         palette_type = mesh_tag.param_id_marker(param['type'], param['name'])
         if palette_type:
             for obje in palette[palette_type]:
-                if value in obje['markers']:
+                if element in obje['markers']:
                     tag_id = obje['tag']
                     tag_suffix = tag_to_suffix(tags, mesh_tag.Marker2Tag.get(palette_type), tag_id) or ''
                     suffix = f' [{tag_id}]{tag_suffix}'
@@ -225,19 +225,19 @@ def build_action_param_node(
     (help_text, more_help, param_bold) = action_param_help(act, param, action_help)
 
     param_children = []
-    if len(param['values']) == 1:
-        value = param['values'][0]
-        (action_ref, suffix, color) = build_action_param_value_node(act, param, value, tags, actions, palette)
-        param_type = value
+    if len(param['elements']) == 1:
+        element = param['elements'][0]
+        (action_ref, suffix, color) = build_action_param_element_node(act, param, element, tags, actions, palette)
+        param_type = element
     else:
         action_ref = None
         suffix = None
         color = 'alt_color'
-        param_type = f'{param['type'].name}({len(param['values'])})'
-        for value in param['values']:
-            (param_action_ref, param_suffix, param_color) = build_action_param_value_node(act, param, value, tags, actions, palette)
-            param_value_node = tree_curses.TreeNode(
-                f'       {indent_space}{value}',
+        param_type = f'{param['type'].name}({len(param['elements'])})'
+        for element in param['elements']:
+            (param_action_ref, param_suffix, param_color) = build_action_param_element_node(act, param, element, tags, actions, palette)
+            param_element_node = tree_curses.TreeNode(
+                f'       {indent_space}{element}',
                 action_id,
                 options={
                     'id_link': param_action_ref,
@@ -246,7 +246,7 @@ def build_action_param_node(
                     'color': param_color,
                 }
             )
-            param_children.append(param_value_node)
+            param_children.append(param_element_node)
     # Action params
     return tree_curses.TreeNode(
         f'    {indent_space}- {param['name']} {param_type}',
