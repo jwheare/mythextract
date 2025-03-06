@@ -19,7 +19,7 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            for mesh_id in mesh2info.mesh_entries(level, entrypoint_map, tags):
+            for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
                 parse_mesh_markers(game_version, tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():

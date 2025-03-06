@@ -51,6 +51,8 @@ class TreeNavigator:
                         for child_i in link_children:
                             if selected_node.children and len(selected_node.children) > child_i:
                                 selected_node = selected_node.children[child_i]
+                        
+                        self.push_history()
                         self.select_node(selected_node)
                     else:
                         self.set_index(i)
@@ -123,7 +125,17 @@ class TreeNavigator:
         node, _ = self.visible_nodes[self.cursor_index]
         return node
 
+    def push_history(self):
+        self.node_forward = []
+        self.node_back.append(self.get_cursor_node())
+
+    def set_index(self, index):
+        self.push_history()
+        self.cursor_index = index
+        self.ensure_cursor_visible()
+
     def select_node(self, node):
+        """ Selects a node without affecting the forward/back history """
         self.expand_to_node(node)
         self.update_visible_nodes()
         for i, (vis_node, depth) in enumerate(self.visible_nodes):
@@ -153,12 +165,6 @@ class TreeNavigator:
     def move_cursor(self, direction):
         """ Moves the cursor and adjusts scrolling """
         self.set_index(max(0, min(self.cursor_index + direction, len(self.visible_nodes) - 1)))
-
-    def set_index(self, index):
-        self.node_forward = []
-        self.node_back.append(self.get_cursor_node())
-        self.cursor_index = index
-        self.ensure_cursor_visible()
 
     def go_back(self):
         if len(self.node_back):

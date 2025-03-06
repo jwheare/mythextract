@@ -19,7 +19,7 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            for mesh_id in mesh_entries(level, entrypoint_map, tags):
+            for mesh_id in mesh_entries(game_version, level, entrypoint_map, tags):
                 parse_mesh_tag(game_version, tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
@@ -27,12 +27,18 @@ def main(game_directory, level, plugin_name):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def mesh_entries(level, entrypoint_map, tags):
+def mesh_entries(game_version, level, entrypoint_map, tags):
     if level == 'all':
-        for header_name, entrypoints in entrypoint_map.items():
-            for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
-                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+        if game_version == 1:
+            for level in range(1, 26):
+                (mesh_id, header_name, entry_name) = parse_level(f'{level:02}', tags)
+                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                 yield mesh_id
+        else:
+            for header_name, entrypoints in entrypoint_map.items():
+                for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
+                    print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
+                    yield mesh_id
     else:
         (mesh_id, header_name, entry_name) = parse_level(level, tags)
         print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')

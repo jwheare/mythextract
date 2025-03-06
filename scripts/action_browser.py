@@ -21,7 +21,7 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            for mesh_id in mesh2info.mesh_entries(level, entrypoint_map, tags):
+            for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
                 parse_mesh_actions(game_version, tags, data_map, mesh_id)
         else:
             for header_name, entrypoints in entrypoint_map.items():
@@ -82,46 +82,47 @@ def parse_mesh_actions(game_version, tags, data_map, mesh_id):
 
 def build_backrefs(actions):
     backrefs = {}
-    for (action_id, act) in actions.items():
-        for pi, p in enumerate(act['parameters']):
-            for vi, value in enumerate(p['values']):
-                if p['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
+    for (action_id, action) in actions.items():
+        for pi, param in enumerate(action['parameters']):
+            for vi, value in enumerate(param['values']):
+                if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
                     if value in actions:
                         if value not in backrefs:
                             backrefs[value] = []
                         backrefs[value].append((action_id, pi, vi))
     return backrefs
 
-def build_action_vars(act):
+def build_action_vars(action):
     action_vars = []
-    if len(act['parameters']):
-        if act['flags']:
-            action_vars.append(','.join([f.name.lower() for f in act['flags']]))
-        if act['expiration_mode'] != mesh_tag.ActionExpiration.TRIGGER:
-            action_vars.append(f'expiry={act['expiration_mode'].name.lower()}')
-        if act['trigger_time_start']:
-            action_vars.append(f'delay={round(act['trigger_time_start'], 3)}s')
-        if act['trigger_time_duration']:
-            action_vars.append(f'dur={round(act['trigger_time_duration'], 3)}s')
+    if len(action['parameters']):
+        if action['flags']:
+            action_vars.append(','.join([f.name.lower() for f in action['flags']]))
+        if action['expiration_mode'] != mesh_tag.ActionExpiration.TRIGGER:
+            action_vars.append(f'expiry={action['expiration_mode'].name.lower()}')
+        if action['trigger_time_start']:
+            action_vars.append(f'delay={round(action['trigger_time_start'], 3)}s')
+        if action['trigger_time_duration']:
+            action_vars.append(f'dur={round(action['trigger_time_duration'], 3)}s')
     return action_vars
 
-def build_backref_node(actions, action_id, backrefs, indent_space):
-    backref_help = '[action_identifier] Actions which reference this action'
+def build_backref_node(actions, action_id, backrefs, indent_space, action_help):
     backref_children = []
     for (ref_action, pi, vi) in backrefs[action_id]:
-        p = actions[ref_action]['parameters'][pi]
+        param = actions[ref_action]['parameters'][pi]
         if actions[ref_action]['type']:
-            suffix = f' {actions[ref_action]['type'].upper()}-{p['name']}'
+            suffix = f' {actions[ref_action]['type'].upper()}-{param['name']}'
         else:
-            suffix = f' NONE-{p['name']}'
+            suffix = f' NONE-{param['name']}'
         suffix += f'[{vi}] {actions[ref_action]['name']}'
         if len(build_action_vars(actions[ref_action])):
             pi = pi + 1
+        (help_text, more_help, param_bold) = action_param_help(actions[ref_action], param, action_help)
         backref_children.append(tree_curses.TreeNode(
             f'       {indent_space}{ref_action}',
             action_id,
             options={
-                'more_help': backref_help,
+                'help': help_text,
+                'more_help': more_help,
                 'id_link': ref_action,
                 'id_link_children': [pi, vi],
                 'suffix': suffix,
@@ -129,27 +130,27 @@ def build_backref_node(actions, action_id, backrefs, indent_space):
             }
         ))
     return tree_curses.TreeNode(
-        f'    {indent_space}<- ref ACTION_IDENTIFIER',
+        f'    {indent_space}<- ref ACTION_IDENTIFIER({len(backref_children)})',
         action_id,
         children=backref_children,
         options={
             'help': 'References',
-            'more_help': backref_help,
+            'more_help': '[action_identifier] Actions which reference this action',
             'color': 'alt_color5',
         }
     )
 
-def action_param_help(act, p, action_help):
+def action_param_help(action, param, action_help):
     help_text = None
     param_bold = False
     more_help = ''
-    help_obj = lookup_action_help(action_help, act['type'], p['name'])
+    help_obj = lookup_action_help(action_help, action['type'], param['name'])
     if help_obj:
         help_text = help_obj['name']
-        if act['type']:
-            more_help = f'[{act['type'].upper()}-{p['name']}] '
+        if action['type']:
+            more_help = f'[{action['type'].upper()}-{param['name']}] '
         else:
-            more_help = f'[NONE-{p['name']}] '
+            more_help = f'[NONE-{param['name']}] '
         if 'requirement' in help_obj:
             more_help += f'({help_obj['requirement']}) '
         if 'type' in help_obj:
@@ -157,32 +158,43 @@ def action_param_help(act, p, action_help):
         if 'desc' in help_obj:
             more_help += f'{help_obj['desc']} '
         param_bold = help_obj.get('requirement') == 'required'
-    elif not act['type'] and p['type'] == mesh_tag.ParamType.MONSTER_IDENTIFIER:
-        more_help = f'[NONE-{p['name']}] [{p['type'].name.lower()}] '
-        if p['name'] == 'subj':
+    elif not action['type'] and param['type'] == mesh_tag.ParamType.MONSTER_IDENTIFIER:
+        more_help = f'[NONE-{param['name']}] [{param['type'].name.lower()}] '
+        if param['name'] == 'subj':
             help_text = 'Subject'
             more_help += 'Monster reference as subject'
-        elif p['name'] == 'obje':
+        elif param['name'] == 'obje':
             help_text = 'Object'
             more_help += 'Monster reference as object'
-        elif p['name'] == 'enem':
+        elif param['name'] == 'enem':
             help_text = 'Enemy'
             more_help += 'Monster reference as enemy'
     return (help_text, more_help, param_bold)
 
-def build_action_param_value_node(
-    act, p, vi, value, tags, actions, palette, indent_space, action_id, more_help
-):
+def tag_to_suffix(tags, tag_type, tag_id):
+    (location, tag_header) = loadtags.lookup_tag_header(tags, tag_type, tag_id)
+    if tag_header:
+        return f' - {tag_header.name}'
+
+def build_action_param_value_node(action, param, value, tags, actions, palette):
     # Action param values
     suffix = None
     action_ref = None
     color = 'alt_color4'
-    if act['type'] == 'geom' and p['name'] == 'type' and p['type'] == mesh_tag.ParamType.FIELD_NAME:
-        suffix = f' [{value}]'
-        (location, tag_header) = loadtags.lookup_tag_header(tags, 'proj', value)
-        if tag_header:
-            suffix = f'{suffix} {tag_header.name}'
-    if p['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
+    if param['type'] == mesh_tag.ParamType.FIELD_NAME:
+        if (
+            (action['type'] == 'geom' and param['name'] in ['type', 'hold', 'noho', 'holi', 'nhoi']) or
+            (action['type'] == 'tuni' and param['name'] in ['hold', 'holi'])
+        ):
+            suffix = tag_to_suffix(tags, 'proj', value)
+        elif (
+            (action['type'] == 'geom' and param['name'] in ['mons'])
+        ):
+            color = 'alt_color3'
+            suffix = tag_to_suffix(tags, 'unit', value)
+    elif param['type'] == mesh_tag.ParamType.SOUND:
+        suffix = tag_to_suffix(tags, 'soun', value)
+    if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
         color = 'alt_color2'
         if value in actions:
             action_ref = value
@@ -194,53 +206,58 @@ def build_action_param_value_node(
                 suffix = f' {actions[value]['name']}'
         else:
             suffix = ' [missing]'
-    elif p['type'] == mesh_tag.ParamType.SOUND:
-        (location, tag_header) = loadtags.lookup_tag_header(tags, 'soun', value)
-        if tag_header:
-            suffix = f' - {tag_header.name}'
     else:
-        if p['type'] == mesh_tag.ParamType.MONSTER_IDENTIFIER:
+        if param['type'] == mesh_tag.ParamType.MONSTER_IDENTIFIER:
             color = 'alt_color3'
-        palette_type = mesh_tag.param_id_marker(p['type'], p['name'])
+        palette_type = mesh_tag.param_id_marker(param['type'], param['name'])
         if palette_type:
             for obje in palette[palette_type]:
                 if value in obje['markers']:
                     tag_id = obje['tag']
-                    suffix = f' [{tag_id}]'
-                    (location, tag_header) = loadtags.lookup_tag_header(tags, mesh_tag.Marker2Tag.get(palette_type), tag_id)
-                    if tag_header:
-                        suffix = f'{suffix} {tag_header.name}'
+                    tag_suffix = tag_to_suffix(tags, mesh_tag.Marker2Tag.get(palette_type), tag_id) or ''
+                    suffix = f' [{tag_id}]{tag_suffix}'
 
-    return tree_curses.TreeNode(
-        f'       {indent_space}{value}',
-        action_id,
-        options={
-            'id_link': action_ref,
-            'suffix': suffix,
-            'more_help': more_help,
-            'color': color,
-        }
-    )
+    return (action_ref, suffix, color)
 
 def build_action_param_node(
-    pi, p, act, action_help, palette, tags, indent_space, actions, action_id
+    param, act, action_help, palette, tags, indent_space, actions, action_id
 ):
-    (help_text, more_help, param_bold) = action_param_help(act, p, action_help)
+    (help_text, more_help, param_bold) = action_param_help(act, param, action_help)
 
     param_children = []
-    for vi, value in enumerate(p['values']):
-        param_children.append(build_action_param_value_node(
-            act, p, vi, value, tags, actions, palette, indent_space, action_id, more_help
-        ))
+    if len(param['values']) == 1:
+        value = param['values'][0]
+        (action_ref, suffix, color) = build_action_param_value_node(act, param, value, tags, actions, palette)
+        param_type = value
+    else:
+        action_ref = None
+        suffix = None
+        color = 'alt_color'
+        param_type = f'{param['type'].name}({len(param['values'])})'
+        for value in param['values']:
+            (param_action_ref, param_suffix, param_color) = build_action_param_value_node(act, param, value, tags, actions, palette)
+            param_value_node = tree_curses.TreeNode(
+                f'       {indent_space}{value}',
+                action_id,
+                options={
+                    'id_link': param_action_ref,
+                    'suffix': param_suffix,
+                    'more_help': more_help,
+                    'color': param_color,
+                }
+            )
+            param_children.append(param_value_node)
     # Action params
     return tree_curses.TreeNode(
-        f'    {indent_space}- {p['name']} {p['type'].name}',
+        f'    {indent_space}- {param['name']} {param_type}',
         action_id,
         children=param_children,
         options={
+            'id_link': action_ref,
+            'suffix': suffix,
             'help': help_text,
             'more_help': more_help,
-            'color': 'alt_color',
+            'color': color,
             'bold': param_bold,
         }
     )
@@ -269,16 +286,16 @@ def actions_tui(actions, palette, tags, action_help):
             children.append(tree_curses.TreeNode(f'    {indent_space}[{' '.join(action_vars)}]', action_id, options={
                 'help': 'Flags',
                 'bold': bold,
-                'color': 'alt_color',
+                'color': 'alt_color4',
             }))
 
-        for pi, p in enumerate(act['parameters']):
+        for param in act['parameters']:
             children.append(build_action_param_node(
-                pi, p, act, action_help, palette, tags, indent_space, actions, action_id
+                param, act, action_help, palette, tags, indent_space, actions, action_id
             ))
 
         if action_id in backrefs:
-            children.append(build_backref_node(actions, action_id, backrefs, indent_space))
+            children.append(build_backref_node(actions, action_id, backrefs, indent_space, action_help))
 
         # Action
         (help_text, more_help) = action_type_help(action_help, act)

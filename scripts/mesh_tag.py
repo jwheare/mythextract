@@ -204,6 +204,19 @@ class ParamType(enum.Enum):
     LOCAL_PROJECTILE_GROUP_IDENTIFIER = enum.auto()
     MODEL_ANIMATION_IDENTIFIER = enum.auto()
 
+def is_simple_param(param_type):
+    return param_type in [
+        ParamType.FLAG,
+        ParamType.STRING,
+        ParamType.ANGLE,
+        ParamType.INTEGER,
+        ParamType.WORLD_DISTANCE,
+        ParamType.FIXED,
+        ParamType.WORLD_POINT_2D,
+        ParamType.WORLD_RECTANGLE_2D,
+        ParamType.WORLD_POINT_3D
+    ]
+
 def param_id_marker(param_type, param_name):
     if param_type == ParamType.MONSTER_IDENTIFIER:
         return MarkerType.UNIT
@@ -211,6 +224,12 @@ def param_id_marker(param_type, param_name):
         return MarkerType.AMBIENT_SOUND
     if param_type == ParamType.OBJECT_IDENTIFIER:
         return MarkerType.PROJECTILE
+    if param_type == ParamType.MODEL_IDENTIFIER:
+        return MarkerType.MODEL
+    if param_type == ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER:
+        return MarkerType.PROJECTILE_GROUP
+    if param_type == ParamType.MODEL_ANIMATION_IDENTIFIER:
+        return MarkerType.ANIMATION
 
 class MarkerType(enum.Enum):
     OBSERVER = 0
@@ -564,6 +583,8 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_type = ParamType.OBJECT_IDENTIFIER
             if tfl and param_type == ParamType.MODEL_IDENTIFIER:
                 param_type = ParamType.SOUND_SOURCE_IDENTIFIER
+            if tfl and param_type == ParamType.WORLD_POINT_3D:
+                param_type = ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER
 
             if param_type == ParamType.STRING:
                 align_num_values = align(4, num_values)
@@ -571,6 +592,11 @@ def parse_map_actions(game_version, mesh_header, data):
                 param_struct = f'{align_num_values}s'
             elif param_type == ParamType.WORLD_POINT_2D:
                 num_values = (num_values * 2)
+                param_bytes = num_values * 4
+                scale_factor = WORLD_POINT_SF
+                param_struct = f'{num_values}L'
+            elif param_type == ParamType.WORLD_POINT_3D:
+                num_values = (num_values * 3)
                 param_bytes = num_values * 4
                 scale_factor = WORLD_POINT_SF
                 param_struct = f'{num_values}L'
@@ -631,6 +657,12 @@ def parse_map_actions(game_version, mesh_header, data):
                 world_points = []
                 for i in range(0, len(param_values), 2):
                     world_points.append((param_values[i], param_values[i+1]))
+                param_values = world_points
+
+            if param_type == ParamType.WORLD_POINT_3D:
+                world_points = []
+                for i in range(0, len(param_values), 3):
+                    world_points.append((param_values[i], param_values[i+1], param_values[i+2]))
                 param_values = world_points
 
             # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_values}] {param_values} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())

@@ -27,7 +27,7 @@ def main(game_directory, level, plugin_name):
             (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
             (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
             if level:
-                for mesh_id in mesh2info.mesh_entries(level, entrypoint_map, tags):
+                for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
                     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
                     parse_mesh_actions(game_version, mesh_tag_data)
             else:
@@ -38,15 +38,16 @@ def main(game_directory, level, plugin_name):
 
 def parse_mesh_actions(game_version, mesh_tag_data):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
+    tag_header = myth_headers.parse_header(mesh_tag_data)
 
     (actions, action_remainder) = mesh_tag.parse_map_actions(game_version, mesh_header, mesh_tag_data)
-    print_actions(actions)
+    print_actions(actions, tag_header)
 
     if action_remainder:
         print(f'ACTION REMAINDER {len(action_remainder)}')
         print(action_remainder.hex())
 
-def print_actions(actions):
+def print_actions(actions, tag_header):
     for i, (action_id, act) in enumerate(actions.items(), 1):
         indent_space = act['indent'] * '  '
         prefix = ''
@@ -68,16 +69,18 @@ def print_actions(actions):
             id_prefix = f'[{action_id}] '
         else:
             id_prefix = '        '
+        # tag_prefix = f'{tag_header.tag_type}={tag_header.tag_id} {tag_header.name} '
+        tag_prefix = ''
         line = f'{id_prefix}{indent_space}{prefix}{act['name']}'
         if mesh_tag.ActionFlag.INITIALLY_ACTIVE in act['flags']:
-            print(f'\x1b[1m{line}\x1b[0m')
+            print(f'{tag_prefix}\x1b[1m{line}\x1b[0m')
         else:
-            print(line)
+            print(f'{tag_prefix}{line}')
         for p in act['parameters']:
-            print(f'        {indent_space}- {p['name']} {p['type'].name}={p['values']}')
+            print(f'{tag_prefix}        {indent_space}- {p['name']} {p['type'].name}={p['values']}')
 
         if len(action_vars):
-            print(f'\x1b[3m[{' '.join(action_vars)}]\x1b[0m')
+            print(f'{tag_prefix}\x1b[3m[{' '.join(action_vars)}]\x1b[0m')
 
         print()
 
