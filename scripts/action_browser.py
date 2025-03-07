@@ -16,13 +16,19 @@ def main(game_directory, level, plugin_name):
     """
     Load Myth game tags and plugins and run a map action browser
     """
-    (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
-    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
-
     try:
+        (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
+        (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+
         if level:
-            for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
-                parse_mesh_actions(tags, data_map, mesh_id)
+            if level.startswith('file='):
+                file = level[5:]
+                mesh_tag_data = myth_headers.load_file(file)
+                parse_mesh_actions(tags, data_map, mesh_tag_data)
+            else:
+                for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
+                    mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
+                    parse_mesh_actions(tags, data_map, mesh_tag_data)
         else:
             for header_name, entrypoints in entrypoint_map.items():
                 mono2tag.print_entrypoints(entrypoints, header_name)
@@ -68,8 +74,7 @@ def lookup_action_help(action_help, action_type, param_type=None):
     else:
         return action
 
-def parse_mesh_actions(tags, data_map, mesh_id):
-    mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
+def parse_mesh_actions(tags, data_map, mesh_tag_data):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     action_help = build_action_help(tags, data_map)
