@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 from collections import namedtuple, OrderedDict
 import enum
+import os
 import struct
 
 import myth_headers
+
+DEBUG = (os.environ.get('DEBUG') == '1')
+DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
+DEBUG_MARKERS = (os.environ.get('DEBUG_MARKERS') == '1')
 
 MESH_HEADER_SIZE = 1024
 ACTION_HEAD_SIZE = 64
@@ -409,7 +414,10 @@ def cutscenes(game_version, header):
     )
 
 def encode_header(header):
-    return struct.pack(MeshHeaderFmt, *header)
+    return struct.pack(MeshHeaderFmt, *header._replace(
+        flags=header.flags.value,
+        extra_flags=header.extra_flags.value
+    ))
 
 def get_offset(offset):
     return myth_headers.TAG_HEADER_SIZE + MESH_HEADER_SIZE + offset
@@ -449,10 +457,7 @@ def parse_markers(mesh_header, data):
         marker_tag = myth_headers.decode_string(marker_tag)
 
         p_type = MarkerType(p_type)
-        if p_type not in orphans['markers']:
-            orphans['markers'][p_type] = {}
         palette_list = palette.get(p_type, [])
-        palette[p_type] = palette_list
         palette_list.append({
             'idx': i,
             'flags': MarkerPaletteFlag(p_flags),
@@ -464,8 +469,14 @@ def parse_markers(mesh_header, data):
             'markers': {},
             'data': marker_palette_data[palette_start:palette_end]
         })
+        palette[p_type] = palette_list
 
         palette_start = palette_end
+
+    if DEBUG_MARKERS:
+        print('Palette')
+        for m_type, type_palette in palette.items():
+            print(m_type, len(type_palette))
 
     marker_start = get_offset(mesh_header.markers_offset)
     marker_end = marker_start + mesh_header.markers_size
@@ -501,18 +512,18 @@ def parse_markers(mesh_header, data):
             marker_data[m_start:m_end]
         )
         m_type = MarkerType(m_type)
-        marker = None
-        if m_palette_index < len(palette[m_type]):
-            marker = palette[m_type][m_palette_index]
+        palette_item = None
+        if (m_type in palette) and (m_palette_index < len(palette[m_type])):
+            palette_item = palette[m_type][m_palette_index]
 
         pos = (pos_x / WORLD_POINT_SF, pos_y / WORLD_POINT_SF, pos_z / WORLD_POINT_SF)
         facing = yaw / ANGLE_SF
 
-        marker_instance = {
+        marker = {
             'marker_id': m_id,
             'type': m_type,
             'palette_index': m_palette_index,
-            'tag': marker['tag'] if marker else None,
+            'tag': palette_item['tag'] if palette_item else None,
             'flags': MarkerFlag(m_flags),
             'm3': m3,
             'm4': m4,
@@ -521,10 +532,12 @@ def parse_markers(mesh_header, data):
             'pos': pos
         }
 
-        if marker:
-            marker['markers'][m_id] = marker_instance
+        if palette_item:
+            palette_item['markers'][m_id] = marker
         else:
-            orphans['markers'][m_type][m_id] = marker_instance
+            if m_type not in orphans['markers']:
+                orphans['markers'][m_type] = {}
+            orphans['markers'][m_type][m_id] = marker
             orphans['count'] = orphans['count'] + 1
 
         m_start = m_end
@@ -621,28 +634,29 @@ def encode_map_action_data(game_version, actions):
         param_offset = param_offset + len(param_data)
     return (len(actions), action_data + all_param_data)
 
-def encode_map_actions(mesh_tag_data, actions):
-    mesh_header = parse_header(mesh_tag_data)
-    tag_header = myth_headers.parse_header(mesh_tag_data)
+def rewrite_action_data(map_action_count, map_action_data, current_mesh_tag_data):
+    mesh_header = parse_header(current_mesh_tag_data)
+    tag_header = myth_headers.parse_header(current_mesh_tag_data)
 
-    (map_action_count, map_action_data) = encode_map_action_data(myth_headers.game_version(tag_header), actions)
-    map_action_buffer_size = len(map_action_data)
-    map_action_size_diff = map_action_buffer_size - mesh_header.map_action_buffer_size
+    # Insert new action data into current data
+    current_action_start = get_offset(mesh_header.map_actions_offset)
+    current_action_end = current_action_start + mesh_header.map_action_buffer_size
+    new_mesh_data = (
+        current_mesh_tag_data[get_offset(0):current_action_start]
+        + map_action_data
+        + current_mesh_tag_data[current_action_end:]
+    )
+    mesh_data_size = len(new_mesh_data)
 
     # Adjust sizes and offsets
-    map_action_start = get_offset(mesh_header.map_actions_offset)
-    map_action_end = map_action_start + mesh_header.map_action_buffer_size
-
-    mesh_data = mesh_tag_data[get_offset(0):map_action_start] + map_action_data + mesh_tag_data[map_action_end:]
-    mesh_data_size = len(mesh_data)
+    map_action_buffer_size = len(map_action_data)
+    map_action_size_diff = map_action_buffer_size - mesh_header.map_action_buffer_size
 
     media_coverage_region_offset = mesh_header.media_coverage_region_offset + map_action_size_diff
     mesh_LOD_data_offset = mesh_header.mesh_LOD_data_offset + map_action_size_diff
     connectors_offset = mesh_header.connectors_offset + map_action_size_diff
 
     new_mesh_header = mesh_header._replace(
-        flags=mesh_header.flags.value,
-        extra_flags=mesh_header.extra_flags.value,
         data_size=mesh_data_size,
         map_action_count=map_action_count,
         map_action_buffer_size=map_action_buffer_size,
@@ -662,11 +676,27 @@ def encode_map_actions(mesh_tag_data, actions):
         tag_data_size=new_tag_data_size
     )
 
+    if DEBUG:
+        print(
+            f"""Updated tag values
+                tag_header.tag_data_size = {tag_header.tag_data_size} -> {new_tag_header.tag_data_size}
+                   mesh_header.data_size = {mesh_header.data_size} -> {new_mesh_header.data_size}
+      mesh_header.map_action_buffer_size = {mesh_header.map_action_buffer_size} -> {new_mesh_header.map_action_buffer_size}
+mesh_header.media_coverage_region_offset = {mesh_header.media_coverage_region_offset} -> {new_mesh_header.media_coverage_region_offset}
+        mesh_header.mesh_LOD_data_offset = {mesh_header.mesh_LOD_data_offset} -> {new_mesh_header.mesh_LOD_data_offset}
+           mesh_header.connectors_offset = {mesh_header.connectors_offset} -> {new_mesh_header.connectors_offset}"""
+        )
+
     return (
         myth_headers.encode_header(new_tag_header)
         + new_mesh_header_data
-        + mesh_data
+        + new_mesh_data
     )
+
+def encode_map_actions(mesh_tag_data, actions):
+    tag_header = myth_headers.parse_header(mesh_tag_data)
+    (map_action_count, map_action_data) = encode_map_action_data(myth_headers.game_version(tag_header), actions)
+    return rewrite_action_data(map_action_count, map_action_data, mesh_tag_data)
 
 def parse_map_actions(mesh_header, data):
     tag_header = myth_headers.parse_header(data)
@@ -710,7 +740,8 @@ def parse_map_actions(mesh_header, data):
 
             param_name = myth_headers.decode_string(param_name)
 
-            # print(action_id, action_type, param_head_data.hex(), param_name, param_type, end=' ')
+            if DEBUG_ACTIONS:
+                print(action_id, action_type, param_head_data.hex(), param_name, param_type, end=' ')
 
             param_type = ParamType(param_type)
             scale_factor = None
@@ -767,7 +798,8 @@ def parse_map_actions(mesh_header, data):
             param_end = param_head_end + param_bytes
             param_data = action_data[param_head_end:param_end]
             param_fmt = f">{param_struct}"
-            # print(param_type, param_fmt, param_data.hex(), param_bytes, len(param_data))
+            if DEBUG_ACTIONS:
+                print(param_type, param_fmt, param_data.hex(), param_bytes, len(param_data))
             param_elems = struct.unpack(param_fmt, param_data)
 
             # Post process
@@ -804,7 +836,8 @@ def parse_map_actions(mesh_header, data):
                     world_points.append((param_elems[i], param_elems[i+1], param_elems[i+2]))
                 param_elems = world_points
 
-            # print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_elems}] {param_elems} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
+            if DEBUG_ACTIONS:
+                print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_elems}] {param_elems} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
 
             if param_name == 'name':
                 name = param_elems

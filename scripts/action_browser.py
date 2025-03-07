@@ -104,10 +104,10 @@ def build_action_vars(action):
             action_vars.append(','.join([f.name.lower() for f in action['flags']]))
         if action['expiration_mode'] != mesh_tag.ActionExpiration.TRIGGER:
             action_vars.append(f'expiry={action['expiration_mode'].name.lower()}')
-        if action['trigger_time_start']:
-            action_vars.append(f'delay={round(action['trigger_time_start'], 3)}s')
-        if action['trigger_time_duration']:
-            action_vars.append(f'dur={round(action['trigger_time_duration'], 3)}s')
+        if action['trigger_time_lower_bound']:
+            action_vars.append(f'delay={round(action['trigger_time_lower_bound'], 3)}s')
+        if action['trigger_time_delta']:
+            action_vars.append(f'dur={round(action['trigger_time_delta'], 3)}s')
     return action_vars
 
 def build_backref_node(actions, action_id, backrefs, indent_space, action_help):

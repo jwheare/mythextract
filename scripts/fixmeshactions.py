@@ -21,7 +21,7 @@ def main(game_directory, level, plugin_name):
 
     try:
         if level:
-            (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, entrypoint_map)
+            (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
             print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
             mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
             fix_mesh_actions(mesh_tag_data)
@@ -37,55 +37,18 @@ def fix_mesh_actions(mesh_tag_data):
 
     (actions, action_remainder) = mesh_tag.parse_map_actions(mesh_header, mesh_tag_data)
     remainder_size = len(action_remainder)
-
+    map_action_count = len(actions)
+    print('actions', map_action_count)
     print('remaining action data', remainder_size)
 
+    action_size_diff = mesh_header.map_action_buffer_size - remainder_size
+    map_action_start = mesh_tag.get_offset(mesh_header.map_actions_offset)
+    map_action_end = map_action_start + action_size_diff
+    map_action_data = mesh_tag_data[map_action_start:map_action_end]
+
     if remainder_size:
-        # Fix sizes and offsets
-        map_action_start = mesh_tag.get_offset(mesh_header.map_actions_offset)
-        map_action_end = map_action_start + remainder_size
-
-        fixed_data = mesh_tag_data[:map_action_start] + mesh_tag_data[map_action_end:]
-
-        fixed_data_size = mesh_header.data_size - remainder_size
-        fixed_map_action_buffer_size = mesh_header.map_action_buffer_size - remainder_size
-        fixed_media_coverage_region_offset = mesh_header.media_coverage_region_offset - remainder_size
-        fixed_mesh_LOD_data_offset = mesh_header.mesh_LOD_data_offset - remainder_size
-        fixed_connectors_offset = mesh_header.connectors_offset - remainder_size
-
-        fixed_mesh_header = mesh_header._replace(
-            data_size=fixed_data_size,
-            map_action_buffer_size=fixed_map_action_buffer_size,
-            media_coverage_region_offset=fixed_media_coverage_region_offset,
-            mesh_LOD_data_offset=fixed_mesh_LOD_data_offset,
-            connectors_offset=fixed_connectors_offset,
-        )
-
-        # Fix tag header size
-        fixed_tag_data_size = tag_header.tag_data_size - remainder_size
-        fixed_tag_header = tag_header._replace(
-            destination=-1,
-            identifier=-1,
-            type=0,
-            tag_data_size=fixed_tag_data_size
-        )
-
-        fixed_tag_data = (
-            myth_headers.encode_header(fixed_tag_header)
-            + mesh_tag.encode_header(fixed_mesh_header)
-            + fixed_data[mesh_tag.get_offset(0):]
-        )
-
-        print(
-            f"""Updated tag values
-                tag_header.tag_data_size = {tag_header.tag_data_size} -> {fixed_tag_header.tag_data_size}
-                   mesh_header.data_size = {mesh_header.data_size} -> {fixed_mesh_header.data_size}
-      mesh_header.map_action_buffer_size = {mesh_header.map_action_buffer_size} -> {fixed_mesh_header.map_action_buffer_size}
-mesh_header.media_coverage_region_offset = {mesh_header.media_coverage_region_offset} -> {fixed_mesh_header.media_coverage_region_offset}
-        mesh_header.mesh_LOD_data_offset = {mesh_header.mesh_LOD_data_offset} -> {fixed_mesh_header.mesh_LOD_data_offset}
-           mesh_header.connectors_offset = {mesh_header.connectors_offset} -> {fixed_mesh_header.connectors_offset}"""
-        )
-
+        fixed_tag_data = mesh_tag.rewrite_action_data(map_action_count, map_action_data, mesh_tag_data)
+        
         fixed_path = pathlib.Path(sys.path[0], f'../output/fixed_mesh_actions/meshes/{tag_header.name}').resolve()
         if prompt(fixed_path):
             pathlib.Path(fixed_path.parent).mkdir(parents=True, exist_ok=True)

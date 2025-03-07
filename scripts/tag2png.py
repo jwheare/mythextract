@@ -12,7 +12,7 @@ import myth_headers
 BITMAP_META_SIZE = 48
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
 
-DEBUG = (os.environ.get('DEBUG') == '1')
+DEBUG_COLL = (os.environ.get('DEBUG_COLL') == '1')
 
 Header256Size = 320
 Header256Fmt = """>
@@ -138,7 +138,7 @@ def parse_color_table(data, coll_header):
     color_table_data = data[color_table_start:color_table_end]
     (ct_count, ct_unused) = struct.unpack('>I 28s', color_table_data[:32])
     
-    if DEBUG:
+    if DEBUG_COLL:
         print(f'color table {ct_count}')
     
     color_table = []
@@ -147,11 +147,11 @@ def parse_color_table(data, coll_header):
         cc_end = cc_start + 8
         (r, _, g, _, b, _, cc_flags) = struct.unpack('>B c B c B c H', color_table_data[cc_start:cc_end])
         color_table.append((r, g, b, cc_flags))
-        if DEBUG:
+        if DEBUG_COLL:
             print(f'\x1b[48;2;{r};{g};{b}m  \x1b[0m', end='')
             if ((cc % 25) == 24):
                 print()
-    if DEBUG:
+    if DEBUG_COLL:
         # print(color_table)
         print('\n')
     return color_table
@@ -172,7 +172,7 @@ def parse_bitmap_instance(data, coll_header):
 
         (bitmap_index, ) = struct.unpack(">h", bitmap_instance_data[28:30])
         bitmap_indices.append(bitmap_index)
-        if DEBUG:
+        if DEBUG_COLL:
             print(
                 f'bitmap_instance: {c} {bitmap_instance_data.hex()}'
             )
@@ -209,7 +209,7 @@ def parse_sequences(data, coll_header):
             frame_start = frame_end
 
         name = myth_headers.decode_string(seq_name)
-        if DEBUG:
+        if DEBUG_COLL:
             print(
                 f'{c} sequence_reference: {name: <32} unused={seq_unused.hex()}'
             )
@@ -274,7 +274,7 @@ def parse_bitmaps(data, coll_header, color_table):
         bitmap_data_end = bitmap_data_start + bitmap_data_size
         bitmap_data = data[bitmap_data_start:bitmap_data_end]
 
-        if DEBUG:
+        if DEBUG_COLL:
             print(
                 f"""{c}: {myth_headers.decode_string(bitref_name)}
        data_start: {bitmap_data_start}
@@ -305,7 +305,7 @@ logical_bit_depth: {bitdata_logical_bit_depth}
             rows = decode_bitmap(color_table, bitmap_data, bitdata_width, bitdata_height)
 
         if rows:
-            if DEBUG:
+            if DEBUG_COLL:
                 render_terminal(rows)
 
             bitmaps.append((bitdata_width, bitdata_height, rows))

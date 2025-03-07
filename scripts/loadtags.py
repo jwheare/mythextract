@@ -70,7 +70,7 @@ def build_tag_map(files):
     for (pri, ver, name, path_dir, path, mono_header) in files:
         if DEBUG:
             print(
-                f'{path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{name} - {mono_header.name}\x1b[0m v={mono_header.version} '
+                f'{path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{name} | {mono_header.name}\x1b[0m v={mono_header.version} '
                 f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
             )
 
@@ -124,7 +124,7 @@ def read_file_headers(path_dir, plugin_name):
                 else:
                     if DEBUG:
                         print(
-                            f'EXCLUDE {path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{dirfile.name} - {mono_header.name}\x1b[0m v={mono_header.version} '
+                            f'EXCLUDE {path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{dirfile.name} | {mono_header.name}\x1b[0m v={mono_header.version} '
                             f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
                         )
             except ValueError:

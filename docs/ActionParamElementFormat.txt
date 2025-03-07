@@ -1,0 +1,35 @@
+the count field is not always a byte count, the encoding doesn't tell you an overall size of the element data directly. each data type can have a different byte per element.
+
+STRING is 1 byte per char, and the count is the total length of the string
+WORLD_POINT_2D is 8 bytes per element (2 x uint32), the count is the number of elements
+ACTION_IDENTIFIER is 2 bytes per element (uint16), the count is the number of elements
+
+they all seem to be padded to a multiple of 4 bytes. 
+
+
+0001000f6e616d6556696c6c6167657273204f424a450074
+type    count   param       data
+###################################################################################
+0001    000f    6e616d65    56 69 6c 6c 61 67 65 72 73 20 4f 42 4a 45 00 74
+   1      15     n a m e     1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16
+1=STRING                     V  i  l  l  a  g  e  r  s     O  B  J  E \0 [pad] 
+1 x element: 15 bytes including null termination, padded to 16 (multiple of 4)
+
+
+000300036c696e6b8ce88ce98cea000d
+type    count   param       data
+###################################################################################
+0003    0003    6c696e6b    8ce8  8ce9  8cea  000d
+   3       3     l i n k       1     2     3     4
+3=ACTION_IDENTIFIER        36072 36073 36074 [pad]
+3 x elements: 2-bytes each, with 2 extra pad bytes to be ignore (000d)
+This appears to be encoded to ensure there are always an even number of 2-byte elements (aka multiple of 4 bytes)
+
+
+000d000177617970000183ec00013455
+type    count   param       data
+###################################################################################
+000d    0001    77617970    000183ec 00013455
+  13       1     w a y p           1        2
+13=WORLD_POINT_2D           193.9609  154.166 (scale factor: 512, i.e. 99308/512, 78933/512)
+1 x element: 8-bytes (x/y pair, 4-bytes each), no padding, already even (aka multiple of 4 bytes)

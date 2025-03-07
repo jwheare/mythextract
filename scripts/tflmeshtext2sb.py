@@ -64,13 +64,11 @@ def main(game_directory, level):
         if level == 'all':
             for level in range(1, 26):
                 (mesh_id, header_name, entry_name) = mesh2info.parse_level(f'{level:02}', tags)
-                if DEBUG:
-                    print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
+                print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                 convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
         else:
             (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
-            if DEBUG:
-                print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
+            print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
             convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -83,8 +81,7 @@ def convert_level(game_version, tags, data_map, cutscene_paths, mesh_id):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     if not mesh_tag.has_single_player_story(game_version, mesh_tag_data):
-        if DEBUG:
-            print('skip, no single player story', game_version, mesh_id, level)
+        print('skip, no single player story', game_version, mesh_id, level)
         return
 
     # Extract narration text

@@ -9,28 +9,29 @@ import mesh2info
 import mono2tag
 import loadtags
 
+
 DEBUG = (os.environ.get('DEBUG') == '1')
 
 def main(game_directory, level, plugin_name):
     """
     Load Myth game tags and plugins and output scripting actions for a mesh
     """
-
     try:
-        if game_directory.startswith('file='):
-            file = game_directory[5:]
-            mesh_tag_data = myth_headers.load_file(file)
-            parse_mesh_actions(mesh_tag_data)
-        else:
-            (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
-            (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
-            if level:
+        (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
+        (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+
+        if level:
+            if level.startswith('file='):
+                file = level[5:]
+                mesh_tag_data = myth_headers.load_file(file)
+                parse_mesh_actions(mesh_tag_data)
+            else:
                 for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
                     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
                     parse_mesh_actions(mesh_tag_data)
-            else:
-                for header_name, entrypoints in entrypoint_map.items():
-                    mono2tag.print_entrypoints(entrypoints, header_name)
+        else:
+            for header_name, entrypoints in entrypoint_map.items():
+                mono2tag.print_entrypoints(entrypoints, header_name)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
