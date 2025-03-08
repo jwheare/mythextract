@@ -17,8 +17,7 @@ def main(game_directory, plugin_name):
         (files, cutscenes) = build_file_list(game_directory, plugin_name)
         (game_version, tags, entrypoint_map, data_map) = build_tag_map(files)
 
-        for header_name, entrypoints in entrypoint_map.items():
-            mono2tag.print_entrypoints(entrypoints, header_name)
+        mono2tag.print_entrypoint_map(entrypoint_map)
 
         for tag_type, tag_type_tags in tags.items():
             print(f'{tag_type} num={len(tag_type_tags)}')

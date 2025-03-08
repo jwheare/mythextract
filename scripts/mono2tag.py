@@ -84,6 +84,10 @@ def get_entrypoints(data, mono_header):
         entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
+def print_entrypoint_map(entrypoint_map):
+    for header_name, entrypoints in entrypoint_map.items():
+        print_entrypoints(entrypoints, header_name)
+
 def print_entrypoints(entrypoints, header_name):
     print(
         f"""
