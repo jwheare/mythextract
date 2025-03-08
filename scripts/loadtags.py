@@ -82,7 +82,12 @@ def build_tag_map(files):
 
         if mono_header.entry_tag_count:
             entrypoints = mono2tag.get_entrypoints(data, mono_header)
-            entrypoint_map[name] = entrypoints
+            for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
+                current_archive_list = []
+                if entry_id in entrypoint_map:
+                    current_archive_list = entrypoint_map[entry_id][2]
+
+                entrypoint_map[entry_id] = (entry_name, entry_long_name, current_archive_list + archive_list)
 
         for (i, tag_header) in mono2tag.get_tags(data, mono_header):
             tag_type_tags = tags.get(tag_header.tag_type, {})

@@ -31,13 +31,12 @@ def main(game_directory, level, plugin_name, plugin_output):
     try:
         if level:
             if game_version == 2 and level == 'all':
-                for header_name, entrypoints in entrypoint_map.items():
-                    for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
-                        if not plugin_name or plugin_name == header_name:
-                            if DEBUG:
-                                print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
-                            plugin = plugin_name if plugin_name == header_name else None
-                            extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
+                for mesh_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
+                    if not plugin_name or plugin_name in archive_list:
+                        if DEBUG:
+                            print(f'mesh={mesh_id} file=[{archive_list}] [{entry_name}] [{entry_long_name}]')
+                        plugin = plugin_name if plugin_name in archive_list else None
+                        extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
                 if not plugin_name:
                     extract_sb_epilogue(tags, data_map, cutscene_paths)
             elif game_version == 1 and level == 'all':

@@ -36,7 +36,7 @@ def main(mono_path, tag_type, tag_id, output_file):
 
         entrypoints = get_entrypoints(data, mono_header)
         if len(entrypoints):
-            print_entrypoints(entrypoints, mono_header.name)
+            print_entrypoint_map(entrypoints)
 
         print(
             """
@@ -81,23 +81,25 @@ def get_entrypoints(data, mono_header):
         entry_id = myth_headers.decode_string(entry_id)
         entry_name = myth_headers.decode_string(entry_name)
         entry_long_name = myth_headers.decode_string(entry_long_name)
-        entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name))))
+        entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.name]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
 def print_entrypoint_map(entrypoint_map):
-    for header_name, entrypoints in entrypoint_map.items():
-        print_entrypoints(entrypoints, header_name)
-
-def print_entrypoints(entrypoints, header_name):
     print(
-        f"""
-Entrypoints: {header_name}
-------+----------------------------------+------------------------------------------------------------------+
- id   | name                             | long
-------+----------------------------------+------------------------------------------------------------------+"""
+        """
+Entrypoints
+------+------------------------------------------+----------------------------------+------------------------------------------------------------------+
+ id   | archive                                  | name                             | long
+------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""
     )
-    for entry_id, (entry_name, entry_long_name) in entrypoints.items():
-        print(f' {entry_id: <4} | {entry_name: <32} | {entry_long_name: <64}')
+    for entry_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
+        # for i, archive in enumerate(archive_list):
+        #     archive_name = f'{archive:<32}'
+        #     if i == len(archive_list) - 1:
+        #         archive_name = f'\x1b[1m{archive_name}\x1b[0m'
+        #     print(f' {entry_id: <4} | {archive_name} | {entry_name: <32} | {entry_long_name: <64}')
+        archive_name = ' < '.join(archive_list)
+        print(f' {entry_id: <4} | {archive_name: <40} | {entry_name: <32} | {entry_long_name: <64}')
     print('---')
 
 def seek_tag_data(data, tag_type, tag_id):

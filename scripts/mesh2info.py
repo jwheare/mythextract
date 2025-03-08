@@ -34,10 +34,9 @@ def mesh_entries(game_version, level, entrypoint_map, tags):
                 print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                 yield mesh_id
         else:
-            for header_name, entrypoints in entrypoint_map.items():
-                for mesh_id, (entry_name, entry_long_name) in entrypoints.items():
-                    print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}] [{entry_long_name}]')
-                    yield mesh_id
+            for mesh_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
+                print(f'mesh={mesh_id} archives=[{archive_list}] [{entry_name}] [{entry_long_name}]')
+                yield mesh_id
     else:
         (mesh_id, header_name, entry_name) = parse_level(level, tags)
         print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
