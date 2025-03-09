@@ -151,20 +151,22 @@ SBMonoHeader = namedtuple('SBMonoHeader', [
 GORHeaderFmt = """>
     H H
     32s
-    H H
-    I
+    L
+    L
     H
     H
     H
-    I I I H
+    2x
+    L
+    8x
 """
 GORHeader = namedtuple('GORHeader', [
     # 0001 0001
     'type', 'version',
     # 7075626C69632E676F7200000000000000000000000000000000000000000000
     'name',
-    # A91A 76C1
-    'u3', 'u4',
+    # A91A76C1
+    'checksum',
     # 131A9884
     'tag_list_offset',
     # 02FE
@@ -172,9 +174,11 @@ GORHeader = namedtuple('GORHeader', [
     # 0040
     'header_size',
     # 0001
-    'u5',
-    # 00000000 00000000 00000000 0000
-    'u6',     'u7',    'u8',    'u9'
+    'flags',
+    # 0000 pad ignored
+    # 00000000
+    'mod_time'
+    # 0000000000000000 unused
 ])
 
 UnifiedHeader = namedtuple('UnifiedHeader', [
@@ -190,6 +194,7 @@ UnifiedHeader = namedtuple('UnifiedHeader', [
     'tag_count',
     'tag_list_start',
     'tag_list_size',
+    'flags',
 ])
 
 TFLHeaderFmt = """>
@@ -363,6 +368,7 @@ def parse_mono_header(data):
         tag_count=tag_count,
         tag_list_start=tag_list_start,
         tag_list_size=tag_list_size,
+        flags=header.flags
     )
     return (
         version, header, header_size,
