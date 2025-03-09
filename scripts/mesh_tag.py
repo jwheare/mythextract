@@ -388,6 +388,10 @@ def parse_header(data):
         extra_flags=ExtraFlags(mesh_header.extra_flags)
     )
 
+def required_plugin(mesh_header):
+    if MeshFlags.REQUIRES_PLUGIN in mesh_header.flags and mesh_header.plugin_name:
+        return mesh_header.plugin_name
+
 def has_single_player_story(game_version, data):
     if not data:
         return False

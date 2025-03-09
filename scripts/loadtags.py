@@ -9,12 +9,12 @@ import mono2tag
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-def main(game_directory, plugin_name):
+def main(game_directory, plugin_names):
     """
     Load Myth game tags and plugins
     """
     try:
-        (files, cutscenes) = build_file_list(game_directory, plugin_name)
+        (files, cutscenes) = build_file_list(game_directory, plugin_names)
         (game_version, tags, entrypoint_map, data_map) = build_tag_map(files)
 
         mono2tag.print_entrypoint_map(entrypoint_map)
@@ -23,7 +23,7 @@ def main(game_directory, plugin_name):
             print(f'{tag_type} num={len(tag_type_tags)}')
             for tag_id, tag_headers in tag_type_tags.items():
                 latest = tag_headers[-1]
-                if tag_type == 'mesh' or len(tag_headers) > 1 or latest[0] == plugin_name:
+                if tag_type == 'mesh' or len(tag_headers) > 1 or latest[0] in plugin_names:
                     print(f'{tag_type} {tag_id}')
                     for headers in tag_headers:
                         print(f' - {headers[1].name} [{headers[0]}]')
@@ -37,14 +37,14 @@ def lookup_tag_header(tags, tag_type, tag_id):
         return tags[tag_type][tag_id][-1]
     return (None, None)
 
-def build_file_list(game_directory, plugin_name=None):
+def build_file_list(game_directory, plugin_names=[]):
     files = []
     cutscenes = {}
 
     for tag_dir in ['tags', 'plugins', 'local']:
         tags_dir = pathlib.Path(game_directory, tag_dir)
         if tags_dir.exists():
-            files += read_file_headers(tags_dir, plugin_name)
+            files += read_file_headers(tags_dir, plugin_names)
 
     cutscene_dir = pathlib.Path(game_directory, 'cutscenes')
     if cutscene_dir.exists():
@@ -68,9 +68,17 @@ def build_tag_map(files):
     game_version = None
     for (pri, ver, name, path_dir, path, mono_header) in files:
         if DEBUG:
+            header_name = f'\x1b[1m{mono_header.name}\x1b[0m'
+            if name != mono_header.name:
+                header_name = f'{header_name:<48} [file={name}]'
             print(
-                f'{path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{name} | {mono_header.name}\x1b[0m v={mono_header.version} '
-                f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
+                f'flags={mono_header.flags} '
+                f'v={mono_header.version:<5} '
+                f'\x1b[1mINCLUDE\x1b[0m {path_dir.name:<7} - '
+                f'[{mono_header.game_version}] {mono_header.type.name:<10} '
+                f'entrypoints={mono_header.entry_tag_count:<3} '
+                f'tags={mono_header.tag_count:<4} '
+                f'{header_name} '
             )
 
         # Take the version from the first tag loaded
@@ -89,23 +97,25 @@ def build_tag_map(files):
 
                 entrypoint_map[entry_id] = (entry_name, entry_long_name, current_archive_list + archive_list)
 
-        for (i, tag_header) in mono2tag.get_tags(data, mono_header):
-            tag_type_tags = tags.get(tag_header.tag_type, {})
-
-            if tag_header.tag_id in tag_type_tags:
-                tag_id_list = tag_type_tags[tag_header.tag_id]
-            else:
-                tag_id_list = []
-
-            tag_id_list.append((name, tag_header))
-
-            tag_type_tags[tag_header.tag_id] = tag_id_list
-            tags[tag_header.tag_type] = tag_type_tags
+        apppend_tags_from_archive(tags, data, mono_header, name)
 
     return (game_version, tags, entrypoint_map, data_map)
 
+def apppend_tags_from_archive(tags, data, mono_header, name):
+    for (i, tag_header) in mono2tag.get_tags(data, mono_header):
+        tag_type_tags = tags.get(tag_header.tag_type, {})
 
-def read_file_headers(path_dir, plugin_name):
+        if tag_header.tag_id in tag_type_tags:
+            tag_id_list = tag_type_tags[tag_header.tag_id]
+        else:
+            tag_id_list = []
+
+        tag_id_list.append((name, tag_header))
+
+        tag_type_tags[tag_header.tag_id] = tag_id_list
+        tags[tag_header.tag_type] = tag_type_tags
+
+def read_file_headers(path_dir, plugin_names):
     for dirfile in os.scandir(path_dir):
         if dirfile.is_file() and not dirfile.name.startswith('.') and not dirfile.name == 'scrap.gor':
             header_data = myth_headers.load_file(dirfile.path, myth_headers.SB_MONO_HEADER_SIZE)
@@ -116,7 +126,7 @@ def read_file_headers(path_dir, plugin_name):
                 else:
                     priority = myth_headers.ArchivePriority[mono_header.type]
                 # Only include foundation, patches, addons and named plugins
-                if priority < 0 or dirfile.name == plugin_name:
+                if priority < 0 or dirfile.name in plugin_names:
                     yield (
                         priority,
                         mono_header.version,
@@ -127,9 +137,17 @@ def read_file_headers(path_dir, plugin_name):
                     )
                 else:
                     if DEBUG:
+                        header_name = mono_header.name
+                        if dirfile.name != mono_header.name:
+                            header_name = f'{header_name:<48} [file={dirfile.name}]'
                         print(
-                            f'EXCLUDE {path_dir.name} - [{mono_header.game_version}] [{mono_header.type}] \x1b[1m{dirfile.name} | {mono_header.name}\x1b[0m v={mono_header.version} '
-                            f'entrypoints={mono_header.entry_tag_count} tags={mono_header.tag_count}'
+                            f'flags={mono_header.flags} '
+                            f'v={mono_header.version:<5} '
+                            f'EXCLUDE {path_dir.name:<7} - '
+                            f'[{mono_header.game_version}] {mono_header.type.name:<10} '
+                            f'entrypoints={mono_header.entry_tag_count:<3} '
+                            f'tags={mono_header.tag_count:<4} '
+                            f'{header_name} '
                         )
             except ValueError:
                 pass
@@ -138,17 +156,17 @@ def read_file_headers(path_dir, plugin_name):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 loadtags.py <game_directory> [<plugin_name>]")
+        print("Usage: python3 loadtags.py <game_directory> [<plugin_names...>]")
         sys.exit(1)
     
     game_directory = sys.argv[1]
 
-    plugin_name = None
+    plugin_names = []
     if len(sys.argv) > 2:
-        plugin_name = sys.argv[2]
+        plugin_names = sys.argv[2:]
 
     try:
-        main(game_directory, plugin_name)
+        main(game_directory, plugin_names)
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:

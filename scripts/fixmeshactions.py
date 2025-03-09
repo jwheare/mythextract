@@ -12,11 +12,11 @@ import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-def main(game_directory, level, plugin_name):
+def main(game_directory, level, plugin_names):
     """
     Parse a Myth II mesh tag file removes extra data from actions buffer
     """
-    (files, _) = loadtags.build_file_list(game_directory, plugin_name)
+    (files, _) = loadtags.build_file_list(game_directory, plugin_names)
     (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
 
     try:
@@ -61,20 +61,20 @@ def prompt(prompt_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 fixmeshactions.py <game_directory> [<level> [<plugin_name>]]")
+        print("Usage: python3 fixmeshactions.py <game_directory> [<level> [<plugin_names...>]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]
 
     level = None
-    plugin_name = None
+    plugin_names = []
     if len(sys.argv) > 2:
         level = sys.argv[2]
-        if len(sys.argv) == 4:
-            plugin_name = sys.argv[3]
+        if len(sys.argv) > 4:
+            plugin_names = sys.argv[3:]
 
     try:
-        main(game_directory, level, plugin_name)
+        main(game_directory, level, plugin_names)
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:

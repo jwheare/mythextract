@@ -25,7 +25,7 @@ def main(game_directory, level, plugin_name, plugin_output):
     """
     Load Myth game tags and plugins and output basic text and html for the intro to a mesh
     """
-    (files, cutscene_paths) = loadtags.build_file_list(game_directory, plugin_name)
+    (files, cutscene_paths) = loadtags.build_file_list(game_directory, [plugin_name])
     (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
 
     try:

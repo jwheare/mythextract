@@ -12,12 +12,12 @@ import tree_curses
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-def main(game_directory, level, plugin_name):
+def main(game_directory, level, plugin_names):
     """
     Load Myth game tags and plugins and run a map action browser
     """
     try:
-        (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_name)
+        (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_names)
         (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
 
         if level:
@@ -324,20 +324,20 @@ def actions_tui(actions, palette, tags, action_help):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 mesh2actions.py <game_directory> [<level> [plugin_name]]")
+        print("Usage: python3 mesh2actions.py <game_directory> [<level> [<plugin_names> ...]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]
 
     level = None
-    plugin_name = None
+    plugin_names = []
     if len(sys.argv) > 2:
         level = sys.argv[2]
-        if len(sys.argv) == 4:
-            plugin_name = sys.argv[3]
+        if len(sys.argv) > 3:
+            plugin_names = sys.argv[3:]
 
     try:
-        main(game_directory, level, plugin_name)
+        main(game_directory, level, plugin_names)
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:

@@ -56,70 +56,71 @@ See [docs/FontTagFormat.txt](docs/FontTagFormat.txt) and the source code for det
 
 Loads all the core tag archives and optionally a plugin from a *SB* game directory and lists all levels and tags
 
-    Usage: python3 loadtags.py <game_directory> [<plugin_name>]
+    Usage: python3 loadtags.py <game_directory> [<plugin_names> ...]
 
 * `game_directory`: path to a Myth game directory
-* `plugin_name`: **optional** — if provided loads tags from a named plugin
+* `plugin_names`: **optional** — if provided loads tags from named plugins
 
 ## [scripts/mesh2info.py](scripts/mesh2info.py)
 
 Prints the headers of a mesh tag, or tags including all markers and map actions
 
-    Usage: python3 mesh2info.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 mesh2info.py <game_directory> [<level> [<plugin_names> ...]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
-* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_names`: **optional** — if provided can load meshes from named plugins
 
 ## [scripts/mesh2markers.py](scripts/mesh2markers.py)
 
 Prints all markers from a mesh tag
 
-    Usage: python3 mesh2markers.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 mesh2markers.py <game_directory> [<level> [<plugin_names> ...]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
-* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_names`: **optional** — if provided can load meshes from named plugins
 
 ## [scripts/mesh2actions.py](scripts/mesh2actions.py)
 
 Prints map scripting actions from a mesh tag
 
-    Usage: python3 mesh2actions.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 mesh2actions.py <game_directory> [<level> [<plugin_names> ...]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
-* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_names`: **optional** — if provided can load meshes from named plugins
 
 ## [scripts/action_browser.py](scripts/action_browser.py)
 
 Runs a map scripting actions terminal browser for a mesh tag. **requires `windows-curses` on Windows**
 
-    Usage: python3 action_browser.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 action_browser.py <game_directory> [<level> [<plugin_name> ...]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
-* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_names`: **optional** — if provided can load meshes from named plugins
 
 ## [scripts/mesh2text.py](scripts/mesh2text.py)
 
 Outputs pregame text data from a mesh tag
 
-    Usage: python3 mesh2text.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 mesh2text.py <game_directory> [<level> [<plugin_name> [<plugin_output>]]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_output`: **optional** - if provided specifies the output directory name to use instead of the plugin name
 
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
 
 Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes
 
-    Usage: python3 fixmeshactions.py <game_directory> [<level> [plugin_name]]
+    Usage: python3 fixmeshactions.py <game_directory> [<level> [<plugin_names> ...]]
 
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
-* `plugin_name`: **optional** — if provided can load meshes from the named plugin
+* `plugin_names`: **optional** — if provided can load meshes from named plugins
 
 ## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
 
