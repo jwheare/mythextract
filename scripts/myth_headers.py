@@ -355,6 +355,12 @@ def parse_sb_mono_header(header):
         type=ArchiveType(mono.type)
     )
 
+def encode_sb_mono_header(mono):
+    return struct.pack(SBMonoHeaderFmt, *mono._replace(
+        name=encode_string(mono.name),
+        description=encode_string(mono.description),
+        type=mono.type.value
+    ))
 
 def mono_header_size(header):
     if type(header).__name__ == 'GORHeader':
@@ -441,6 +447,13 @@ def parse_tfl_header(header):
 
 def parse_sb_header(header):
     return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
+
+def parse_text_tag(data):
+    header = parse_header(data)
+
+    text = data[TAG_HEADER_SIZE:]
+
+    return (header, text)
 
 def game_version(header_tuple):
     if header_tuple.signature == 'myth':

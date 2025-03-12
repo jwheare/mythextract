@@ -125,12 +125,12 @@ def output_text(
     intro_text = ''
     intro_tag_values = (None, None)
     if storyline_data:
-        (intro_header, intro_text) = parse_text_tag(storyline_data)
+        (intro_header, intro_text) = myth_headers.parse_text_tag(storyline_data)
         intro_tag_values = (intro_header.tag_id, intro_header.name)
 
     desc_tag_values = (None, None)
     if desc_data:
-        (desc_header, desc_text) = parse_text_tag(desc_data)
+        (desc_header, desc_text) = myth_headers.parse_text_tag(desc_data)
         desc_tag_values = (desc_header.tag_id, desc_header.name)
         level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
 
@@ -138,7 +138,7 @@ def output_text(
     caption = ''
     caption_tag_values = (None, None)
     if caption_data:
-        (caption_header, caption_text) = parse_text_tag(caption_data)
+        (caption_header, caption_text) = myth_headers.parse_text_tag(caption_data)
         caption_tag_values = (caption_header.tag_id, caption_header.name)
         caption = myth_headers.decode_string(caption_text.split(b'\r')[0])
 
@@ -162,13 +162,6 @@ Caption: {caption.replace("'", "’")}
             text_file.write(ouput_text)
 
         print(f"Text extracted. Output saved to {file_path}")
-
-def parse_text_tag(data):
-    header = myth_headers.parse_header(data)
-
-    text = data[myth_headers.TAG_HEADER_SIZE:]
-
-    return (header, text)
 
 def decode_text(text):
     return text.decode('mac-roman').replace('\r', '\n')

@@ -141,6 +141,15 @@ Fixes mesh actions by removing any unused data stored at the end of the action b
 Script environment variables:
 * `DEBUG_ACTIONS=1` prints extra debug action parsing output
 
+## [scripts/fixentrypoints.py](scripts/fixentrypoints.py)
+
+Fixes plugin entrypoints by looking up the description tag from the level mesh
+
+    Usage: python3 fixentrypoints.py <mono_file> [<output_path>]
+
+* `mono_file`: path to monolithic tag container (plugin file)
+* `output_file`: **optional** — defaults to `./output/fixed_entrypoints/<mono_file_name>`
+
 ## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
 
 Load Myth TFL game tags and convert text and stli tags for a given mesh to Myth II format.
