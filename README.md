@@ -40,6 +40,9 @@ Exports 32-bit alpha PNG from *TFL* or *SB* `.256` (aka collection) tag files. N
 * `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
 * `output_file`: **optional** — defaults to `./output/png/[game_ver]-[tagid][-n].png` where `-n` is a bitmap number prefix if there are more than 1
 
+Script environment variables:
+* `DEBUG_COLL=1` prints lots of extra debug image parsing output
+
 See [docs/256TagCollectionFormat.txt](docs/256TagCollectionFormat.txt) and the source code for detailed notes on the binary format.
 
 ## [scripts/tag2font.py](scripts/tag2font.py)
@@ -63,7 +66,7 @@ Loads all the core tag archives and optionally a plugin from a *SB* game directo
 
 ## [scripts/mesh2info.py](scripts/mesh2info.py)
 
-Prints the headers of a mesh tag, or tags including all markers and map actions
+Prints the headers of a mesh tag, or tags
 
     Usage: python3 mesh2info.py <game_directory> [<level> [<plugin_names> ...]]
 
@@ -81,6 +84,9 @@ Prints all markers from a mesh tag
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_names`: **optional** — if provided can load meshes from named plugins
 
+Script environment variables:
+* `DEBUG_MARKERS=1` prints extra debug marker parsing output
+
 ## [scripts/mesh2actions.py](scripts/mesh2actions.py)
 
 Prints map scripting actions from a mesh tag
@@ -91,6 +97,9 @@ Prints map scripting actions from a mesh tag
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_names`: **optional** — if provided can load meshes from named plugins
 
+Script environment variables:
+* `DEBUG_ACTIONS=1` prints extra debug action parsing output
+
 ## [scripts/action_browser.py](scripts/action_browser.py)
 
 Runs a map scripting actions terminal browser for a mesh tag. **requires `windows-curses` on Windows**
@@ -100,6 +109,10 @@ Runs a map scripting actions terminal browser for a mesh tag. **requires `window
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_names`: **optional** — if provided can load meshes from named plugins
+
+Script environment variables:
+* `DEBUG_ACTIONS=1` prints extra debug action parsing output
+* `DEBUG_MARKERS=1` prints extra debug marker parsing output
 
 ## [scripts/mesh2text.py](scripts/mesh2text.py)
 
@@ -112,6 +125,9 @@ Outputs pregame text data from a mesh tag
 * `plugin_name`: **optional** — if provided can load meshes from the named plugin
 * `plugin_output`: **optional** - if provided specifies the output directory name to use instead of the plugin name
 
+Script environment variables:
+* `TIME=1` prints extra debug timing output
+
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
 
 Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes
@@ -121,6 +137,9 @@ Fixes mesh actions by removing any unused data stored at the end of the action b
 * `game_directory`: path to a Myth game directory
 * `level`: **optional** — if omitted just lists all levels. can be `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_names`: **optional** — if provided can load meshes from named plugins
+
+Script environment variables:
+* `DEBUG_ACTIONS=1` prints extra debug action parsing output
 
 ## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
 
@@ -132,9 +151,12 @@ Also maps to the tag ids used by the ports of TFL to Myth II.
 * `game_directory`: path to a Myth TFL game directory
 * `level`: can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 
-# Environment variables
+Script environment variables:
+* `TIME=1` prints extra debug timing output
 
-Run with DEBUG=1 to print extra debug output
+# Global environment variables
+
+* `DEBUG=1` prints extra debug output
 
 # Philosophy
 
