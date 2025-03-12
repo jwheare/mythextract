@@ -28,6 +28,7 @@ ArchivePriority = {
     ArchiveType.TAG: 0,
     ArchiveType.METASERVER: 0,
 }
+
 TagTypes = {
     'amso': "Ambient Sounds",
     'arti': "Artifacts",
@@ -72,6 +73,46 @@ TagTypes = {
     'unit': "Units",
     'wind': "Wind",
 }
+
+class PluginFlag(enum.Flag):
+    LOAD_REVERSE = enum.auto() # Load in reverse order (mesh plugins then tagsets)
+    VTFL = enum.auto() # Compatibility with vTFL
+    URL_PLUGIN = enum.auto() # Reliant on plugin named in URL field above
+    LOAD_LAST = enum.auto() # Force Meshes in this plugin to load last
+
+
+TagSetRequirements = {
+    "TSG Level-Pack v1.4": "TSG Tagset v1.4",
+    "JINN Mappack v.1": "JINN Tagset v.1",
+    "Blue & Grey Levelpack": "Blue & Grey Tagset",
+    "SF_CarnageIslands(v1.0)": "SF_SpecialForces(v1.0)",
+    "Green Berets Mappack v1.2": "Green Berets Tagset v1.2",
+}
+
+def plugin_dependency(mono_header):
+    if mono_header.type != ArchiveType.PLUGIN:
+        return
+    hard_coded = TagSetRequirements.get(mono_header.filename)
+    flag = plugin_version_flags(mono_header)
+    if hard_coded:
+        return hard_coded
+    elif flag and PluginFlag.URL_PLUGIN in flag and mono_header.description:
+        return mono_header.description
+
+def plugin_version_flags(mono_header):
+    if mono_header.type == ArchiveType.PLUGIN:
+        if (
+            mono_header.filename == "Magma - The Fallen Levels v2" or
+            mono_header.filename == "Magma TFL Multipack" or
+            mono_header.filename == "Magma - Shadow III" or
+            mono_header.filename[:17] == "Magma - Dol Baran"
+        ):
+            return PluginFlag(1)
+        else:
+            try:
+                return PluginFlag(mono_header.version)
+            except ValueError:
+                return None
 
 # 
 # Myth II: monolith header
@@ -182,6 +223,7 @@ GORHeader = namedtuple('GORHeader', [
 ])
 
 UnifiedHeader = namedtuple('UnifiedHeader', [
+    'filename',
     'game_version',
     'type',
     'version',
@@ -195,6 +237,7 @@ UnifiedHeader = namedtuple('UnifiedHeader', [
     'tag_list_start',
     'tag_list_size',
     'flags',
+    'checksum',
 ])
 
 TFLHeaderFmt = """>
@@ -319,7 +362,7 @@ def mono_header_size(header):
     elif type(header).__name__ == 'SBMonoHeader':
         return SB_MONO_HEADER_SIZE
 
-def parse_mono_header(data):
+def parse_mono_header(filename, data):
     is_sb = data[124:128] == b'dng2'
     is_tfl = not is_sb and data[:4] == b'\x00\x01\x00\x01'
 
@@ -333,6 +376,7 @@ def parse_mono_header(data):
 
         tag_count = header.tag_list_count
         header_size = header.header_size
+        header_type = ArchiveType.FOUNDATION
 
         entry_tag_count = 0
         entry_tag_list_start = header_size
@@ -344,6 +388,7 @@ def parse_mono_header(data):
         description = header.description
         tag_count = header.tag_list_count
         header_size = SB_MONO_HEADER_SIZE
+        header_type = header.type
 
         entry_tag_count = header.entry_tag_count
         entry_tag_list_start = header_size
@@ -356,8 +401,9 @@ def parse_mono_header(data):
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
     return UnifiedHeader(
+        filename=filename,
         game_version=version,
-        type=header.type,
+        type=header_type,
         version=header.version,
         name=header.name,
         description=description,
@@ -368,7 +414,8 @@ def parse_mono_header(data):
         tag_count=tag_count,
         tag_list_start=tag_list_start,
         tag_list_size=tag_list_size,
-        flags=header.flags
+        flags=header.flags,
+        checksum=header.checksum,
     )
     return (
         version, header, header_size,

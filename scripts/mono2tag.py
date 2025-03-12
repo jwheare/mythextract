@@ -3,6 +3,7 @@ import os
 import sys
 import struct
 import pathlib
+import re
 from collections import OrderedDict
 
 import myth_headers
@@ -14,12 +15,13 @@ def main(mono_path, tag_type, tag_id, output_file):
     Parse a Myth TFL or Myth II monolith file and export provided tag.
     If no tag provided, list all tags
     """
+    mono_path = pathlib.Path(mono_path)
     data = myth_headers.load_file(mono_path)
 
     try:
         data_size = len(data)
 
-        mono_header = myth_headers.parse_mono_header(data)
+        mono_header = myth_headers.parse_mono_header(mono_path.name, data)
 
         if DEBUG:
             print(mono_header)
@@ -84,6 +86,32 @@ def get_entrypoints(data, mono_header):
         entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.name]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
+def italic2ansi(text):
+    return re.sub(r'[\|]i([^|]+)[\|]p', '\x1b[3m\\1\x1b[0m', text)
+
+NameColorMap = {
+    '0': 245, # White
+    '1': 26, # Blue
+    '2': 98, # Purple
+    '3': 88, # Red
+    '4': 2, # Green
+    '5': 64, # Yellow Green
+    '6': 202, # Orange
+    '7': 245, # White
+}
+def name2color(text):
+    """If the name starts with a 3 digit number, apply a color"""
+    m = re.search(r'^(\d)\d{2,2} ', text)
+    if m:
+        return NameColorMap.get(m.group(1))
+
+def format_entry_name(long_name, name):
+    color = name2color(name)
+    text = italic2ansi(long_name)
+    if color:
+        return f'\x1b[38;5;{color}m{text}\x1b[0m'
+    return text
+
 def print_entrypoint_map(entrypoint_map):
     print(
         """
@@ -93,31 +121,9 @@ Entrypoints
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""
     )
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
-        # for i, archive in enumerate(archive_list):
-        #     archive_name = f'{archive:<32}'
-        #     if i == len(archive_list) - 1:
-        #         archive_name = f'\x1b[1m{archive_name}\x1b[0m'
-        #     print(f' {entry_id: <4} | {archive_name} | {entry_name: <32} | {entry_long_name: <64}')
         archive_name = ' < '.join(archive_list)
-        print(f' {entry_id: <4} | {archive_name: <40} | {entry_name: <32} | {entry_long_name: <64}')
+        print(f' {entry_id: <4} | {archive_name: <40} | {entry_name:<32} | {format_entry_name(entry_long_name, entry_name)}')
     print('---')
-
-def seek_tag_data(data, tag_type, tag_id):
-    mono_header = myth_headers.parse_mono_header(data)
-
-    for i in range(mono_header.tag_count):
-        start = mono_header.tag_list_start + (i * myth_headers.TAG_HEADER_SIZE)
-        end = start + myth_headers.TAG_HEADER_SIZE
-        tag_header_data = data[start:end]
-        tag_header = myth_headers.parse_header(tag_header_data)
-        if tag_type == tag_header.tag_type and tag_id == tag_header.tag_id:
-            tag_start = tag_header.tag_data_offset
-            tag_end = tag_start + tag_header.tag_data_size
-            tag_data = data[tag_start:tag_end]
-            return (
-                myth_headers.encode_header(tag_header)
-                + tag_data
-            )
 
 def export_tag(tag_header, data, output_file):
     tag_start = tag_header.tag_data_offset

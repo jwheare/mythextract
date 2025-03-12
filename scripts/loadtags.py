@@ -41,7 +41,7 @@ def build_file_list(game_directory, plugin_names=[]):
     files = []
     cutscenes = {}
 
-    for tag_dir in ['tags', 'plugins', 'local']:
+    for tag_dir in ['tags', 'plugins']:
         tags_dir = pathlib.Path(game_directory, tag_dir)
         if tags_dir.exists():
             files += read_file_headers(tags_dir, plugin_names)
@@ -52,7 +52,8 @@ def build_file_list(game_directory, plugin_names=[]):
             if cutscene.is_file() and not cutscene.name.startswith('.'):
                 cutscenes[cutscene.name] = cutscene
 
-    return (sorted(files), cutscenes)
+    return (sorted(set(files)), cutscenes)
+
 
 def get_tag_data(tags, data_map, tag_type, tag_id):
     (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)
@@ -70,15 +71,22 @@ def build_tag_map(files):
         if DEBUG:
             header_name = f'\x1b[1m{mono_header.name}\x1b[0m'
             if name != mono_header.name:
-                header_name = f'{header_name:<48} [file={name}]'
+                header_name = f'{header_name} [file={name}]'
+            plugin_flags = myth_headers.plugin_version_flags(mono_header)
+            plugin_dep = myth_headers.plugin_dependency(mono_header)
+            pf = f'[{'|'.join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
+            dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
             print(
                 f'flags={mono_header.flags} '
                 f'v={mono_header.version:<5} '
-                f'\x1b[1mINCLUDE\x1b[0m {path_dir.name:<7} - '
-                f'[{mono_header.game_version}] {mono_header.type.name:<10} '
-                f'entrypoints={mono_header.entry_tag_count:<3} '
+                f'ck={hex(mono_header.checksum):<10} '
+                f'\x1b[1mINCLUDE\x1b[0m[{mono_header.game_version}] '
+                f'{mono_header.type.name:<10} '
+                f'entry={mono_header.entry_tag_count:<3} '
                 f'tags={mono_header.tag_count:<4} '
                 f'{header_name} '
+                f'{pf}'
+                f'{dep}'
             )
 
         # Take the version from the first tag loaded
@@ -117,40 +125,66 @@ def apppend_tags_from_archive(tags, data, mono_header, name):
 
 def read_file_headers(path_dir, plugin_names):
     for dirfile in os.scandir(path_dir):
-        if dirfile.is_file() and not dirfile.name.startswith('.') and not dirfile.name == 'scrap.gor':
-            header_data = myth_headers.load_file(dirfile.path, myth_headers.SB_MONO_HEADER_SIZE)
+        dirfile = pathlib.Path(dirfile)
+        if (
+            dirfile.is_file()
+            and not dirfile.name.startswith('.')
+            and not dirfile.name == 'scrap.gor'
+            and not dirfile.name == 'plugin cache'
+        ):
+            header_data = myth_headers.load_file(dirfile, myth_headers.SB_MONO_HEADER_SIZE)
             try:
-                mono_header = myth_headers.parse_mono_header(header_data)
+                mono_header = myth_headers.parse_mono_header(dirfile.name, header_data)
                 if mono_header.game_version == 1:
                     priority = -1
                 else:
                     priority = myth_headers.ArchivePriority[mono_header.type]
                 # Only include foundation, patches, addons and named plugins
                 if priority < 0 or dirfile.name in plugin_names:
+                    plugin_dep = myth_headers.plugin_dependency(mono_header)
+                    if plugin_dep:
+                        dep_path = (path_dir / plugin_dep)
+                        dep_header = myth_headers.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
+                        dep_mono_header = myth_headers.parse_mono_header(dep_path.name, dep_header)
+                        dep_priority = myth_headers.ArchivePriority[dep_mono_header.type]
+                        yield (
+                            dep_priority,
+                            dep_mono_header.version,
+                            dep_path.name,
+                            path_dir,
+                            dep_path,
+                            dep_mono_header
+                        )
                     yield (
                         priority,
                         mono_header.version,
                         dirfile.name,
                         path_dir,
-                        dirfile.path,
+                        dirfile,
                         mono_header
                     )
                 else:
                     if DEBUG:
                         header_name = mono_header.name
                         if dirfile.name != mono_header.name:
-                            header_name = f'{header_name:<48} [file={dirfile.name}]'
+                            header_name = f'{header_name} [file={dirfile.name}]'
+
+                        plugin_flags = myth_headers.plugin_version_flags(mono_header)
+                        plugin_dep = myth_headers.plugin_dependency(mono_header)
+                        pf = f'[{'|'.join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
+                        dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
                         print(
                             f'flags={mono_header.flags} '
                             f'v={mono_header.version:<5} '
-                            f'EXCLUDE {path_dir.name:<7} - '
-                            f'[{mono_header.game_version}] {mono_header.type.name:<10} '
-                            f'entrypoints={mono_header.entry_tag_count:<3} '
+                            f'ck={hex(mono_header.checksum):<10} '
+                            f'EXCLUDE[{mono_header.game_version}] '
+                            f'{mono_header.type.name:<10} '
+                            f'entry={mono_header.entry_tag_count:<3} '
                             f'tags={mono_header.tag_count:<4} '
                             f'{header_name} '
+                            f'{pf}'
+                            f'{dep}'
                         )
-            except ValueError:
-                pass
             except (struct.error, UnicodeDecodeError, ValueError) as e:
                 print(f"- [ERROR] \x1b[1m{dirfile.name}\x1b[0m error decoding {e}")
 
