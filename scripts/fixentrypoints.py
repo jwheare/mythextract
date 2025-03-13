@@ -52,7 +52,7 @@ def fix_entrypoint_map(entrypoints, data, mono_header):
     print(
         """
 Existing printable level names and names from mesh description STLIs
-Mismatching entries that need fixing marked with an x
+Mismatching entries that need fixing are marked with an x
 ------+------------------------------------------------------------------+------------------------------------------------------------------+
  fix? | current printable level name                                     | printable level name from mesh description
 ------+------------------------------------------------------------------+------------------------------------------------------------------+"""
