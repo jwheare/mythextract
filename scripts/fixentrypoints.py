@@ -25,22 +25,25 @@ def main(mono_path, output_file):
         if len(entrypoints):
             mono2tag.print_entrypoint_map(entrypoints, ': Current')
             new_mono_data = fix_entrypoint_map(entrypoints, data, mono_header)
-            new_mono_header = myth_headers.parse_mono_header(mono_path.name, new_mono_data)
-            mono2tag.debug_mono_header(new_mono_header, new_mono_data)
-            new_entrypoints = mono2tag.get_entrypoints(new_mono_data, new_mono_header)
-            mono2tag.print_entrypoint_map(new_entrypoints, ': Fixed')
-
-            if not output_file:
-                output_file = f'../output/fixed_entrypoints/{mono_path.name}'
-                new_mono_path = pathlib.Path(sys.path[0], output_file).resolve()
+            if not new_mono_data:
+                print("Entrypoints up to date")
             else:
-                new_mono_path = pathlib.Path(output_file)
+                new_mono_header = myth_headers.parse_mono_header(mono_path.name, new_mono_data)
+                mono2tag.debug_mono_header(new_mono_header, new_mono_data)
+                new_entrypoints = mono2tag.get_entrypoints(new_mono_data, new_mono_header)
+                mono2tag.print_entrypoint_map(new_entrypoints, ': Fixed')
 
-            if prompt(new_mono_path):
-                pathlib.Path(new_mono_path.parent).mkdir(parents=True, exist_ok=True)
-                with open(new_mono_path, 'wb') as new_mono_file:
-                    new_mono_file.write(new_mono_data)
-                    print(f"Entrypoints fixed. Output saved to {new_mono_path}")
+                if not output_file:
+                    output_file = f'../output/fixed_entrypoints/{mono_path.name}'
+                    new_mono_path = pathlib.Path(sys.path[0], output_file).resolve()
+                else:
+                    new_mono_path = pathlib.Path(output_file)
+
+                if prompt(new_mono_path):
+                    pathlib.Path(new_mono_path.parent).mkdir(parents=True, exist_ok=True)
+                    with open(new_mono_path, 'wb') as new_mono_file:
+                        new_mono_file.write(new_mono_data)
+                        print(f"Entrypoints fixed. Output saved to {new_mono_path}")
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -48,18 +51,20 @@ def main(mono_path, output_file):
 def fix_entrypoint_map(entrypoints, data, mono_header):
     print(
         """
-Existing printable level name and level name from mesh description STLI for entrypoints.
+Existing printable level names and names from mesh description STLIs
 Mismatching entries that need fixing marked with an x
 ------+------------------------------------------------------------------+------------------------------------------------------------------+
  fix? | current printable level name                                     | printable level name from mesh description
 ------+------------------------------------------------------------------+------------------------------------------------------------------+"""
     )
+    tags = mono2tag.get_tags(data, mono_header)
+    fixed = False
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
-        mesh_data = mono2tag.seek_tag('mesh', entry_id, data, mono_header)
+        mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data, mono_header)
         if mesh_data:
             mesh_header = mesh_tag.parse_header(mesh_data)
             desc_tag = myth_headers.decode_string(mesh_header.map_description_string_list_tag)
-            desc_data = mono2tag.seek_tag('stli', desc_tag, data, mono_header)
+            desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data, mono_header)
             if desc_data:
                 (_, desc_text) = myth_headers.parse_text_tag(desc_data)
                 level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
@@ -67,9 +72,13 @@ Mismatching entries that need fixing marked with an x
                 if level_name != entry_long_name:
                     correct = 'x'
                     entrypoints[entry_id] = (entry_name, level_name, archive_list)
+                    fixed = True
                 print(f' {correct:>4} | {mono2tag.format_entry_name(entry_long_name, entry_name)} | {mono2tag.format_entry_name(level_name, entry_name)}')
     print('---')
-    return mono2tag.encode_entrypoints(data, mono_header.header, entrypoints)
+    if fixed:
+        return mono2tag.encode_entrypoints(data, mono_header.header, entrypoints)
+    else:
+        return False
 
 def prompt(prompt_path):
     # return True

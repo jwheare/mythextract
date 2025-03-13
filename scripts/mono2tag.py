@@ -124,7 +124,7 @@ NameColorMap = {
 }
 def name2color(text):
     """If the name starts with a 3 digit number, apply a color"""
-    m = re.search(r'^(\d)\d{2,2} ', text)
+    m = re.search(r'^(\d)\d{2,2}', text)
     if m:
         return NameColorMap.get(m.group(1))
 
@@ -148,8 +148,8 @@ Entrypoints{suffix}
         print(f' {entry_id: <4} | {archive_name: <40} | {entry_name:<32} | {format_entry_name(entry_long_name, entry_name)}')
     print('---')
 
-def seek_tag(tag_type, tag_id, data, mono_header):
-    for (i, tag_header) in get_tags(data, mono_header):
+def seek_tag(tags, tag_type, tag_id, data, mono_header):
+    for (i, tag_header) in tags:
         if (
             tag_header.tag_type == tag_type and
             tag_header.tag_id == tag_id
