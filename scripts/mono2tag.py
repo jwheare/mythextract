@@ -140,7 +140,7 @@ def print_entrypoint_map(entrypoint_map, suffix=''):
         f"""
 Entrypoints{suffix}
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+
- id   | archive                                  | name                             | long
+ id   | archive                                  | name                             | printable name
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""
     )
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():

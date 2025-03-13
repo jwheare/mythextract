@@ -48,10 +48,11 @@ def main(mono_path, output_file):
 def fix_entrypoint_map(entrypoints, data, mono_header):
     print(
         """
-Existing long text and mesh descriptions for entrypoints. Mismatching entries that need fixing marked with an x
---------+------------------------------------------------------------------+------------------------------------------------------------------+
- to fix | long                                                             | mesh description
---------+------------------------------------------------------------------+------------------------------------------------------------------+"""
+Existing printable level name and level name from mesh description STLI for entrypoints.
+Mismatching entries that need fixing marked with an x
+------+------------------------------------------------------------------+------------------------------------------------------------------+
+ fix? | current printable level name                                     | printable level name from mesh description
+------+------------------------------------------------------------------+------------------------------------------------------------------+"""
     )
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
         mesh_data = mono2tag.seek_tag('mesh', entry_id, data, mono_header)
@@ -66,7 +67,7 @@ Existing long text and mesh descriptions for entrypoints. Mismatching entries th
                 if level_name != entry_long_name:
                     correct = 'x'
                     entrypoints[entry_id] = (entry_name, level_name, archive_list)
-                print(f' {correct:<6} | {mono2tag.format_entry_name(entry_long_name, entry_name)} | {mono2tag.format_entry_name(level_name, entry_name)}')
+                print(f' {correct:>4} | {mono2tag.format_entry_name(entry_long_name, entry_name)} | {mono2tag.format_entry_name(level_name, entry_name)}')
     print('---')
     return mono2tag.encode_entrypoints(data, mono_header.header, entrypoints)
 
