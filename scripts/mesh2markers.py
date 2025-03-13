@@ -3,6 +3,8 @@ import sys
 import os
 import struct
 
+import myth_headers
+import myth_collection
 import mesh_tag
 import mesh2info
 import mono2tag
@@ -31,13 +33,43 @@ def parse_mesh_markers(game_version, tags, data_map, mesh_id):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    print_markers(tags, palette, orphans)
+    print_markers(tags, data_map, palette, orphans)
 
-def print_markers(tags, palette, orphans):
+def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
+    if tag_type == 'unit':
+        (unit_location, _, unit_tag_data) = loadtags.get_tag_info(tags, data_map, tag_type, tag_id)
+
+        mons_tag_id = myth_headers.decode_string(unit_tag_data[64:68])
+        (mons_location, _, mons_data) = loadtags.get_tag_info(tags, data_map, 'mons', mons_tag_id)
+        mons_coll = myth_headers.decode_string(mons_data[68:72])
+
+        core_tag_id = myth_headers.decode_string(unit_tag_data[68:72])
+        (core_location, _, core_data) = loadtags.get_tag_info(tags, data_map, 'core', core_tag_id)
+        core_tag = myth_collection.parse_collection_ref(core_data[64:])
+        core_coll = core_tag.collection_tag
+
+        if mons_coll != core_coll:
+            (mons_coll_location, _) = loadtags.lookup_tag_header(tags, '.256', mons_coll)
+            (core_coll_location, _) = loadtags.lookup_tag_header(tags, '.256', core_coll)
+            return (tag_type, unit_location, tag_id, [
+                ('mons', mons_location, mons_tag_id, [
+                    ('.256', mons_coll_location, mons_coll, [])
+                ]),
+                ('core', core_location, core_tag_id, [
+                    ('.256', core_coll_location, core_coll, [])
+                ])
+            ])
+
+def print_markers(tags, data_map, palette, orphans):
+    mismatched_unit_collections = {}
     for palette_type, p_list in palette.items():
         for palette_index, p_val in enumerate(p_list):
             tag_id = p_val['tag']
-            (location, tag_header) = loadtags.lookup_tag_header(tags, mesh_tag.Marker2Tag.get(palette_type), tag_id)
+            tag_type = mesh_tag.Marker2Tag.get(palette_type)
+            (location, tag_header) = loadtags.lookup_tag_header(tags, tag_type, tag_id)
+            mismatch_tree = check_unit_collection_mismatch(tags, data_map, tag_type, tag_id)
+            if mismatch_tree:
+                mismatched_unit_collections[tag_id] = mismatch_tree
             tag_header_print = f'[{tag_header.name}] ' if tag_header else ''
             flag_info = mesh_tag.palette_flag_info(p_val['flags'])
             flags = f'(flags={'/'.join(flag_info)}) ' if len(flag_info) else ''
@@ -69,6 +101,11 @@ def print_markers(tags, palette, orphans):
                 )
             print('-')
 
+    if len(mismatched_unit_collections):
+        print('Mismatched collections')
+        for unit_tag, mismatch_tree in mismatched_unit_collections.items():
+            traverse_mismatch_tree(*mismatch_tree)
+
     if orphans['count']:
         print('---')
         print('ORPHANS')
@@ -83,6 +120,12 @@ def print_markers(tags, palette, orphans):
                         # f'facing={orphan_info['facing']:06.2f} '
                         # f'pos={[round(po, 2) for po in orphan_info['pos']]} '
                     )
+
+def traverse_mismatch_tree(tag_type, location, tag_id, children, depth=0):
+    print(f'{' '*depth}- {tag_type}.{tag_id} ({location})')
+    for child in children:
+        traverse_mismatch_tree(*child, depth=depth+1)
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

@@ -62,6 +62,11 @@ def get_tag_data(tags, data_map, tag_type, tag_id):
         tag_end = tag_start + tag_header.tag_data_size
         return myth_headers.encode_header(tag_header) + data_map[location][tag_start:tag_end]
 
+def get_tag_info(tags, data_map, tag_type, tag_id):
+    (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)
+    tag_data = get_tag_data(tags, data_map, tag_type, tag_id)
+    return (location, tag_header, tag_data)
+
 def build_tag_map(files):
     tags = {}
     data_map = {}
