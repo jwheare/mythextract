@@ -135,10 +135,10 @@ def format_entry_name(long_name, name):
         return f'\x1b[38;5;{color}m{text:<64}\x1b[0m'
     return f'{text:<64}'
 
-def print_entrypoint_map(entrypoint_map):
+def print_entrypoint_map(entrypoint_map, suffix=''):
     print(
-        """
-Entrypoints
+        f"""
+Entrypoints{suffix}
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+
  id   | archive                                  | name                             | long
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""

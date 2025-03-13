@@ -23,14 +23,12 @@ def main(mono_path, output_file):
         mono2tag.debug_mono_header(mono_header, data)
         entrypoints = mono2tag.get_entrypoints(data, mono_header)
         if len(entrypoints):
-            print('Current')
-            mono2tag.print_entrypoint_map(entrypoints)
+            mono2tag.print_entrypoint_map(entrypoints, ': Current')
             new_mono_data = fix_entrypoint_map(entrypoints, data, mono_header)
             new_mono_header = myth_headers.parse_mono_header(mono_path.name, new_mono_data)
             mono2tag.debug_mono_header(new_mono_header, new_mono_data)
             new_entrypoints = mono2tag.get_entrypoints(new_mono_data, new_mono_header)
-            print('Fixed')
-            mono2tag.print_entrypoint_map(new_entrypoints)
+            mono2tag.print_entrypoint_map(new_entrypoints, ': Fixed')
 
             if not output_file:
                 output_file = f'../output/fixed_entrypoints/{mono_path.name}'
@@ -50,7 +48,7 @@ def main(mono_path, output_file):
 def fix_entrypoint_map(entrypoints, data, mono_header):
     print(
         """
-Entrypoints
+Existing long text and mesh descriptions for entrypoints. Mismatching entries that need fixing marked with an x
 --------+------------------------------------------------------------------+------------------------------------------------------------------+
  to fix | long                                                             | mesh description
 --------+------------------------------------------------------------------+------------------------------------------------------------------+"""
