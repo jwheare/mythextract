@@ -79,7 +79,7 @@ def build_tag_map(files):
                 header_name = f'{header_name} [file={name}]'
             plugin_flags = myth_headers.plugin_version_flags(mono_header)
             plugin_dep = myth_headers.plugin_dependency(mono_header)
-            pf = f'[{'|'.join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
+            pf = f'[{"|".join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
             dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
             print(
                 f'flags={mono_header.flags} '
@@ -176,7 +176,7 @@ def read_file_headers(path_dir, plugin_names):
 
                         plugin_flags = myth_headers.plugin_version_flags(mono_header)
                         plugin_dep = myth_headers.plugin_dependency(mono_header)
-                        pf = f'[{'|'.join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
+                        pf = f'[{"|".join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
                         dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
                         print(
                             f'flags={mono_header.flags} '
