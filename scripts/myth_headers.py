@@ -23,11 +23,16 @@ ArchivePriority = {
     ArchiveType.CACHE: -2,
     ArchiveType.PATCH: -2,
     ArchiveType.ADDON: -1,
-    ArchiveType.PLUGIN: 0,
-    ArchiveType.INTERFACE: 0,
-    ArchiveType.TAG: 0,
-    ArchiveType.METASERVER: 0,
+    ArchiveType.PLUGIN: 1,
+    ArchiveType.INTERFACE: 1,
+    ArchiveType.TAG: 1,
+    ArchiveType.METASERVER: 1,
 }
+def archive_priority(mono_header):
+    if mono_header.filename == 'Patch 1.8.5 Unity':
+        return 1
+    else:
+        return ArchivePriority[mono_header.type]
 
 TagTypes = {
     'amso': "Ambient Sounds",
@@ -75,7 +80,7 @@ TagTypes = {
 }
 
 class PluginFlag(enum.Flag):
-    LOAD_REVERSE = enum.auto() # Load in reverse order (mesh plugins then tagsets)
+    TAGSETS_LAST = enum.auto() # Load in reverse order (mesh plugins then tagsets)
     VTFL = enum.auto() # Compatibility with vTFL
     URL_PLUGIN = enum.auto() # Reliant on plugin named in URL field above
     LOAD_LAST = enum.auto() # Force Meshes in this plugin to load last
@@ -99,20 +104,22 @@ def plugin_dependency(mono_header):
     elif flag and PluginFlag.URL_PLUGIN in flag and mono_header.description:
         return mono_header.description
 
+LoadReversePlugins = [
+    "Magma - The Fallen Levels v2",
+    "Magma TFL Multipack",
+    "Magma - Shadow III",
+    "Magma - Dol Baran v2.1",
+]
+
 def plugin_version_flags(mono_header):
     if mono_header.type == ArchiveType.PLUGIN:
-        if (
-            mono_header.filename == "Magma - The Fallen Levels v2" or
-            mono_header.filename == "Magma TFL Multipack" or
-            mono_header.filename == "Magma - Shadow III" or
-            mono_header.filename[:17] == "Magma - Dol Baran"
-        ):
-            return PluginFlag(1)
-        else:
-            try:
-                return PluginFlag(mono_header.version)
-            except ValueError:
-                return None
+        try:
+            flag = PluginFlag(mono_header.version)
+            if mono_header.filename in LoadReversePlugins:
+                flag = flag | PluginFlag.TAGSETS_LAST
+            return flag
+        except ValueError:
+            return None
 
 # 
 # Myth II: monolith header

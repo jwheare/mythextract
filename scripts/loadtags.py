@@ -67,39 +67,20 @@ def get_tag_info(tags, data_map, tag_type, tag_id):
     tag_data = get_tag_data(tags, data_map, tag_type, tag_id)
     return (location, tag_header, tag_data)
 
-def build_tag_map(files):
+def build_tag_map(files, plugin_names=[]):
     tags = {}
     data_map = {}
     entrypoint_map = {}
     game_version = None
-    for (pri, ver, name, path_dir, path, mono_header) in files:
-        if DEBUG:
-            header_name = f'\x1b[1m{mono_header.name}\x1b[0m'
-            if name != mono_header.name:
-                header_name = f'{header_name} [file={name}]'
-            plugin_flags = myth_headers.plugin_version_flags(mono_header)
-            plugin_dep = myth_headers.plugin_dependency(mono_header)
-            pf = f'[{"|".join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
-            dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
-            print(
-                f'flags={mono_header.flags} '
-                f'v={mono_header.version:<5} '
-                f'ck={hex(mono_header.checksum):<10} '
-                f'\x1b[1mINCLUDE\x1b[0m[{mono_header.game_version}] '
-                f'{mono_header.type.name:<10} '
-                f'entry={mono_header.entry_tag_count:<3} '
-                f'tags={mono_header.tag_count:<4} '
-                f'{header_name} '
-                f'{pf}'
-                f'{dep}'
-            )
+    for (pri, ver, filename, path_dir, path, mono_header) in files:
+        debug_include(mono_header, True, pri)
 
         # Take the version from the first tag loaded
         if not game_version:
             game_version = mono_header.game_version
 
         data = myth_headers.load_file(path)
-        data_map[name] = data
+        data_map[mono_header.filename] = data
 
         if mono_header.entry_tag_count:
             entrypoints = mono2tag.get_entrypoints(data, mono_header)
@@ -110,7 +91,7 @@ def build_tag_map(files):
 
                 entrypoint_map[entry_id] = (entry_name, entry_long_name, current_archive_list + archive_list)
 
-        apppend_tags_from_archive(tags, data, mono_header, name)
+        apppend_tags_from_archive(tags, data, mono_header, filename)
 
     return (game_version, tags, entrypoint_map, data_map)
 
@@ -128,6 +109,59 @@ def apppend_tags_from_archive(tags, data, mono_header, name):
         tag_type_tags[tag_header.tag_id] = tag_id_list
         tags[tag_header.tag_type] = tag_type_tags
 
+def debug_include(mono_header, include, priority=None):
+    if DEBUG:
+        if priority is None:
+            priority = myth_headers.archive_priority(mono_header)
+        header_name = mono_header.name
+        if include:
+            header_name = f'\x1b[1m{header_name}\x1b[0m'
+        if mono_header.filename != mono_header.name:
+            header_name = f'{header_name} [file={mono_header.filename}]'
+        plugin_flags = myth_headers.plugin_version_flags(mono_header)
+        plugin_dep = myth_headers.plugin_dependency(mono_header)
+        pf = f'[{"|".join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
+        dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
+        if include:
+            included = '\x1b[1mINCLUDE\x1b[0m'
+        else:
+            included = 'EXCLUDE'
+        print(
+            f'flags={mono_header.flags} '
+            f'v={mono_header.version:<5} '
+            f'pri={priority:<2} '
+            f'ck={hex(mono_header.checksum):<10} '
+            f'{included}[{mono_header.game_version}] '
+            f'{mono_header.type.name:<10} '
+            f'entry={mono_header.entry_tag_count:<3} '
+            f'tags={mono_header.tag_count:<4} '
+            f'{header_name} '
+            f'{pf}'
+            f'{dep}'
+        )
+
+def dep_plugin(path_dir, plugin_dep, dep_priority=None):
+    dep_path = (path_dir / plugin_dep)
+    dep_header = myth_headers.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
+    dep_mono_header = myth_headers.parse_mono_header(dep_path.name, dep_header)
+    dep_plugin_flag = myth_headers.plugin_version_flags(dep_mono_header)
+    if dep_plugin_flag and myth_headers.PluginFlag.TAGSETS_LAST in dep_plugin_flag:
+        dep_priority = 3
+    elif dep_priority is None:
+        dep_priority = myth_headers.archive_priority(dep_mono_header)
+    return (
+        dep_priority,
+        dep_mono_header.version,
+        dep_path.name,
+        path_dir,
+        dep_path,
+        dep_mono_header
+    )
+
+def unity_plugin(path_dir, dep_priority):
+    plugin_dep = 'Patch 1.8.5 Unity'
+    return dep_plugin(path_dir, plugin_dep, dep_priority)
+
 def read_file_headers(path_dir, plugin_names):
     for dirfile in os.scandir(path_dir):
         dirfile = pathlib.Path(dirfile)
@@ -143,24 +177,10 @@ def read_file_headers(path_dir, plugin_names):
                 if mono_header.game_version == 1:
                     priority = -1
                 else:
-                    priority = myth_headers.ArchivePriority[mono_header.type]
+                    priority = myth_headers.archive_priority(mono_header)
                 # Only include foundation, patches, addons and named plugins
                 if priority < 0 or dirfile.name in plugin_names:
-                    plugin_dep = myth_headers.plugin_dependency(mono_header)
-                    if plugin_dep:
-                        dep_path = (path_dir / plugin_dep)
-                        dep_header = myth_headers.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
-                        dep_mono_header = myth_headers.parse_mono_header(dep_path.name, dep_header)
-                        dep_priority = myth_headers.ArchivePriority[dep_mono_header.type]
-                        yield (
-                            dep_priority,
-                            dep_mono_header.version,
-                            dep_path.name,
-                            path_dir,
-                            dep_path,
-                            dep_mono_header
-                        )
-                    yield (
+                    plugin = (
                         priority,
                         mono_header.version,
                         dirfile.name,
@@ -168,28 +188,26 @@ def read_file_headers(path_dir, plugin_names):
                         dirfile,
                         mono_header
                     )
-                else:
-                    if DEBUG:
-                        header_name = mono_header.name
-                        if dirfile.name != mono_header.name:
-                            header_name = f'{header_name} [file={dirfile.name}]'
+                    plugin_flag = myth_headers.plugin_version_flags(mono_header)
 
-                        plugin_flags = myth_headers.plugin_version_flags(mono_header)
-                        plugin_dep = myth_headers.plugin_dependency(mono_header)
-                        pf = f'[{"|".join([p.name for p in plugin_flags])}] ' if plugin_flags else ''
-                        dep = f'dep=\x1b[1m{plugin_dep}\x1b[0m ' if plugin_dep else ''
-                        print(
-                            f'flags={mono_header.flags} '
-                            f'v={mono_header.version:<5} '
-                            f'ck={hex(mono_header.checksum):<10} '
-                            f'EXCLUDE[{mono_header.game_version}] '
-                            f'{mono_header.type.name:<10} '
-                            f'entry={mono_header.entry_tag_count:<3} '
-                            f'tags={mono_header.tag_count:<4} '
-                            f'{header_name} '
-                            f'{pf}'
-                            f'{dep}'
-                        )
+                    plugin_dep = myth_headers.plugin_dependency(mono_header)
+                    if plugin_dep:
+                        if plugin_flag and myth_headers.PluginFlag.TAGSETS_LAST in plugin_flag:
+                            dep_priority = 3
+                        else:
+                            dep_priority = -1
+                        yield dep_plugin(path_dir, plugin_dep, dep_priority)
+
+                    if plugin_flag and myth_headers.PluginFlag.VTFL in plugin_flag:
+                        if myth_headers.PluginFlag.TAGSETS_LAST in plugin_flag:
+                            unity_priority = 2
+                        else:
+                            unity_priority = 0
+                        yield unity_plugin(path_dir, unity_priority)
+
+                    yield plugin
+                else:
+                    debug_include(mono_header, False)
             except (struct.error, UnicodeDecodeError, ValueError) as e:
                 print(f"- [ERROR] \x1b[1m{dirfile.name}\x1b[0m error decoding {e}")
 

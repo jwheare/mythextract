@@ -26,7 +26,7 @@ def main(game_directory, level, plugin_names):
                 mesh_tag_data = myth_headers.load_file(file)
                 parse_mesh_actions(tags, data_map, mesh_tag_data)
             else:
-                for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags):
+                for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
                     parse_mesh_actions(tags, data_map, mesh_tag_data)
         else:

@@ -106,7 +106,7 @@ def get_entrypoints(data, mono_header):
         entry_id = myth_headers.decode_string(entry_id)
         entry_name = myth_headers.decode_string(entry_name)
         entry_long_name = myth_headers.decode_string(entry_long_name)
-        entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.name]))))
+        entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.filename]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
 def italic2ansi(text):

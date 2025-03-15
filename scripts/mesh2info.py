@@ -19,14 +19,14 @@ def main(game_directory, level, plugin_names):
 
     try:
         if level:
-            for mesh_id in mesh_entries(game_version, level, entrypoint_map, tags):
+            for mesh_id in mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 parse_mesh_tag(game_version, tags, data_map, mesh_id)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def mesh_entries(game_version, level, entrypoint_map, tags):
+def mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
     if level == 'all':
         if game_version == 1:
             for level in range(1, 26):
@@ -35,8 +35,9 @@ def mesh_entries(game_version, level, entrypoint_map, tags):
                 yield mesh_id
         else:
             for mesh_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
-                print(f'mesh={mesh_id} archives=[{archive_list}] [{entry_name}] [{entry_long_name}]')
-                yield mesh_id
+                if bool(set(plugin_names) & set(archive_list)):
+                    print(f'mesh={mesh_id} archives=[{archive_list}] [{entry_name}] [{entry_long_name}]')
+                    yield mesh_id
     else:
         (mesh_id, header_name, entry_name) = parse_level(level, tags)
         print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
