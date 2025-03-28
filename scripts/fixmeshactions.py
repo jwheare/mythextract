@@ -16,8 +16,7 @@ def main(game_directory, level, plugin_names):
     """
     Parse a Myth II mesh tag file removes extra data from actions buffer
     """
-    (files, _) = loadtags.build_file_list(game_directory, plugin_names)
-    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
         if level:

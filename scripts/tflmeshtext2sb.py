@@ -53,8 +53,7 @@ def main(game_directory, level):
     Load Myth TFL game tags and convert text and stli tags for a given mesh to Myth II format
     Also maps to the tag ids used by the ports of TFL to Myth II
     """
-    (files, cutscene_paths) = loadtags.build_file_list(game_directory)
-    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory)
 
     if game_version != 1:
         print('Invalid TFL directory')
@@ -65,15 +64,15 @@ def main(game_directory, level):
             for level in range(1, 26):
                 (mesh_id, header_name, entry_name) = mesh2info.parse_level(f'{level:02}', tags)
                 print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
-                convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
+                convert_level(game_version, tags, data_map, mesh_id)
         else:
             (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
             print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
-            convert_level(game_version, tags, data_map, cutscene_paths, mesh_id)
+            convert_level(game_version, tags, data_map, mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def convert_level(game_version, tags, data_map, cutscene_paths, mesh_id):
+def convert_level(game_version, tags, data_map, mesh_id):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
     tag_header = myth_headers.parse_header(mesh_tag_data)
     level = tag_header.name.split(' ')[0]

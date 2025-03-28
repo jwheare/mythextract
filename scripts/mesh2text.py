@@ -25,8 +25,7 @@ def main(game_directory, level, plugin_name, plugin_output):
     """
     Load Myth game tags and plugins and output basic text and html for the intro to a mesh
     """
-    (files, cutscene_paths) = loadtags.build_file_list(game_directory, [plugin_name])
-    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, [plugin_name])
 
     try:
         if level:
@@ -36,30 +35,30 @@ def main(game_directory, level, plugin_name, plugin_output):
                         if DEBUG:
                             print(f'mesh={mesh_id} file=[{archive_list}] [{entry_name}] [{entry_long_name}]')
                         plugin = plugin_name if plugin_name in archive_list else None
-                        extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
+                        extract_level(game_version, tags, data_map, cutscenes, mesh_id, plugin, plugin_output)
                 if not plugin_name:
-                    extract_sb_epilogue(tags, data_map, cutscene_paths)
+                    extract_sb_epilogue(tags, data_map, cutscenes)
             elif game_version == 1 and level == 'all':
                 for level in range(1, 26):
                     (mesh_id, header_name, entry_name) = mesh2info.parse_level(f'{level:02}', tags)
                     if DEBUG:
                         print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                     plugin = None
-                    extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
+                    extract_level(game_version, tags, data_map, cutscenes, mesh_id, plugin, plugin_output)
             elif game_version == 2 and not plugin_name and level == 'epilogue':
-                extract_sb_epilogue(tags, data_map, cutscene_paths)
+                extract_sb_epilogue(tags, data_map, cutscenes)
             else:
                 (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
                 if DEBUG:
                     print(f'level={level} mesh={mesh_id} file=[{header_name}] [{entry_name}]')
                 plugin = plugin_name if plugin_name == header_name else None
-                extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
+                extract_level(game_version, tags, data_map, cutscenes, mesh_id, plugin, plugin_output)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def extract_sb_epilogue(tags, data_map, cutscene_paths):
+def extract_sb_epilogue(tags, data_map, cutscenes):
     prefix = 'myth2'
     game_version = 2
     level = 'epilogue'

@@ -14,8 +14,7 @@ def main(game_directory, level, plugin_names):
     """
     Load Myth game tags and plugins and output header info for a mesh
     """
-    (files, cutscenes) = loadtags.build_file_list(game_directory, plugin_names)
-    (game_version, tags, entrypoint_map, data_map) = loadtags.build_tag_map(files)
+    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
         if level:

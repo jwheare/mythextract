@@ -23,16 +23,11 @@ ArchivePriority = {
     ArchiveType.CACHE: -2,
     ArchiveType.PATCH: -2,
     ArchiveType.ADDON: -1,
-    ArchiveType.PLUGIN: 1,
-    ArchiveType.INTERFACE: 1,
-    ArchiveType.TAG: 1,
-    ArchiveType.METASERVER: 1,
+    ArchiveType.PLUGIN: 0,
+    ArchiveType.INTERFACE: 0,
+    ArchiveType.TAG: 0,
+    ArchiveType.METASERVER: 0,
 }
-def archive_priority(mono_header):
-    if mono_header.filename == 'Patch 1.8.5 Unity':
-        return 1
-    else:
-        return ArchivePriority[mono_header.type]
 
 TagTypes = {
     'amso': "Ambient Sounds",
@@ -78,48 +73,6 @@ TagTypes = {
     'unit': "Units",
     'wind': "Wind",
 }
-
-class PluginFlag(enum.Flag):
-    TAGSETS_LAST = enum.auto() # Load in reverse order (mesh plugins then tagsets)
-    VTFL = enum.auto() # Compatibility with vTFL
-    URL_PLUGIN = enum.auto() # Reliant on plugin named in URL field above
-    LOAD_LAST = enum.auto() # Force Meshes in this plugin to load last
-
-
-TagSetRequirements = {
-    "TSG Level-Pack v1.4": "TSG Tagset v1.4",
-    "JINN Mappack v.1": "JINN Tagset v.1",
-    "Blue & Grey Levelpack": "Blue & Grey Tagset",
-    "SF_CarnageIslands(v1.0)": "SF_SpecialForces(v1.0)",
-    "Green Berets Mappack v1.2": "Green Berets Tagset v1.2",
-}
-
-def plugin_dependency(mono_header):
-    if mono_header.type != ArchiveType.PLUGIN:
-        return
-    hard_coded = TagSetRequirements.get(mono_header.filename)
-    flag = plugin_version_flags(mono_header)
-    if hard_coded:
-        return hard_coded
-    elif flag and PluginFlag.URL_PLUGIN in flag and mono_header.description:
-        return mono_header.description
-
-LoadReversePlugins = [
-    "Magma - The Fallen Levels v2",
-    "Magma TFL Multipack",
-    "Magma - Shadow III",
-    "Magma - Dol Baran v2.1",
-]
-
-def plugin_version_flags(mono_header):
-    if mono_header.type == ArchiveType.PLUGIN:
-        try:
-            flag = PluginFlag(mono_header.version)
-            if mono_header.filename in LoadReversePlugins:
-                flag = flag | PluginFlag.TAGSETS_LAST
-            return flag
-        except ValueError:
-            return None
 
 # 
 # Myth II: monolith header

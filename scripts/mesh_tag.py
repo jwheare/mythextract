@@ -89,17 +89,10 @@ L L L L
 4s
 4s
 32s
-L
-442s
+H H
+f
 
-H
-H
-H
-H
-H
-H
-H
-16s
+468x
 """
 MeshHeader = namedtuple('MeshHeader', [
     'landscape_collection_tag', 'media_tag',
@@ -148,16 +141,10 @@ MeshHeader = namedtuple('MeshHeader', [
     'team_names_override_string_list_tag',
     'plugin_name',
     'extra_flags',
-    'unused',
+    'unused2',
+    'minimum_zoom_factor',
 
-    'connector_type',
-    'map_description_string_index',
-    'overhead_map_collection_index',
-    'landscape_collection_index',
-    'global_ambient_sound_index',
-    'media_type',
-    'hints_string_list_index',
-    'editor_data',
+    # Runtime
 ])
 
 class MeshFlags(enum.Flag, boundary=enum.CONFORM):
@@ -481,6 +468,8 @@ def parse_markers(mesh_header, data):
         print('Palette')
         for m_type, type_palette in palette.items():
             print(m_type, len(type_palette))
+            # for palette_entry in type_palette:
+            #     print(palette_entry['tag'])
 
     marker_start = get_offset(mesh_header.markers_offset)
     marker_end = marker_start + mesh_header.markers_size
