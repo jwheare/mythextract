@@ -33,7 +33,7 @@ AIFF file format described here: https://www.mmsp.ece.mcgill.ca/Documents/AudioF
 
 ## [scripts/tag2png.py](scripts/tag2png.py)
 
-Exports 32-bit alpha PNG from *TFL* or *SB* `.256` (aka collection) tag files. Note that collections can contain multiple image. Each image is exported as a separate file.
+Exports 32-bit alpha PNG from *TFL* or *SB* `.256` or `d256` (aka collection) tag files. Note that collections can contain multiple image. Each image is exported as a separate file.
 
     Usage: python3 tag2png.py <input_file> [<output_file>]
 
@@ -162,6 +162,49 @@ Also maps to the tag ids used by the ports of TFL to Myth II.
 
 Script environment variables:
 * `TIME=1` prints extra debug timing output
+
+
+## [scripts/d256info.py](scripts/d256info.py)
+
+Prints the headers of a detail collection (d256) tag
+
+    Usage: python3 d256info.py <game_directory> [<tag_id> [<plugin_names> ...]]
+
+* `game_directory`: path to a Myth game directory
+* `tag_id`: **optional** — if omitted lists the names and ids of d256 tags. can be `all` to iterate
+* `plugin_names`: **optional** — if provided loads tags from named plugins
+
+## [scripts/collmismatch.py](scripts/collmismatch.py)
+
+Lists collection mismatches for a given level/mesh
+
+    Usage: python3 collmismatch.py <game_directory> [<level> [<plugin_names> ...]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_names`: **optional** — if provided loads tags from named plugins
+
+## [scripts/mons2info.py](scripts/mons2info.py)
+
+Prints the headers of a mons tag, or tags
+
+    Usage: python3 mons2info.py <game_directory> [<mons_id> [<plugin_names> ...]]
+
+* `game_directory`: path to a Myth game directory
+* `mons_id`: **optional** — if omitted lists the names and ids of all mons tags
+* `plugin_names`: **optional** — if provided loads tags from named plugins
+
+## [scripts/mesh2tags.py](scripts/mesh2tags.py)
+
+This replaces some functionality of [Chaos](https://tain.totalcodex.net/items/show/chaos-source).
+
+Recursively extracts all referenced tags from a mesh
+
+    Usage: python3 mesh2tags.py <game_directory> [<level> [<plugin_names...>]]
+
+* `game_directory`: path to a Myth game directory
+* `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
+* `plugin_names`: **optional** — if provided loads tags from named plugins
 
 # Global environment variables
 
