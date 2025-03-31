@@ -105,7 +105,7 @@ def extract_mesh_tags(mesh_id, tags, data_map):
             pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
             with open(file_path, 'wb') as tag_file:
-                tag_file.write(tag_id)
+                tag_file.write(tag_data)
 
             print(f"Tag extracted. Output saved to {file_path}")
 
