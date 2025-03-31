@@ -170,7 +170,7 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
         elif tag_header.tag_type == 'prgr':
             (prgr_head, proj_list) = myth_projectile.parse_prgr(tag_data)
             yield from get_tag_data('meef', prgr_head.mesh_effect, tags, data_map)
-            yield from get_tag_data('sound', prgr_head.sound, tags, data_map)
+            yield from get_tag_data('soun', prgr_head.sound, tags, data_map)
             yield from get_tag_data('lpgr', prgr_head.local_projectile_group, tags, data_map)
             for proj in proj_list:
                 yield from get_tag_data('proj', proj.projectile_tag, tags, data_map)
