@@ -5,6 +5,7 @@ import struct
 import pathlib
 
 import myth_headers
+import myth_sound
 
 AIFC_VERSION_1 = 2726318400
 SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
@@ -60,34 +61,12 @@ def parse_soun_tag(data):
 
         header = myth_headers.parse_header(data)
 
-        soun_header = """>
-            L h h H
-            H H H H
-
-            h
-            L L
-
-            L H H
-            L L L
-
-            I I I I
-        """
-        soun_header_size = struct.calcsize(soun_header)
+        soun_header_size = myth_sound.SOUN_HEADER_SIZE
         soun_header_end = myth_headers.TAG_HEADER_SIZE + soun_header_size
-        (
-            flags, loudness, play_fraction, external_frequency_modifier,
-            pitch_lower_bound, pitch_delta, volume_lower_bound, volume_delta,
 
-            first_subtitle_within_string_list_index,
-            sound_offset, sound_size,
+        soun_header = myth_sound.parse_soun_header(data)
 
-            subtitle_string_list_tag, subtitle_string_list_index, unused,
-            permutation_count, permutations_offset, permutations_size,
-
-            d6, d7, d8, d9
-        ) = struct.unpack(soun_header, data[myth_headers.TAG_HEADER_SIZE:soun_header_end])
-
-        permutation_end = soun_header_end + permutations_size
+        permutation_end = soun_header_end + soun_header.permutations_size
         meta_struct = """>
             H H
             H
@@ -99,10 +78,10 @@ def parse_soun_tag(data):
             H H H H H H
         """
         perm_size = 32
-        check_perm_size = permutation_count * perm_size
+        check_perm_size = soun_header.permutation_count * perm_size
         actual_perm_size = permutation_end - soun_header_end
         meta_length = struct.calcsize(meta_struct)
-        total_meta_length = (permutation_count * meta_length)
+        total_meta_length = (soun_header.permutation_count * meta_length)
 
         header_end = permutation_end + total_meta_length
         sound_data = data[header_end:]
@@ -115,7 +94,7 @@ def parse_soun_tag(data):
 
         sound_data_offset = 0
         total_sample_frames = 0
-        for perm_i in range(permutation_count):
+        for perm_i in range(soun_header.permutation_count):
             start = soun_header_end + (perm_i * perm_size)
             end = start + perm_size
             (p1, p2, p3, p_desc,) = struct.unpack(">H H H 26s", data[start:end])
@@ -148,10 +127,10 @@ def parse_soun_tag(data):
 
         if DEBUG:
             print(f"""Total data length: {data_size}
-perm_size = {permutation_count} x 32 = {permutations_size} ({check_perm_size} = {actual_perm_size})
-meta_size = {permutation_count} x {meta_length} = {total_meta_length}
+perm_size = {soun_header.permutation_count} x 32 = {soun_header.permutations_size} ({check_perm_size} = {actual_perm_size})
+meta_size = {soun_header.permutation_count} x {meta_length} = {total_meta_length}
   header[{myth_headers.TAG_HEADER_SIZE}] + soun_header[{soun_header_size}]
-+ perm_size[{permutations_size}] + meta_size[{total_meta_length}]
++ perm_size[{soun_header.permutations_size}] + meta_size[{total_meta_length}]
 = header_end[{header_end}]
 sound length: {sound_length}
 -----
@@ -163,28 +142,28 @@ TDSZ: {header.tag_data_size}
 head: {header}
 Vers: [{header.signature}]
 ----- 0:{myth_headers.TAG_HEADER_SIZE} = {myth_headers.TAG_HEADER_SIZE}
-flag: {flags}
-loud: {loudness}
-  pf: {play_fraction}
- efm: {external_frequency_modifier}
- plb: {pitch_lower_bound}
-  pd: {pitch_delta}
- vlb: {volume_lower_bound}
-  vd: {volume_delta}
+flag: {soun_header.flags}
+loud: {soun_header.loudness}
+  pf: {soun_header.play_fraction}
+ efm: {soun_header.external_frequency_modifier}
+ plb: {soun_header.pitch_lower_bound}
+  pd: {soun_header.pitch_delta}
+ vlb: {soun_header.volume_lower_bound}
+  vd: {soun_header.volume_delta}
 -----
-fsli: {first_subtitle_within_string_list_index}
-SOFF: {sound_offset}
-SSIZ: {sound_size}
- slt: {subtitle_string_list_tag}
- sli: {subtitle_string_list_index}
-unus: {unused}
-PCNT: {permutation_count}
-POFF: {permutations_offset}
-PSIZ: {permutations_size}
-  d6: {d6}
-  d7: {d7}
-  d8: {d8}
-  d9: {d9}
+fsli: {soun_header.first_subtitle_within_string_list_index}
+SOFF: {soun_header.sound_offset}
+SSIZ: {soun_header.sound_size}
+ slt: {soun_header.subtitle_string_list_tag}
+ sli: {soun_header.subtitle_string_list_index}
+unus: {soun_header.unused}
+PCNT: {soun_header.permutation_count}
+POFF: {soun_header.permutations_offset}
+PSIZ: {soun_header.permutations_size}
+  d6: {soun_header.d6}
+  d7: {soun_header.d7}
+  d8: {soun_header.d8}
+  d9: {soun_header.d9}
 ----- {myth_headers.TAG_HEADER_SIZE}:{soun_header_end} = {soun_header_size}
 ----- 0:{soun_header_end-myth_headers.TAG_HEADER_SIZE} = {soun_header_size}
 Perm: {len(p_descs)}"""
@@ -193,8 +172,8 @@ Perm: {len(p_descs)}"""
                 print(f"""      {p1} {p2} {p3} [{p_desc}]""")
             print(
                 "----- "
-                f"""{soun_header_end}:{permutation_end} = {permutations_size} = {actual_perm_size}
------ {soun_header_end-myth_headers.TAG_HEADER_SIZE}:{permutation_end-myth_headers.TAG_HEADER_SIZE} = {permutations_size} = {actual_perm_size}
+                f"""{soun_header_end}:{permutation_end} = {soun_header.permutations_size} = {actual_perm_size}
+----- {soun_header_end-myth_headers.TAG_HEADER_SIZE}:{permutation_end-myth_headers.TAG_HEADER_SIZE} = {soun_header.permutations_size} = {actual_perm_size}
 Meta: {len(p_metas)}"""
             )
             for (
