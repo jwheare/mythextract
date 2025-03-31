@@ -246,7 +246,7 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
 
         elif tag_header.tag_type == 'arti':
             artifact = mons_tag.parse_artifact(tag_data)
-            yield from get_tag_data('mons', artifact.monster_restriction_tag, tags, data_map)
+            # yield from get_tag_data('mons', artifact.monster_restriction_tag, tags, data_map)
             yield from get_tag_data('.256', artifact.collection_tag, tags, data_map)
             yield from get_tag_data('proj', artifact.override_attack.projectile_tag, tags, data_map)
             yield from get_tag_data('stli', artifact.special_ability_string_list_tag, tags, data_map)
