@@ -147,6 +147,52 @@ MeshHeader = namedtuple('MeshHeader', [
     # Runtime
 ])
 
+# nested tags
+# connector_tag       [conn] -> .256
+# media_tag           [medi] -> core -> .256
+# media_tag           [medi] -> lpgr -> .256/phys
+# media_tag           [medi] -> prgr -> meef/soun/lpgr/proj
+# particle_system_tag [part] -> core -> .256
+# particle_system_tag [part] -> lpgr
+
+# markers with nested tags
+# MarkerType.SCENERY
+#     [scen] -> core -> .256
+#     [scen] -> proj
+#     [scen] -> obje
+#     [scen] -> lpgr
+# MarkerType.UNIT
+#     [unit] -> core -> .256
+#     [unit] -> mons ->
+#         lpgr
+#         obje
+#         prgr
+#         proj
+#         soun
+#         stli
+# MarkerType.AMBIENT_SOUND
+#     [amso] -> soun
+# MarkerType.MODEL
+#     [mode] -> geom -> core -> .256
+# MarkerType.PROJECTILE
+#     [proj] ->
+#         .256
+#         arti
+#         geom
+#         ligh
+#         lpgr
+#         obje
+#         prgr
+#         proj
+#         soun
+#         unit
+# MarkerType.LOCAL_PROJECTILE_GROUP
+#     [lpgr] -> .256
+#     [lpgr] -> phys
+# MarkerType.ANIMATION
+#     [anim] -> mode -> geom -> core -> .256
+#     [anim] -> soun
+
 class MeshFlags(enum.Flag, boundary=enum.CONFORM):
     BODY_COUNT = enum.auto()
     STEAL_THE_BACON = enum.auto()

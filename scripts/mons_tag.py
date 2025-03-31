@@ -417,6 +417,55 @@ SequenceNames = [
     "propelled",
 ]
 
+ARTIFACT_SIZE = 168
+MAX_ARTI_PROJ = 4
+MAX_ARTI_EFFECT_MODS = 16
+ArtifactFmt = """>
+    L
+    4s
+    h
+    h
+    h
+    h
+    4s
+    h h h h
+    16s
+    L
+    h
+    h
+    32s
+    64s
+    4s
+    4s
+    h
+    h
+    8s
+"""
+Artifact = namedtuple('Artifact', [
+    'flags',
+    'monster_restriction_tag',
+    'specialization_restriction',
+    'initial_charges_lower_bound',
+    'initial_charges_delta',
+    'pad',
+    'collection_tag',
+    'sequence_inventory',
+    'sequence_2',
+    'sequence_3',
+    'sequence_4',
+    'projectile_tags',
+    'bonus_monster_flags',
+    'monster_override_type',
+    'expiry_timer',
+    'bonus_effect_modifiers',
+    'override_attack',
+    'special_ability_string_list_tag',
+    'monster_override_tag',
+    'collection_index',
+    'special_ability_string_list_index',
+    'projectile_types',
+])
+
 class Size(enum.Enum):
     SMALL = 0
     MAN = enum.auto()
@@ -427,6 +476,30 @@ def sequence_name(idx):
         return SequenceNames[idx]
     else:
         return str(idx)
+
+def parse_artifact(data):
+    start = myth_headers.TAG_HEADER_SIZE
+    end = start + ARTIFACT_SIZE
+    artifact = Artifact._make(
+        struct.unpack(ArtifactFmt, data[start:end])
+    )
+    override_attack = AttackDef._make(
+        struct.unpack(AttackDefFmt, artifact.override_attack)
+    )
+    return artifact._replace(
+        override_attack=override_attack._replace(
+            sequences=parse_attack_sequences(override_attack.sequences)
+        ),
+        projectile_tags=struct.unpack(f'>{MAX_ARTI_PROJ * "4s"}', artifact.projectile_tags),
+        projectile_types=struct.unpack(f'>{MAX_ARTI_PROJ}h', artifact.projectile_types),
+        bonus_effect_modifiers=struct.unpack(f'>{MAX_ARTI_EFFECT_MODS}h', artifact.bonus_effect_modifiers),
+    )
+
+def parse_unit(data):
+    start = myth_headers.TAG_HEADER_SIZE
+    end = start + 8
+    # (mons, core)
+    return struct.unpack(">4s 4s", data[myth_headers.TAG_HEADER_SIZE:end])
 
 def parse_attack_sequences(seq_data):
     sequences = []
