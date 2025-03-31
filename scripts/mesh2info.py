@@ -34,7 +34,7 @@ def mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 yield mesh_id
         else:
             for mesh_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
-                if bool(set(plugin_names) & set(archive_list)):
+                if not plugin_names or bool(set(plugin_names) & set(archive_list)):
                     print(f'mesh={mesh_id} archives=[{archive_list}] [{entry_name}] [{entry_long_name}]')
                     yield mesh_id
     else:

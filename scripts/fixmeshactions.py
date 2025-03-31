@@ -69,7 +69,7 @@ if __name__ == "__main__":
     plugin_names = []
     if len(sys.argv) > 2:
         level = sys.argv[2]
-        if len(sys.argv) > 4:
+        if len(sys.argv) > 3:
             plugin_names = sys.argv[3:]
 
     try:

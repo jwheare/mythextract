@@ -244,7 +244,7 @@ def param_id_marker(param_type, param_name):
     if param_type == ParamType.MODEL_IDENTIFIER:
         return MarkerType.MODEL
     if param_type == ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER:
-        return MarkerType.PROJECTILE_GROUP
+        return MarkerType.LOCAL_PROJECTILE_GROUP
     if param_type == ParamType.MODEL_ANIMATION_IDENTIFIER:
         return MarkerType.ANIMATION
 
@@ -259,7 +259,7 @@ class MarkerType(enum.Enum):
     UNKNOWN_3 = enum.auto()
     UNKNOWN_4 = enum.auto()
     PROJECTILE = enum.auto()
-    PROJECTILE_GROUP = enum.auto()
+    LOCAL_PROJECTILE_GROUP = enum.auto()
     ANIMATION = enum.auto()
 Marker2Tag = {
     MarkerType.SCENERY: 'scen',
@@ -267,7 +267,7 @@ Marker2Tag = {
     MarkerType.AMBIENT_SOUND: 'amso',
     MarkerType.MODEL: 'mode',
     MarkerType.PROJECTILE: 'proj',
-    MarkerType.PROJECTILE_GROUP: 'lpgr',
+    MarkerType.LOCAL_PROJECTILE_GROUP: 'lpgr',
     MarkerType.ANIMATION: 'anim',
 }
 

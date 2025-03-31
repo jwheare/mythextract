@@ -33,7 +33,7 @@ TagTypes = {
     'amso': "Ambient Sounds",
     'arti': "Artifacts",
     'core': "Collection References",
-    'x256': "Collections",
+    '.256': "Collections",
     'conn': "Connectors",
     'ditl': "Dialog String Lists",
     'd256': "Detail Collections",

@@ -250,7 +250,7 @@ def parse_color(data):
     return (r, g, b, flags)
 
 def parse_collection_ref(data):
-    colref = CollectionRef._make(struct.unpack(CollectionRefFmt, data))
+    colref = CollectionRef._make(struct.unpack(CollectionRefFmt, data[64:]))
     return colref._replace(
         collection_tag=myth_headers.decode_string(colref.collection_tag),
         colors=parse_hue_permutations(colref),

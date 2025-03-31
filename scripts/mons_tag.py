@@ -325,7 +325,7 @@ MonsTag = namedtuple('MonsTag', [
     'monster_class',
     'monster_allegiance',
     'experience_point_value',
-    'sound_tags', # 40x4s
+    'sound_tags', # 10x4s
     'blocked_impact_projectile_group_tag',
     'absorbed_impact_projectile_group_tag',
     'ammunition_projectile_tag',
@@ -384,10 +384,10 @@ AttackDef = namedtuple('AttackDef', [
      'extra_flags',
 ])
 AttackSequenceFmt = """>
-H
-h
-H
-2x
+    H
+    h
+    H
+    2x
 """
 AttackSequence = namedtuple('AttackSequence', [
     'flags',

@@ -49,7 +49,7 @@ def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
             (core_location, core_header, core_data) = loadtags.get_tag_info(tags, data_map, 'core', core_tag_id)
             core_coll = None
             if core_data:
-                core_tag = myth_collection.parse_collection_ref(core_data[64:])
+                core_tag = myth_collection.parse_collection_ref(core_data)
                 core_coll = core_tag.collection_tag
 
             if mons_coll and core_coll and mons_coll != core_coll:
