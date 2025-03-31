@@ -83,6 +83,11 @@ def extract_mesh_tags(mesh_id, tags, data_map):
                 if p['type'] == mesh_tag.ParamType.SOUND:
                     for el in p['elements']:
                         extract_tags.append(('soun', myth_headers.encode_string(el)))
+        elif act['type'] == 'ligh':
+            for p in act['parameters']:
+                if p['type'] == mesh_tag.ParamType.PROJECTILE:
+                    for el in p['elements']:
+                        extract_tags.append(('proj', myth_headers.encode_string(el)))
 
     all_tag_data = [
         (mesh_tag_header, mesh_tag_data)
@@ -124,45 +129,45 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
             soun = myth_sound.parse_soun_header(tag_data)
             yield from get_tag_data('stli', soun.subtitle_string_list_tag, tags, data_map)
 
-        if tag_header.tag_type == 'amso':
+        elif tag_header.tag_type == 'amso':
             amso = myth_sound.parse_amso(tag_data)
             for s in amso.sound_tags:
                 yield from get_tag_data('soun', s, tags, data_map)
 
-        if tag_header.tag_type == 'lpgr':
+        elif tag_header.tag_type == 'lpgr':
             lpgr = myth_projectile.parse_lpgr(tag_data)
             yield from get_tag_data('core', lpgr.collection_reference_tag, tags, data_map)
             yield from get_tag_data('phys', lpgr.physics_tag, tags, data_map)
             yield from get_tag_data('lpgr', lpgr.chain_to_lpgr_tag, tags, data_map)
             yield from get_tag_data('meli', lpgr.local_light_tag, tags, data_map)
 
-        if tag_header.tag_type == 'core':
+        elif tag_header.tag_type == 'core':
             core = myth_collection.parse_collection_ref(tag_data)
             yield from get_tag_data('.256', myth_headers.encode_string(core.collection_tag), tags, data_map)
 
-        if tag_header.tag_type == 'unit':
+        elif tag_header.tag_type == 'unit':
             (mons, core) = mons_tag.parse_unit(tag_data)
             yield from get_tag_data('mons', mons, tags, data_map)
             yield from get_tag_data('core', core, tags, data_map)
 
-        if tag_header.tag_type == 'conn':
+        elif tag_header.tag_type == 'conn':
             conn = myth_tags.parse_connector(tag_data)
             yield from get_tag_data('core', conn.collection_reference_tag, tags, data_map)
 
-        if tag_header.tag_type == 'part':
+        elif tag_header.tag_type == 'part':
             part = myth_tags.parse_particle_sys(tag_data)
             yield from get_tag_data('core', part.collection_reference_tag, tags, data_map)
             yield from get_tag_data('amso', part.ambient_sound_tag, tags, data_map)
             yield from get_tag_data('lpgr', part.splash_local_projectile_group_tag, tags, data_map)
 
-        if tag_header.tag_type == 'medi':
+        elif tag_header.tag_type == 'medi':
             media = myth_tags.parse_media(tag_data)
             yield from get_tag_data('core', media.collection_reference_tag, tags, data_map)
             yield from get_tag_data('lpgr', media.surface_effect_local_projectile_group_tag, tags, data_map)
             for prgr in media.projectile_group_tags:
                 yield from get_tag_data('prgr', prgr, tags, data_map)
 
-        if tag_header.tag_type == 'prgr':
+        elif tag_header.tag_type == 'prgr':
             (prgr_head, proj_list) = myth_projectile.parse_prgr(tag_data)
             yield from get_tag_data('meef', prgr_head.mesh_effect, tags, data_map)
             yield from get_tag_data('sound', prgr_head.sound, tags, data_map)
@@ -171,15 +176,15 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
                 yield from get_tag_data('proj', proj.projectile_tag, tags, data_map)
                 yield from get_tag_data('proj', proj.fail_projectile_tag, tags, data_map)
 
-        if tag_header.tag_type == 'mode':
+        elif tag_header.tag_type == 'mode':
             model = myth_tags.parse_model(tag_data)
             yield from get_tag_data('geom', model.geometry_tag, tags, data_map)
 
-        if tag_header.tag_type == 'geom':
+        elif tag_header.tag_type == 'geom':
             model = myth_tags.parse_geom(tag_data)
             yield from get_tag_data('core', model.collection_reference_tag, tags, data_map)
 
-        if tag_header.tag_type == 'mons':
+        elif tag_header.tag_type == 'mons':
             mons = mons_tag.parse_tag(tag_data)
             yield from get_tag_data('.256', mons.collection_tag, tags, data_map)
             yield from get_tag_data('prgr', mons.burning_death_projectile_group_tag, tags, data_map)
@@ -205,14 +210,14 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
                 if attack:
                     yield from get_tag_data('proj', attack.projectile_tag, tags, data_map)
 
-        if tag_header.tag_type == 'anim':
+        elif tag_header.tag_type == 'anim':
             anim = myth_tags.parse_anim(tag_data)
             yield from get_tag_data('soun', anim.forward_sound_tag, tags, data_map)
             yield from get_tag_data('soun', anim.backward_sound_tag, tags, data_map)
             for frame in anim.frames:
                 yield from get_tag_data('mode', frame.model_tag, tags, data_map)
 
-        if tag_header.tag_type == 'scen':
+        elif tag_header.tag_type == 'scen':
             scenery = myth_tags.parse_scenery(tag_data)
             yield from get_tag_data('core', scenery.collection_reference_tag, tags, data_map)
             yield from get_tag_data('obje', scenery.object_tag, tags, data_map)
@@ -220,7 +225,7 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
             for scen_prgr in scenery.projectile_group_tags:
                 yield from get_tag_data('prgr', scen_prgr, tags, data_map)
 
-        if tag_header.tag_type == 'proj':
+        elif tag_header.tag_type == 'proj':
             proj = myth_projectile.parse_proj(tag_data)
             yield from get_tag_data('core', proj.collection_tag, tags, data_map)
             yield from get_tag_data('prgr', proj.detonation_projectile_group_tag, tags, data_map)
@@ -239,7 +244,7 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
             yield from get_tag_data('lpgr', proj.local_projectile_group_tag, tags, data_map)
             yield from get_tag_data('unit', proj.promotion_unit_tag, tags, data_map)
 
-        if tag_header.tag_type == 'arti':
+        elif tag_header.tag_type == 'arti':
             artifact = mons_tag.parse_artifact(tag_data)
             yield from get_tag_data('mons', artifact.monster_restriction_tag, tags, data_map)
             yield from get_tag_data('.256', artifact.collection_tag, tags, data_map)
@@ -249,7 +254,7 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
             for arti_proj in artifact.projectile_tags:
                 yield from get_tag_data('proj', arti_proj, tags, data_map)
 
-        if tag_header.tag_type == 'ligh':
+        elif tag_header.tag_type == 'ligh':
             lightning = myth_projectile.parse_lightning(tag_data)
             yield from get_tag_data('core', lightning.collection_reference_tag, tags, data_map)
 

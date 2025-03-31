@@ -195,9 +195,11 @@ def build_action_param_element_node(action, param, element, tags, actions, palet
         ):
             color = 'alt_color3'
             suffix = tag_to_suffix(tags, 'unit', element)
+    elif param['type'] == mesh_tag.ParamType.PROJECTILE:
+        suffix = tag_to_suffix(tags, 'proj', element)
     elif param['type'] == mesh_tag.ParamType.SOUND:
         suffix = tag_to_suffix(tags, 'soun', element)
-    if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
+    elif param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
         color = 'alt_color2'
         if element in actions:
             action_ref = element

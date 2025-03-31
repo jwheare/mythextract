@@ -267,19 +267,6 @@ class ParamType(enum.Enum):
     LOCAL_PROJECTILE_GROUP_IDENTIFIER = enum.auto()
     MODEL_ANIMATION_IDENTIFIER = enum.auto()
 
-def is_simple_param(param_type):
-    return param_type in [
-        ParamType.FLAG,
-        ParamType.STRING,
-        ParamType.ANGLE,
-        ParamType.INTEGER,
-        ParamType.WORLD_DISTANCE,
-        ParamType.FIXED,
-        ParamType.WORLD_POINT_2D,
-        ParamType.WORLD_RECTANGLE_2D,
-        ParamType.WORLD_POINT_3D
-    ]
-
 def param_id_marker(param_type, param_name):
     if param_type == ParamType.MONSTER_IDENTIFIER:
         return MarkerType.UNIT
@@ -594,7 +581,7 @@ def encode_map_action_param(game_version, param):
         align_string_len = align(4, elem_count)
         elem_struct = f'{align_string_len}s'
         elem_values = [myth_headers.encode_string(param_elems[0])]
-    elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+    elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
         elem_count = num_elems
         elem_struct = num_elems * '4s'
         elem_values = [myth_headers.encode_string(elem) for elem in param_elems]
@@ -799,7 +786,7 @@ def parse_map_actions(mesh_header, data):
                 align_num_elems = align(4, num_elems)
                 param_bytes = align_num_elems
                 param_struct = f'{align_num_elems}s'
-            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
                 param_bytes = num_elems * 4
                 param_struct = num_elems * '4s'
             elif param_type == ParamType.WORLD_POINT_2D:
@@ -846,7 +833,7 @@ def parse_map_actions(mesh_header, data):
             if param_type == ParamType.STRING:
                 remainder = param_elems[0][num_elems:]
                 param_elems = myth_headers.decode_string(param_elems[0][:num_elems])
-            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME]:
+            elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
                 remainder = param_elems[num_elems:]
                 param_elems = [myth_headers.decode_string(elem) for elem in param_elems[:num_elems]]
             elif param_type == ParamType.FLAG:
