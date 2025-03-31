@@ -321,6 +321,51 @@ def parse_bitmap_instance(data, coll_header):
             )
     return bitmap_indices
 
+SEQ_DATA_SIZE = 64
+SequenceDataFmt = """>
+    L
+    l
+    h
+    h
+    h
+    h
+    h
+    3h
+    4s 4s 4s
+    h
+    h
+    l
+    l
+    l
+    h
+    h
+    h
+    6x
+"""
+SequenceData = namedtuple('SequenceData', [
+    'flags',
+    'pixels_to_world',
+    'number_of_views',
+    'frames_per_view',
+    'ticks_per_frame',
+    'key_frame',
+    'loop_frame',
+    'sound_index_first',
+    'sound_index_key',
+    'sound_index_last',
+    'sound_tag_first',
+    'sound_tag_key',
+    'sound_tag_last',
+    'transfer_mode',
+    'transfer_period',
+    'radius',
+    'height0',
+    'height1',
+    'world_radius',
+    'world_height0',
+    'world_height1',
+])
+
 def parse_sequences(data, coll_header):
     sequence_reference_each_size = (
         coll_header.sequence_references_size // coll_header.sequence_reference_count
@@ -336,17 +381,20 @@ def parse_sequences(data, coll_header):
         sequence_data = data[sequence_reference_start:sequence_reference_end]
         (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', sequence_data)
         seq_start = coll_header.data_offset + seq_offset
-        seq_end = seq_start + seq_size
-        seq_data = data[seq_start:seq_end]
+        seq_end = seq_start + SEQ_DATA_SIZE
+        seq_data = SequenceData._make(struct.unpack(SequenceDataFmt, data[seq_start:seq_end]))
+        if DEBUG_COLL:
+            print(seq_data)
 
-        (num_frames,) = struct.unpack(">H", seq_data[10:12])
-        frame_instances = seq_data[64:]
+        frame_instances = data[seq_end:]
         frame_start = 0
         frame_size = 48
         instances_indices = []
-        for f in range(num_frames):
+        for f in range(seq_data.frames_per_view):
             frame_end = frame_start + frame_size
             (index, ) = struct.unpack(">H", frame_instances[frame_start:frame_end][46:])
+            if DEBUG_COLL:
+                print(f'frame{f} data', frame_instances[frame_start:frame_end][:46].hex())
             instances_indices.append(index)
 
             frame_start = frame_end
@@ -358,7 +406,8 @@ def parse_sequences(data, coll_header):
             )
         sequences.append({
             'name': name,
-            'instance_indices': instances_indices
+            'instance_indices': instances_indices,
+            'metadata': seq_data,
         })
 
     return sequences

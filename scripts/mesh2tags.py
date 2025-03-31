@@ -254,6 +254,14 @@ def get_tag_data(tag_type, tag_id, tags, data_map):
             for arti_proj in artifact.projectile_tags:
                 yield from get_tag_data('proj', arti_proj, tags, data_map)
 
+        elif tag_header.tag_type == '.256':
+            coll_header = myth_collection.parse_collection_header(tag_data, tag_header)
+            sequences = myth_collection.parse_sequences(tag_data, coll_header)
+            for seq in sequences:
+                yield from get_tag_data('soun', seq['metadata'].sound_tag_first, tags, data_map)
+                yield from get_tag_data('soun', seq['metadata'].sound_tag_key, tags, data_map)
+                yield from get_tag_data('soun', seq['metadata'].sound_tag_last, tags, data_map)
+
         elif tag_header.tag_type == 'ligh':
             lightning = myth_projectile.parse_lightning(tag_data)
             yield from get_tag_data('core', lightning.collection_reference_tag, tags, data_map)

@@ -35,7 +35,7 @@ def parse_mons_tag(game_version, tags, data_map, mons_id):
 
     mons = mons_tag.parse_tag(mons_tag_data)
     
-    print_tag(mons, mons_id, tags['mons'][mons_id])
+    print_tag(mons, mons_id, tags['mons'][mons_id], tags, data_map)
 
 def coll_sequences(tags, data_map, coll_tag):
     collection = myth_headers.decode_string(coll_tag)
@@ -43,7 +43,7 @@ def coll_sequences(tags, data_map, coll_tag):
     coll_header = myth_collection.parse_collection_header(data, header)
     return (location, f'{header.tag_id} [{header.name}]', myth_collection.parse_sequences(data, coll_header))
 
-def print_tag(mons, mons_id, locations):
+def print_tag(mons, mons_id, locations, tags, data_map):
     (location, tag_header) = locations[-1]
     print(mons_id, tag_header.name)
     print(location)
@@ -70,6 +70,8 @@ def print_tag(mons, mons_id, locations):
                 val = f'[FF x {len(val.split(b'\xff'))-1}]'
             print(f'{f:<42} {val}')
             # print(f'[{mons_id}] {f} {val} {locations}')
+        if f == 'collection_tag':
+            coll_sequences(tags, data_map, val)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
