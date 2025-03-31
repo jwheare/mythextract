@@ -19,7 +19,7 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 
 def main(game_directory, level, plugin_names):
     """
-    Extracts all related tags from a mesh into a local tree structure
+    Recursively extracts all referenced tags from a mesh into a local tree structure
     """
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 

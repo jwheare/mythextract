@@ -206,6 +206,19 @@ Recursively extracts all referenced tags from a mesh to a local tree. Outputs to
 * `level`: **optional** — if omitted just lists all levels. can be `all` to iterate endpoints or `meshid=<mesh_id>` if the level you want isn't numbered or ambiguous
 * `plugin_names`: **optional** — if provided loads tags from named plugins
 
+## [scripts/tag2local.py](scripts/tag2local.py)
+
+This replaces some functionality of [Chaos](https://tain.totalcodex.net/items/show/chaos-source).
+
+Recursively extracts all referenced tags from a tag into a local tree structure Outputs to `./output/tag2local/[tag_type]/[tag_id]`
+
+    Usage: python3 mesh2tags.py <game_directory> <tag_type> <tag_id> [<plugin_names...>]
+
+* `game_directory`: path to a Myth game directory
+* `tag_type`: 4 character tag type, e.g. `unit`, `arti`, etc
+* `tag_id`: 4 character tag id, e.g. `spid`, `24am`, etc
+* `plugin_names`: **optional** — if provided loads tags from named plugins
+
 # Global environment variables
 
 * `DEBUG=1` prints extra debug output

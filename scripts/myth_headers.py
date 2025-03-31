@@ -262,8 +262,12 @@ def tfl2sb(tfl_header, tag_content):
     )
     return encode_header(sb_header) + tag_content
 
+
 def local_folder(tag_header):
-    return TagTypes[tag_header.tag_type.lower()].lower()
+    return tag_type_name(tag_header.tag_type)
+
+def tag_type_name(tag_type):
+    return TagTypes[tag_type.lower()].lower()
 
 def all_on(val):
     return all(f == b'' for f in val.split(b'\xff'))
