@@ -130,7 +130,7 @@ Script environment variables:
 
 ## [scripts/fixmeshactions.py](scripts/fixmeshactions.py)
 
-Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes
+Fixes mesh actions by removing any unused data stored at the end of the action buffer and fixing header offsets and sizes. Outputs to `./output/fixed_mesh_actions/meshes/[mesh_name]`
 
     Usage: python3 fixmeshactions.py <game_directory> [<level> [<plugin_names> ...]]
 
@@ -153,7 +153,7 @@ Fixes plugin entrypoints by looking up the description tag from the level mesh
 ## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
 
 Load Myth TFL game tags and convert text and stli tags for a given mesh to Myth II format.
-Also maps to the tag ids used by the ports of TFL to Myth II.
+Also maps to the tag ids used by the ports of TFL to Myth II. Outputs to `./output/fixed_tfl_mesh_text/local`
 
     Usage: python3 tflmeshtext2sb.py <game_directory> [<level>]
 
@@ -198,7 +198,7 @@ Prints the headers of a mons tag, or tags
 
 This replaces some functionality of [Chaos](https://tain.totalcodex.net/items/show/chaos-source).
 
-Recursively extracts all referenced tags from a mesh
+Recursively extracts all referenced tags from a mesh to a local tree. Outputs to `./output/mesh2tags/[mesh_name]`
 
     Usage: python3 mesh2tags.py <game_directory> [<level> [<plugin_names...>]]
 
