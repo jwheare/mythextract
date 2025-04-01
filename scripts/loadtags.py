@@ -11,6 +11,7 @@ import mono2tag
 DEBUG = (os.environ.get('DEBUG') == '1')
 IS_VTFL = (os.environ.get('VTFL') == '1')
 FORCE_VTFL = (os.environ.get('FORCE_VTFL') == '1')
+UNITY = os.environ.get('UNITY')
 
 UNITY_1_5 = 'Patch 1.5 Unity'
 UNITY_1_8_5 = 'Patch 1.8.5 Unity'
@@ -54,7 +55,9 @@ Unity185Plugins = [
 ]
 
 def unity(plugin):
-    if plugin in Unity185Plugins:
+    if UNITY:
+        return UNITY
+    elif plugin in Unity185Plugins:
         return UNITY_1_8_5
     else:
         return UNITY_1_5
