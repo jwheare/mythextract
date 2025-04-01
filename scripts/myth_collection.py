@@ -367,48 +367,49 @@ SequenceData = namedtuple('SequenceData', [
 ])
 
 def parse_sequences(data, coll_header):
-    sequence_reference_each_size = (
-        coll_header.sequence_references_size // coll_header.sequence_reference_count
-    )
     sequences = []
-    for c in range(coll_header.sequence_reference_count):
-        sequence_reference_start = (
-            coll_header.data_offset + coll_header.sequence_references_offset
-            + (c * sequence_reference_each_size)
+    if coll_header.sequence_reference_count:
+        sequence_reference_each_size = (
+            coll_header.sequence_references_size // coll_header.sequence_reference_count
         )
-
-        sequence_reference_end = sequence_reference_start + sequence_reference_each_size
-        sequence_data = data[sequence_reference_start:sequence_reference_end]
-        (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', sequence_data)
-        seq_start = coll_header.data_offset + seq_offset
-        seq_end = seq_start + SEQ_DATA_SIZE
-        seq_data = SequenceData._make(struct.unpack(SequenceDataFmt, data[seq_start:seq_end]))
-        if DEBUG_COLL:
-            print(seq_data)
-
-        frame_instances = data[seq_end:]
-        frame_start = 0
-        frame_size = 48
-        instances_indices = []
-        for f in range(seq_data.frames_per_view):
-            frame_end = frame_start + frame_size
-            (index, ) = struct.unpack(">H", frame_instances[frame_start:frame_end][46:])
-            if DEBUG_COLL:
-                print(f'frame{f} data', frame_instances[frame_start:frame_end][:46].hex())
-            instances_indices.append(index)
-
-            frame_start = frame_end
-
-        name = myth_headers.decode_string(seq_name)
-        if DEBUG_COLL:
-            print(
-                f'{c} sequence_reference: {name: <32} unused={seq_unused.hex()}'
+        for c in range(coll_header.sequence_reference_count):
+            sequence_reference_start = (
+                coll_header.data_offset + coll_header.sequence_references_offset
+                + (c * sequence_reference_each_size)
             )
-        sequences.append({
-            'name': name,
-            'instance_indices': instances_indices,
-            'metadata': seq_data,
-        })
+
+            sequence_reference_end = sequence_reference_start + sequence_reference_each_size
+            sequence_data = data[sequence_reference_start:sequence_reference_end]
+            (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', sequence_data)
+            seq_start = coll_header.data_offset + seq_offset
+            seq_end = seq_start + SEQ_DATA_SIZE
+            seq_data = SequenceData._make(struct.unpack(SequenceDataFmt, data[seq_start:seq_end]))
+            if DEBUG_COLL:
+                print(seq_data)
+
+            frame_instances = data[seq_end:]
+            frame_start = 0
+            frame_size = 48
+            instances_indices = []
+            for f in range(seq_data.frames_per_view):
+                frame_end = frame_start + frame_size
+                (index, ) = struct.unpack(">H", frame_instances[frame_start:frame_end][46:])
+                if DEBUG_COLL:
+                    print(f'frame{f} data', frame_instances[frame_start:frame_end][:46].hex())
+                instances_indices.append(index)
+
+                frame_start = frame_end
+
+            name = myth_headers.decode_string(seq_name)
+            if DEBUG_COLL:
+                print(
+                    f'{c} sequence_reference: {name: <32} unused={seq_unused.hex()}'
+                )
+            sequences.append({
+                'name': name,
+                'instance_indices': instances_indices,
+                'metadata': seq_data,
+            })
 
     return sequences
 

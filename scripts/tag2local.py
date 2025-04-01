@@ -17,13 +17,14 @@ def main(game_directory, tag_type, tag_id, plugin_names):
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
-        extract_tags(tag_type, tag_id, tags, data_map)
+        extract_tags(tag_type, tag_id, tags, data_map, plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def extract_tags(tag_type, tag_id, tags, data_map):
+def extract_tags(tag_type, tag_id, tags, data_map, plugin_names):
     all_tag_data = []
-    for td in mesh2tags.get_tag_data(tag_type, myth_headers.encode_string(tag_id), tags, data_map):
+    tdg = mesh2tags.TagDataGenerator(tags, data_map, plugin_names)
+    for td in tdg.get_tag_data(tag_type, myth_headers.encode_string(tag_id)):
         all_tag_data.append(td)
 
     output_dir = f'../output/tag2local/{tag_type}/{tag_id}/local'
