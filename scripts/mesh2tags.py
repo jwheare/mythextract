@@ -16,6 +16,7 @@ import mono2tag
 import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+IS_VTFL = (os.environ.get('VTFL') == '1')
 
 def main(game_directory, level, plugin_names):
     """
@@ -26,7 +27,8 @@ def main(game_directory, level, plugin_names):
     try:
         if level:
             (mesh_id, header_name, entry_name) = mesh2info.parse_level(level, tags)
-            print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]')
+            vtfl = ' [vtfl]' if IS_VTFL else ''
+            print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]{vtfl}')
             extract_mesh_tags(mesh_id, tags, data_map, plugin_names)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
@@ -289,7 +291,7 @@ class TagDataGenerator:
                     for (tree_loc, tree_header) in tree
                 ])
                 if DEBUG:
-                    print(f'{location} {tree_path} {tag_header.name}')
+                    print(f'{location:<32} {tag_type.upper()}.{tag_header.tag_id} {tag_header.name:<32} {tree_path}')
                 yield (tag_header, tag_data)
 
 def prompt(prompt_path):
