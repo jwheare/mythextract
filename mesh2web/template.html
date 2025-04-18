@@ -1,0 +1,71 @@
+<!DOCTYPE html lang="en">
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>$title</title>
+    <meta name="viewport" content="width=640">
+$stylesheets
+    <style>
+@media not print {
+.bg_initial {
+    background-image: url('$bg_initial_path');
+}
+.bg_narration {
+    background-image: url('$bg_narration_path');
+}
+body {
+    color: $narration_color;
+}
+h1 {
+    color: $heading_color;
+}
+.caption {
+    color: $heading_color;
+    top: $caption_top;
+}
+}
+    </style>
+    $next_prefetch
+    <script type="speculationrules">$speculation_rules</script>
+</head>
+<body class="$version_class">
+<div class="frame">
+    <article class="container">
+        <div class="cutscene_container">$cutscene_videos</div>
+        <div class="start" aria-hidden="true">
+            <div class="start_text button_text_shadow">$title_words</div>
+            <div class="start_text button_text_color">$title_words</div>
+        </div>
+        <div class="bg bg_initial"></div>
+        <div class="narration">
+            <div class="bg bg_narration"></div>
+            <h1>$title_words</h1>
+            <p class="caption">$caption</p>
+            <div class="narration_scroll">
+                <div class="narration_text">
+$intro_html
+                </div>
+            </div>
+            <div class="pregame_holder">
+$pregame_images
+            </div>
+        </div>
+    </div>
+    <nav class="next">
+        $next_link
+
+        <span class="skip button">
+            <span class="nav_text skip_text"><span rel="aria-hidden" class="button_text_shadow">Skip</span></span>
+            <span class="nav_text skip_text"><span class="button_text_color">Skip</span></span>
+        </span>
+    </nav>
+</div>
+<audio class="narration_audio"><source type="audio/mp3" src="$audio_path"></audio>
+<script>
+const INITIAL_DELAY = $initial_delay;
+const DURATIONS = $durations;
+const SCROLL_RATE = $scroll_rate;
+</script>
+<script src="$script_path"></script>
+</body>
+</html>

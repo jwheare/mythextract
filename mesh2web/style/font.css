@@ -1,0 +1,44 @@
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Book.woff2") format('woff2');
+  font-weight: 350;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Book-Italic.woff2") format('woff2');
+  font-weight: 350;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Medium.woff2") format('woff2');
+  font-weight: 400;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Medium-Italic.woff2") format('woff2');
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Bold.woff2") format('woff2');
+  font-weight: 700;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-BoldItalic.woff2") format('woff2');
+  font-weight: 700;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Black-Italic.woff2") format('woff2');
+  font-weight: 900;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Hiroshige";
+  src: url("font/Hiroshige-Black.woff2") format('woff2');
+  font-weight: 900;
+}

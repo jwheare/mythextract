@@ -133,7 +133,7 @@ def convert_formatting(text_data):
     return text_data.replace(b'\\', b'|')
 
 def prompt(prompt_path):
-    return True
+    # return True
     response = input(f"Write to: {prompt_path} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 

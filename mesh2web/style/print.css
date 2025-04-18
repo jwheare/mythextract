@@ -1,0 +1,36 @@
+body {
+    font-family: "Hiroshige";
+}
+
+h1 {
+    font-size: 16px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.58px;
+    font-weight: 700;
+}
+h1 span.title_word {
+    display: inline-block;
+}
+h1 span.title_word::first-letter {
+    font-size: 20px;
+}
+.caption {
+    font-variant: small-caps;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+}
+.narration_text {
+    font-size: 14px;
+    line-height: 15px;
+    letter-spacing: 0.19px;
+    font-weight: 350;
+    transform: none !important;
+}
+
+.cutscene_container,
+.start,
+nav {
+    display: none;
+}

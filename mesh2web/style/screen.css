@@ -1,0 +1,332 @@
+body {
+    margin: 20px 0 0 0;
+    padding: 0;
+    color: #fff;
+    font-family: "Hiroshige";
+    background: #000;
+    -webkit-text-size-adjust: 100%;
+}
+p {
+    margin: 0;
+    padding: 0;
+}
+a {
+    text-decoration: none;
+}
+.start {
+    position: relative;
+    font-size: 26px;
+    font-weight: 900;
+    text-align: center;
+    width: 640px;
+    height: 480px;
+    align-content: center;
+    background-repeat: no-repeat;
+    background-position: 0 0;
+    background-size: 640px 480px;
+}
+.start--hide {
+    opacity: 0;
+}
+.start_text {
+    position: absolute;
+    width: 640px;
+    text-transform: uppercase;
+}
+body.tfl .start_text {
+    top: 230px;
+}
+body.sb .start_text {
+    top: 310px;
+}
+.start_text span.title_word {
+    display: inline-block;
+}
+.start_text span.title_word::first-letter {
+    font-size: 32px;
+}
+.button {
+    cursor: pointer;
+}
+.button_text_color {
+    color: transparent;
+    background-clip: text;
+}
+.button_text_shadow {
+    color: transparent;
+}
+body.tfl .start {
+    background-image: url("img/menu-tfl.png");
+}
+body.tfl .button_text_color {
+    background-image: linear-gradient(178deg, rgb(248 147 0) 20%, rgb(248 147 0) 100%);
+}
+body.tfl .button_text_shadow {
+    text-shadow:
+        1px 0px 1px #000,
+        0px 1px 1px #000,
+        1px 1px 1px #000,
+        -1px 0px 1px #000,
+        0px -1px 1px #000,
+        -1px -1px 1px #000,
+        0px 0px 1px #000,
+
+        2px 2px 5px #000,
+        2px 2px 5px #000,
+        2px 2px 5px #000,
+        2px 2px 5px #000;
+}
+body.tfl .container:hover .button_text_color,
+body.tfl .button:hover .button_text_color {
+    background-image: linear-gradient(178deg, rgb(250 195 13) 20%, rgb(250 195 13) 100%);
+}
+body.tfl .container:hover .button_text_shadow,
+body.tfl .button:hover .button_text_shadow {
+    text-shadow:
+        -1px 0px 1px rgb(108 27 9),
+        0px -1px 1px rgb(108 27 9),
+        -1px -1px 1px rgb(108 27 9),
+        1px 0px 1px rgb(108 27 9),
+        0px 1px 1px rgb(108 27 9),
+        1px 1px 1px rgb(108 27 9),
+        0px 0px 1px rgb(108 27 9),
+
+        -2px 0px 3px rgb(122 30 10),
+        0px -2px 3px rgb(122 30 10),
+        -2px -2px 3px rgb(122 30 10),
+        2px 0px 3px rgb(122 30 10),
+        0px 2px 3px rgb(122 30 10),
+        2px 2px 3px rgb(122 30 10),
+        0px 0px 3px rgb(122 30 10);
+}
+body.sb .start {
+    background-image: url("img/menu-sb.png");
+}
+body.sb .button_text_color {
+    background-image: linear-gradient(178deg, rgb(170 170 170) 20%, rgb(40 40 40) 100%);
+}
+body.sb .button_text_shadow {
+    text-shadow:
+        1px 0px 1px #000,
+        0px 1px 1px #000,
+        1px 1px 1px #000,
+        -1px 0px 1px #000,
+        0px -1px 1px #000,
+        -1px -1px 1px #000,
+        0px 0px 1px #000,
+
+        2px 2px 5px #000,
+        2px 2px 5px #000,
+        2px 2px 5px #000,
+        2px 2px 5px #000;
+}
+body.sb .container:hover .button_text_color,
+body.sb .button:hover .button_text_color {
+    background-image: linear-gradient(180deg, rgb(150 170 190) 30%, rgb(80 120 150) 100%);
+}
+body.sb .container:hover .button_text_shadow,
+body.sb .button:hover .button_text_shadow {
+    text-shadow:
+        -1px 0px 1px rgb(12 49 85),
+        0px -1px 1px rgb(12 49 85),
+        -1px -1px 1px rgb(12 49 85),
+        1px 0px 1px rgb(12 49 85),
+        0px 1px 1px rgb(12 49 85),
+        1px 1px 1px rgb(12 49 85),
+        0px 0px 1px rgb(12 49 85),
+
+        -2px 0px 3px rgb(6 51 89),
+        0px -2px 3px rgb(6 51 89),
+        -2px -2px 3px rgb(6 51 89),
+        2px 0px 3px rgb(6 51 89),
+        0px 2px 3px rgb(6 51 89),
+        2px 2px 3px rgb(6 51 89),
+        0px 0px 3px rgb(6 51 89);
+}
+.container {
+    position: relative;
+    margin: 0 auto;
+    width: 640px;
+    height: 480px;
+    background-color: #000;
+    cursor: pointer;
+}
+body.playing .container {
+    cursor: auto;
+}
+nav {
+    position: relative;
+    width: 640px;
+    margin: 0 auto;
+}
+.next_link {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 120px;
+}
+.nav_text {
+    display: block;
+    position: absolute;
+    top: 0;
+    padding: 40px 0;
+    align-content: center;
+}
+.next_text {
+    left: 0;
+    text-align: center;
+    width: 640px;
+}
+.skip {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 200px;
+    height: 120px;
+    opacity: 0;
+    transition: opacity 0.8s linear;
+}
+.skip--show {
+    opacity: 1;
+    display: block;
+}
+.skip_text {
+    right: 0;
+    width: auto;
+    text-align: right;
+}
+
+nav .button_text_color,
+nav .button_text_shadow {
+    display: inline-block;
+    text-transform: uppercase;
+    font-size: 23px;
+    line-height: 29px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+nav .button_text_color::first-letter,
+nav .button_text_shadow::first-letter {
+    font-size: 29px
+}
+.bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 480px;
+}
+.bg_initial {
+    opacity: 0;
+    transition: opacity 0.8s linear;
+}
+.bg_initial--show {
+    opacity: 1;
+}
+.narration {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 480px;
+    overflow: hidden;
+
+    opacity: 0;
+    transition: opacity 0.8s linear;
+}
+.narration--show {
+    opacity: 1;
+}
+h1 {
+    margin: 0;
+    padding: 0;
+    position: absolute;
+    top: 15px;
+    left: 16px;
+    font-size: 16px;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.58px;
+    font-weight: 700;
+}
+h1 span.title_word {
+    display: inline-block;
+}
+h1 span.title_word::first-letter {
+    font-size: 20px;
+}
+.narration_scroll {
+    width: 640px;
+    height: 480px;
+    mask-image: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0) 47px,
+        rgba(0, 0, 0, 1) 62px,
+        rgba(0, 0, 0, 1) 424px,
+        rgba(0, 0, 0, 0) 439px
+    );
+}
+.narration_text {
+    position: absolute;
+    top: 430px;
+    left: 319px;
+    width: 310px;
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 15px;
+    letter-spacing: 0.19px;
+}
+body.sb.epilogue h1 {
+    display: none;
+}
+body.sb.epilogue .narration_text {
+    left: 43px;
+    width: 553px;
+}
+.pregame_holder {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    width: 320px;
+    height: 265px;
+}
+.pregame {
+    position: absolute;
+    top: 0;
+    left: 13px;
+    opacity: 0;
+    transition: opacity 0.8s linear;
+}
+.pregame--show {
+    opacity: 1;
+}
+
+.caption {
+    position: absolute;
+    left: 18px;
+    width: 290px;
+    height: 265px;
+    font-variant: small-caps;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    font-weight: 700;
+}
+
+.cutscene_container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 640px;
+    height: 480px;
+    align-content: center;
+}
+
+.cutscene_container video {
+    opacity: 0;
+}
+.cutscene_container .video--show {
+    opacity: 1;
+}

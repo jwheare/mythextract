@@ -166,7 +166,7 @@ def decode_text(text):
     return text.decode('mac-roman').replace('\r', '\n')
 
 def prompt(prompt_path):
-    return True
+    # return True
     response = input(f"Write to: {prompt_path} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
