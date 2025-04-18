@@ -7,6 +7,7 @@ import re
 from collections import OrderedDict
 
 import myth_headers
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -98,11 +99,12 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
 
 def get_entrypoints(data, mono_header):
     entrypoints = []
-    for i in range(mono_header.entry_tag_count):
-        start = mono_header.header_size + (i * myth_headers.ENTRY_TAG_HEADER_SIZE)
-        end = start + myth_headers.ENTRY_TAG_HEADER_SIZE
-        entry_tag_header_data = data[start:end]
-        (entry_id, entry_name, entry_long_name) = struct.unpack('>16s 32s 64s', entry_tag_header_data)
+    for (entry_id, entry_name, entry_long_name) in utils.iter_unpack(
+        mono_header.header_size,
+        mono_header.entry_tag_count,
+        '>16s 32s 64s',
+        data
+    ):
         entry_id = myth_headers.decode_string(entry_id)
         entry_name = myth_headers.decode_string(entry_name)
         entry_long_name = myth_headers.decode_string(entry_long_name)
@@ -143,10 +145,19 @@ Entrypoints{suffix}
  id   | archive                                  | name                             | printable name
 ------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""
     )
-    for entry_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():
-        archive_name = ' < '.join(archive_list)
-        print(f' {entry_id: <4} | {archive_name: <40} | {entry_name:<32} | {format_entry_name(entry_long_name, entry_name)}')
+    for entry_id, entrypoint in entrypoint_map.items():
+        print(entrypoint_entry(entry_id, entrypoint))
     print('---')
+
+def entrypoint_entry(entry_id, entrypoint):
+    (entry_name, entry_long_name, archive_list) = entrypoint
+    archive_name = ' < '.join(archive_list)
+    return (
+        f' {entry_id: <4} |'
+        f' {archive_name: <40} |'
+        f' {entry_name:<32} |'
+        f' {format_entry_name(entry_long_name, entry_name)}'
+    )
 
 def seek_tag(tags, tag_type, tag_id, data, mono_header):
     for (i, tag_header) in tags:

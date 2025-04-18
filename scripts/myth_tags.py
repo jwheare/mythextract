@@ -3,6 +3,7 @@ from collections import namedtuple
 import struct
 
 import myth_headers
+import utils
 
 CONNECTOR_SIZE = 128
 ConnectorFmt = """>
@@ -256,17 +257,12 @@ def parse_anim(data):
     anim = parse_tag(data, ANIM_SIZE, Anim, AnimFmt)
 
     frames = []
-    frame_start = 0
-    for i in range(MAX_ANIM_FRAMES):
-        frame_end = frame_start + ANIM_FRAME_SIZE
-        frame = AnimFrame._make(
-            struct.unpack(
-                AnimFrameFmt,
-                anim.frames[frame_start:frame_end]
-            )
-        )
+    for values in utils.iter_struct(
+        0, MAX_ANIM_FRAMES,
+        AnimFrameFmt, anim.frames
+    ):
+        frame = AnimFrame._make(values)
         frames.append(frame)
-        frame_start = frame_end
     return anim._replace(
         frames=frames
     )

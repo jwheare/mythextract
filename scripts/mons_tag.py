@@ -5,6 +5,7 @@ import os
 import struct
 
 import myth_headers
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -503,16 +504,12 @@ def parse_unit(data):
 
 def parse_attack_sequences(seq_data):
     sequences = []
-    for i in range(MAX_ATTACK_SEQS):
-        start = ATTACK_SEQ_SIZE * i
-        end = start + ATTACK_SEQ_SIZE
-        data = seq_data[start:end]
-        if myth_headers.all_off(data):
+    for values in utils.iter_unpack(0, MAX_ATTACK_SEQS, AttackSequenceFmt, seq_data):
+        seq = AttackSequence._make(values)
+        if seq.sequence_index == -1:
             sequences.append(None)
         else:
-            sequences.append(AttackSequence._make(
-                struct.unpack(AttackSequenceFmt, data)
-            ))
+            sequences.append(seq)
     return sequences
 
 def encode_attack_sequences(sequences):
@@ -526,16 +523,11 @@ def encode_attack_sequences(sequences):
 
 def parse_attack_defs(def_data):
     attacks = []
-    for i in range(MAX_ATTACKS):
-        start = ATTACK_DEF_SIZE * i
-        end = start + ATTACK_DEF_SIZE
-        data = def_data[start:end]
-        if myth_headers.all_off(data):
+    for values in utils.iter_unpack(0, MAX_ATTACKS, AttackDefFmt, def_data):
+        attack = AttackDef._make(values)
+        if myth_headers.all_off(attack.projectile_tag):
             attacks.append(None)
         else:
-            attack = AttackDef._make(
-                struct.unpack(AttackDefFmt, data)
-            )
             attacks.append(attack._replace(
                 sequences=parse_attack_sequences(attack.sequences)
             ))

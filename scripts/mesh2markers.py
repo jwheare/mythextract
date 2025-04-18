@@ -54,7 +54,6 @@ def print_markers(mesh_tag_location, mesh_tag_header, tags, data_map, palette, o
                 f'team={p_val['team_index']} '
                 f'{flags}'
                 f'{netgame}'
-                f'count={p_val['_unreliable_count']}? '
             )
 
             for marker_id, marker in p_val['markers'].items():

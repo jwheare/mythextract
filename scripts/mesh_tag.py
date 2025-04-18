@@ -5,6 +5,7 @@ import os
 import struct
 
 import myth_headers
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
@@ -33,15 +34,22 @@ TIME_SF = 30
 # unused
 # 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
 ActionHeadFmt = """>
-H H
-4s
-L L L
-H
-H
-L
-H
-34x
+    H H
+    4s
+    L
+    L L
+    H H L
+    H
+    34x
 """
+ActionHead = namedtuple('ActionHead', [
+    'id', 'expiration_mode',
+    'type',
+    'flags',
+    'trigger_time_lower_bound', 'trigger_time_delta',
+    'num_params', 'size', 'offset',
+    'indent',
+])
 
 MeshHeaderFmt = """>
     4s 4s
@@ -57,7 +65,7 @@ l
 
 h h 8s 8s
 l h
-H
+B B
 8s
 4s
 L L L
@@ -89,7 +97,7 @@ L L L L
 4s
 4s
 32s
-H H
+L
 f
 
 468x
@@ -108,7 +116,7 @@ MeshHeader = namedtuple('MeshHeader', [
 
     'dark_fraction', 'light_fraction', 'dark_color', 'light_color',
     'transition_point', 'ceiling_height',
-    'unused1',
+    'min_vtfl_version', 'max_vtfl_version',
     'edge_of_mesh_buffer_zones',
     'global_ambient_sound_tag',
     'map_action_count', 'map_actions_offset', 'map_action_buffer_size',
@@ -141,7 +149,6 @@ MeshHeader = namedtuple('MeshHeader', [
     'team_names_override_string_list_tag',
     'plugin_name',
     'extra_flags',
-    'unused2',
     'minimum_zoom_factor',
 
     # Runtime
@@ -193,6 +200,49 @@ MeshHeader = namedtuple('MeshHeader', [
 #     [anim] -> mode -> geom -> core -> .256
 #     [anim] -> soun
 
+
+# 00000000 0003 0002 28DD(10461) 0000 0000BC4A(48202) 00008CB9(36025) 000005B7(1463)
+#                    m_id           posx            posy            posz
+# [8x00] 0000(00000) 0000 0000 [20x00] 0000        06EA(i=1770) 7916(30998)
+#        yaw angle (/182.05)           player_idx  data_idx       data_id
+MarkerHeadFmt = """>
+    L H H
+    H H
+    L L l
+    8x
+    H
+    2x 2x 20x
+
+    6x
+"""
+MarkerHead = namedtuple('MarkerHead', [
+    'flags', 'type', 'palette_index',
+    'id', 'min_difficulty',
+    'pos_x', 'pos_y', 'pos_z',
+    'yaw',
+    # Runtime
+    # player_index, data_index, data_id
+])
+
+# type flag tag             team pad  netgame_flags unused_flags  unused                   runtime
+# 0003 0004 64776172 [dwar] 0000 0000 0000          FFFF          0000 0000 0000 0000 0000 0000 0002  0000
+MarkerPaletteEntryFmt = """>
+    H H
+    4s
+    h 2x
+    L
+    10x
+
+    6x
+"""
+
+MarkerPaletteEntry = namedtuple('MarkerPaletteEntry', [
+    'type', 'flags',
+    'marker_tag',
+    'team_index',
+    'netgame_flags'
+])
+
 class MeshFlags(enum.Flag, boundary=enum.CONFORM):
     BODY_COUNT = enum.auto()
     STEAL_THE_BACON = enum.auto()
@@ -227,8 +277,11 @@ class MeshFlags(enum.Flag, boundary=enum.CONFORM):
     USES_VTFL = enum.auto()
     REQUIRES_PLUGIN = enum.auto()
 
-class ExtraFlags(enum.Flag, boundary=enum.CONFORM):
+class ExtraFlags(enum.Flag):
     LAST_LEVEL = enum.auto()
+    PREGAME_CUTSCENE_BEFORE_NARRATION = enum.auto()
+    PREGAME_CUTSCENE_AFTER_NARRATION = enum.auto()
+    SECRET_LEVEL = enum.auto()
 
 class ActionFlag(enum.Flag):
     INITIALLY_ACTIVE = enum.auto()
@@ -398,10 +451,8 @@ def align(align_bytes, value):
     return (value + (align_bytes-1)) & (align_bytes * -1)
 
 def parse_header(data):
-    mesh_header_start = myth_headers.TAG_HEADER_SIZE
-    mesh_header_end = mesh_header_start + MESH_HEADER_SIZE
     mesh_header = MeshHeader._make(
-        struct.unpack(MeshHeaderFmt, data[mesh_header_start:mesh_header_end])
+        struct.unpack_from(MeshHeaderFmt, data, offset=myth_headers.TAG_HEADER_SIZE)
     )
     return mesh_header._replace(
         flags=MeshFlags(mesh_header.flags),
@@ -446,6 +497,23 @@ def encode_header(header):
 def get_offset(offset):
     return myth_headers.TAG_HEADER_SIZE + MESH_HEADER_SIZE + offset
 
+def parse_palette_entry(values):
+    entry = MarkerPaletteEntry._make(values)
+    entry = entry._replace(
+        marker_tag=myth_headers.decode_string(entry.marker_tag),
+        flags=MarkerPaletteFlag(entry.flags),
+        netgame_flags=NetgameFlag(entry.netgame_flags),
+        type=MarkerType(entry.type)
+    )
+    return {
+        'flags': entry.flags,
+        'type': entry.type,
+        'tag': entry.marker_tag,
+        'team_index': entry.team_index,
+        'netgame_flags': entry.netgame_flags,
+        'markers': {},
+    }
+
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)
     marker_palette_end = marker_palette_start + mesh_header.marker_palette_size
@@ -456,46 +524,14 @@ def parse_markers(mesh_header, data):
         'markers': {},
         'count': 0,
     }
-    palette_start = 0
-    for i in range(mesh_header.marker_palette_entries):
-        palette_end = palette_start + PALETTE_SIZE
-
-        (
-            p_type, p_flags, marker_tag, team_index, _, unused_flags, netgame_flags, _,
-            # Don't rely on runtime values
-            _player_index, _unreliable_count, _tag_index
-        ) = struct.unpack(
-            # type flag tag             team pad  netgame_flags unused_flags  unused                   runtime
-            # 0003 0004 64776172 [dwar] 0000 0000 0000          FFFF          0000 0000 0000 0000 0000 0000 0002  0000
-            """>
-            H H
-            4s
-            h h
-            H H
-            10s
-
-            H H H
-            """,
-            marker_palette_data[palette_start:palette_end]
-        )
-        marker_tag = myth_headers.decode_string(marker_tag)
-
-        p_type = MarkerType(p_type)
-        palette_list = palette.get(p_type, [])
-        palette_list.append({
-            'idx': i,
-            'flags': MarkerPaletteFlag(p_flags),
-            'type': p_type,
-            'tag': marker_tag,
-            'team_index': team_index,
-            'netgame_flags': NetgameFlag(netgame_flags),
-            '_unreliable_count': _unreliable_count,
-            'markers': {},
-            'data': marker_palette_data[palette_start:palette_end]
-        })
-        palette[p_type] = palette_list
-
-        palette_start = palette_end
+    for values in utils.iter_unpack(
+        0, mesh_header.marker_palette_entries,
+        MarkerPaletteEntryFmt, marker_palette_data
+    ):
+        entry = parse_palette_entry(values)
+        palette_list = palette.get(entry['type'], [])
+        palette_list.append(entry)
+        palette[entry['type']] = palette_list
 
     if DEBUG_MARKERS:
         print('Palette')
@@ -508,67 +544,45 @@ def parse_markers(mesh_header, data):
     marker_end = marker_start + mesh_header.markers_size
     marker_data = data[marker_start:marker_end]
 
-    m_start = 0
-    for i in range(mesh_header.marker_count):
-        m_end = m_start + MARKER_SIZE
-        # 00000000 0003 0002 28DD(10461) 0000 0000BC4A(48202) 00008CB9(36025) 000005B7(1463)
-        #                    m_id           posx            posy            posz
-        # [8x00] 0000(00000) 0000 0000 [20x00] 0000        06EA(i=1770) 7916(30998)
-        #        yaw angle (/182.05)           player_idx  data_idx       data_id
-        (
-            m_flags, m_type, m_palette_index,
-            m_id, min_difficulty,
-            pos_x, pos_y, pos_z,
-            _,
-            yaw,
-            m3, m4, _,
-            # Don't rely on
-            _m_player_index, _m_data_index, _m_data_id
-        ) = struct.unpack(
-            """>
-            L H H
-            H H
-            L L l
-            8s
-            H
-            H H 20s
-
-            H H H
-            """,
-            marker_data[m_start:m_end]
-        )
-        m_type = MarkerType(m_type)
-        palette_item = None
-        if (m_type in palette) and (m_palette_index < len(palette[m_type])):
-            palette_item = palette[m_type][m_palette_index]
-
-        pos = (pos_x / WORLD_POINT_SF, pos_y / WORLD_POINT_SF, pos_z / WORLD_POINT_SF)
-        facing = yaw / ANGLE_SF
-
-        marker = {
-            'marker_id': m_id,
-            'type': m_type,
-            'palette_index': m_palette_index,
-            'tag': palette_item['tag'] if palette_item else None,
-            'flags': MarkerFlag(m_flags),
-            'm3': m3,
-            'm4': m4,
-            'min_difficulty': min_difficulty,
-            'facing': facing,
-            'pos': pos
-        }
-
+    for values in utils.iter_unpack(
+        0, mesh_header.marker_count,
+        MarkerHeadFmt, marker_data
+    ):
+        (marker, palette_item) = parse_marker_head(values, palette)
         if palette_item:
-            palette_item['markers'][m_id] = marker
+            palette_item['markers'][marker['marker_id']] = marker
         else:
-            if m_type not in orphans['markers']:
-                orphans['markers'][m_type] = {}
-            orphans['markers'][m_type][m_id] = marker
+            if marker['type'] not in orphans['markers']:
+                orphans['markers'][marker['type']] = {}
+            orphans['markers'][marker['type']][marker['marker_id']] = marker
             orphans['count'] = orphans['count'] + 1
 
-        m_start = m_end
-
     return (palette, orphans)
+
+def parse_marker_head(values, palette):
+    mhead = MarkerHead._make(values)
+    mhead = mhead._replace(
+        type=MarkerType(mhead.type),
+        flags=MarkerFlag(mhead.flags)
+    )
+    palette_item = None
+    if (mhead.type in palette) and (mhead.palette_index < len(palette[mhead.type])):
+        palette_item = palette[mhead.type][mhead.palette_index]
+
+    pos = (mhead.pos_x / WORLD_POINT_SF, mhead.pos_y / WORLD_POINT_SF, mhead.pos_z / WORLD_POINT_SF)
+    facing = mhead.yaw / ANGLE_SF
+
+    marker = {
+        'marker_id': mhead.id,
+        'type': mhead.type,
+        'palette_index': mhead.palette_index,
+        'tag': palette_item['tag'] if palette_item else None,
+        'flags': mhead.flags,
+        'min_difficulty': mhead.min_difficulty,
+        'facing': facing,
+        'pos': pos
+    }
+    return (marker, palette_item)
 
 def encode_map_action_param(game_version, param):
     param_type = param['type']
@@ -724,6 +738,21 @@ def encode_map_actions(mesh_tag_data, actions):
     (map_action_count, map_action_data) = encode_map_action_data(myth_headers.game_version(tag_header), actions)
     return rewrite_action_data(map_action_count, map_action_data, mesh_tag_data)
 
+def parse_action_head(values):
+    # action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent
+    action_head = ActionHead._make(values)
+    if all(f == b'' for f in action_head.type.split(b'\xff')):
+        type = None
+    else:
+        type = myth_headers.decode_string(action_head.type)
+    return action_head._replace(
+        type=type,
+        expiration_mode=ActionExpiration(action_head.expiration_mode),
+        flags=ActionFlag(action_head.flags),
+        trigger_time_lower_bound=action_head.trigger_time_lower_bound / TIME_SF,
+        trigger_time_delta=action_head.trigger_time_delta / TIME_SF,
+    )
+
 def parse_map_actions(mesh_header, data):
     tag_header = myth_headers.parse_header(data)
     game_version = myth_headers.game_version(tag_header)
@@ -733,28 +762,21 @@ def parse_map_actions(mesh_header, data):
 
     num_actions = mesh_header.map_action_count
 
-    action_start = 0
     action_head_end = num_actions * ACTION_HEAD_SIZE
     action_data_end = 0
     ends = [0]
     actions = OrderedDict()
-    for i in range(num_actions):
-        action_end = action_start + ACTION_HEAD_SIZE
+    for values in utils.iter_unpack(
+        0, num_actions,
+        ActionHeadFmt, map_action_data
+    ):
+        action_head = parse_action_head(values)
 
-        (
-            action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent
-        ) = struct.unpack(ActionHeadFmt, map_action_data[action_start:action_end])
-
-        if all(f == b'' for f in action_type.split(b'\xff')):
-            action_type = None
-        else:
-            action_type = myth_headers.decode_string(action_type)
-
-        action_data_start = action_head_end + offset
-        action_data_end = action_data_start + size
+        action_data_start = action_head_end + action_head.offset
+        action_data_end = action_data_start + action_head.size
         action_data = map_action_data[action_data_start:action_data_end]
 
-        param_remain = num_params
+        param_remain = action_head.num_params
         param_start = 0
         name = ''
         parameters = []
@@ -767,7 +789,7 @@ def parse_map_actions(mesh_header, data):
             param_name = myth_headers.decode_string(param_name)
 
             if DEBUG_ACTIONS:
-                print(action_id, action_type, param_head_data.hex(), param_name, param_type, end=' ')
+                print(action_head.id, action_head.type, param_head_data.hex(), param_name, param_type, end=' ')
 
             param_type = ParamType(param_type)
             scale_factor = None
@@ -884,17 +906,16 @@ def parse_map_actions(mesh_header, data):
 
         ends.append(action_data_end)
 
-        actions[action_id] = {
-            'type': action_type,
-            'action_id': action_id,
-            'expiration_mode': ActionExpiration(expiration_mode),
+        actions[action_head.id] = {
+            'type': action_head.type,
+            'action_id': action_head.id,
+            'expiration_mode': action_head.expiration_mode,
             'name': name,
-            'flags': ActionFlag(flags),
-            'trigger_time_lower_bound': trigger_time_lower_bound / TIME_SF,
-            'trigger_time_delta': trigger_time_delta / TIME_SF,
+            'flags': action_head.flags,
+            'trigger_time_lower_bound': action_head.trigger_time_lower_bound,
+            'trigger_time_delta': action_head.trigger_time_delta,
             'parameters': parameters,
-            'indent': indent,
+            'indent': action_head.indent,
         }
-        action_start = action_end
     action_remainder = map_action_data[max(ends):]
     return (actions, action_remainder)

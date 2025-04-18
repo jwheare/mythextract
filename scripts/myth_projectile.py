@@ -4,6 +4,7 @@ import os
 import struct
 
 import myth_headers
+import utils
 
 DEBUG_PROJ = (os.environ.get('DEBUG_PROJ') == '1')
 
@@ -298,11 +299,11 @@ def parse_prgr(data):
 
     proj_list = []
     proj_start = end
-    for i in range(prgr_head.number_of_parts):
-        proj_end = proj_start + PRGR_PROJ_SIZE
-        proj = PrgrProj._make(struct.unpack(PrgrProjFmt, data[proj_start:proj_end]))
-        proj_list.append(proj)
-        proj_start = proj_end
+    for values in utils.iter_unpack(
+        proj_start, prgr_head.number_of_parts,
+        PrgrProjFmt, data
+    ):
+        proj_list.append(PrgrProj._make(values))
 
     return (prgr_head, proj_list)
 

@@ -5,6 +5,7 @@ import os
 import struct
 
 import myth_headers
+import utils
 
 DEBUG_COLL = (os.environ.get('DEBUG_COLL') == '1')
 
@@ -119,13 +120,15 @@ D256RefFmt = """>
 
     H H
     H H
-
     L
 
     H H
+    L
 
-    24x
+    20x
 """
+class D256RefFlags(enum.Flag):
+    UNMIRROR = enum.auto()
 
 D256Ref = namedtuple('D256Ref', [
     'name',
@@ -136,10 +139,10 @@ D256Ref = namedtuple('D256Ref', [
 
     'original_reference_point_x', 'original_reference_point_y',
     'detail_reference_point_x', 'detail_reference_point_y',
-
     'detail_pixels_to_world',
 
     'original_width', 'original_height',
+    'flags',
 ])
 
 HueChangeFmt = """>
@@ -162,7 +165,7 @@ HueChange = namedtuple('HueChange', [
 Header256Size = 320
 Header256Fmt = """>
     I I
-    28H
+    56x
 
     I I I I
     I I I I
@@ -174,15 +177,14 @@ Header256Fmt = """>
     I I I I
     
     I I
-    24H
+    48x
     I I I I
-    20H
-    16c
+    40x
+    16x
 """
 Header256 = namedtuple("Header256", [
     'flags',
     'user_data',
-    *[f'unused_{i}' for i in range(1,29)],
     'color_table_count', 'color_tables_offset', 'color_tables_size', 'color_tables',
     'hue_change_count', 'hue_changes_offset', 'hue_changes_size', 'hue_changes',
     'bitmap_reference_count', 'bitmap_references_offset', 'bitmap_references_size', 'bitmap_references',
@@ -192,10 +194,7 @@ Header256 = namedtuple("Header256", [
     'blend_table_count', 'blend_tables_offset', 'blend_tables_size', 'blend_tables',
     'remapping_table_count', 'remapping_tables_offset', 'remapping_tables_size', 'remapping_tables',
     'shading_table_count', 'shading_table_pointers',
-    *[f'unused_{i}' for i in range(29,53)],
     'data_offset', 'data_size', 'data_delta', 'data',
-    *[f'unused_{i}' for i in range(53,73)],
-    *[f'extractor_{i}' for i in range(1,17)],
 ])
 
 BITMAP_META_SIZE = 52
@@ -266,8 +265,7 @@ def parse_hue_permutations(colref):
         hues = []
         for hue_i in range(hue_len):
             hue_end = hue_start + color_size
-            (r, g, b, flags) = parse_color(colref.colors[hue_start:hue_end])
-            hues.append((r, g, b, flags))
+            hues.append(parse_color(colref.colors[hue_start:hue_end]))
             hue_start = hue_end
         perms.append(hues)
     return perms
@@ -279,46 +277,60 @@ def parse_color_table(data, coll_header):
     color_table_start = coll_header.data_offset + coll_header.color_tables_offset
     color_table_end = color_table_start + coll_header.color_tables_size
     color_table_data = data[color_table_start:color_table_end]
-    (ct_count, ct_unused) = struct.unpack('>I 28s', color_table_data[:32])
+    color_table_head_end = 32
+    (ct_count, ct_unused) = struct.unpack('>I 28s', color_table_data[:color_table_head_end])
     
     if DEBUG_COLL:
         print(f'color table {ct_count}')
     
     color_table = []
-    for cc in range(ct_count):
-        cc_start = 32 + (cc * 8)
-        cc_end = cc_start + 8
-        (r, _, g, _, b, _, cc_flags) = struct.unpack('>B c B c B c H', color_table_data[cc_start:cc_end])
+    for cc, (r, g, b, cc_flags) in enumerate(utils.iter_unpack(
+        color_table_head_end, ct_count,
+        '>Bx Bx Bx H', color_table_data
+    )):
         color_table.append((r, g, b, cc_flags))
         if DEBUG_COLL:
             print(f'\x1b[48;2;{r};{g};{b}m  \x1b[0m', end='')
-            if ((cc % 25) == 24):
+            if (cc == (ct_count - 1) or (cc % 25) == 24):
                 print()
-    if DEBUG_COLL:
-        # print(color_table)
-        print('\n')
     return color_table
 
+BitmapInstanceFmt = """>
+    L
+
+    8x
+    H H
+
+    8x
+    H H
+
+    H
+    H
+    l
+    H H
+
+    8x
+    16x
+"""
+BitmapInstance = namedtuple('BitmapInstance', [
+    'flags',
+    'reg_point_x', 'reg_point_y',
+    'key_point_x', 'key_point_y',
+    'bitmap_index',
+    'highres_bitmap_index',
+    'highres_pixels_to_world',
+    'highres_reg_point_x', 'highres_reg_point_y',
+])
+
 def parse_bitmap_instance(data, coll_header):
-    bitmap_instance_each_size = (
-        coll_header.bitmap_instances_size // coll_header.bitmap_instance_count
-    )
     bitmap_indices = []
-    for c in range(coll_header.bitmap_instance_count):
-        bitmap_instance_start = (
-            coll_header.data_offset + coll_header.bitmap_instances_offset
-            + (c * bitmap_instance_each_size)
-        )
-
-        bitmap_instance_end = bitmap_instance_start + bitmap_instance_each_size
-        bitmap_instance_data = data[bitmap_instance_start:bitmap_instance_end]
-
-        (bitmap_index, ) = struct.unpack(">h", bitmap_instance_data[28:30])
-        bitmap_indices.append(bitmap_index)
-        if DEBUG_COLL:
-            print(
-                f'bitmap_instance: {c} {bitmap_instance_data.hex()}'
-            )
+    bitmap_instance_start = coll_header.data_offset + coll_header.bitmap_instances_offset
+    for values in utils.iter_unpack(
+        bitmap_instance_start, coll_header.bitmap_instance_count,
+        BitmapInstanceFmt, data
+    ):
+        bitmap_instance = BitmapInstance._make(values)
+        bitmap_indices.append(bitmap_instance.bitmap_index)
     return bitmap_indices
 
 SEQ_DATA_SIZE = 64
@@ -369,41 +381,33 @@ SequenceData = namedtuple('SequenceData', [
 def parse_sequences(data, coll_header):
     sequences = []
     if coll_header.sequence_reference_count:
-        sequence_reference_each_size = (
-            coll_header.sequence_references_size // coll_header.sequence_reference_count
-        )
-        for c in range(coll_header.sequence_reference_count):
-            sequence_reference_start = (
-                coll_header.data_offset + coll_header.sequence_references_offset
-                + (c * sequence_reference_each_size)
-            )
-
-            sequence_reference_end = sequence_reference_start + sequence_reference_each_size
-            sequence_data = data[sequence_reference_start:sequence_reference_end]
-            (seq_name, seq_offset, seq_size, seq_unused) = struct.unpack('>64s I I 56s', sequence_data)
+        sequence_reference_start = coll_header.data_offset + coll_header.sequence_references_offset
+        for i, (seq_name, seq_offset, seq_size, seq_unused) in enumerate(utils.iter_unpack(
+            sequence_reference_start, coll_header.sequence_reference_count,
+            '>64s I I 56s', data
+        )):
             seq_start = coll_header.data_offset + seq_offset
             seq_end = seq_start + SEQ_DATA_SIZE
-            seq_data = SequenceData._make(struct.unpack(SequenceDataFmt, data[seq_start:seq_end]))
-            if DEBUG_COLL:
-                print(seq_data)
+            seq_data = SequenceData._make(
+                struct.unpack_from(SequenceDataFmt, data, offset=seq_start)
+            )
 
-            frame_instances = data[seq_end:]
-            frame_start = 0
-            frame_size = 48
             instances_indices = []
-            for f in range(seq_data.frames_per_view):
-                frame_end = frame_start + frame_size
-                (index, ) = struct.unpack(">H", frame_instances[frame_start:frame_end][46:])
-                if DEBUG_COLL:
-                    print(f'frame{f} data', frame_instances[frame_start:frame_end][:46].hex())
-                instances_indices.append(index)
-
-                frame_start = frame_end
+            for (
+                shadow_map_index,
+                key_point_x, key_point_y, key_point_z,
+                bitmap_instance_index
+            ) in utils.iter_unpack(
+                seq_end, seq_data.frames_per_view,
+                '>H H H H 38x H', data
+            ):
+                instances_indices.append(bitmap_instance_index)
 
             name = myth_headers.decode_string(seq_name)
             if DEBUG_COLL:
                 print(
-                    f'{c} sequence_reference: {name: <32} unused={seq_unused.hex()}'
+                    f'{i:>2} sequence: {name:<32} '
+                    f'instance indices1: {instances_indices}'
                 )
             sequences.append({
                 'name': name,
@@ -413,31 +417,36 @@ def parse_sequences(data, coll_header):
 
     return sequences
 
+BitmapReferenceFmt = """>
+    64s
+    I I
+    H H
+    H H
+    32x
+    16x
+"""
+BitmapReference = namedtuple('BitmapReference', [
+    'name',
+    'offset', 'size',
+    'data_1', 'data_2',
+    'width', 'height',
+])
+
 def parse_bitmaps(data, coll_header, color_table):
     bitmaps = []
-    bitmap_reference_each_size = (
-        coll_header.bitmap_references_size // coll_header.bitmap_reference_count
-    )
-    for c in range(coll_header.bitmap_reference_count):
-        bitmap_reference_start = (
-            coll_header.data_offset + coll_header.bitmap_references_offset
-            + (c * bitmap_reference_each_size)
+    bitmap_reference_start = coll_header.data_offset + coll_header.bitmap_references_offset
+    for i, values in enumerate(utils.iter_unpack(
+        bitmap_reference_start, coll_header.bitmap_reference_count,
+        BitmapReferenceFmt, data
+    )):
+        bitref = BitmapReference._make(values)
+        bitref = bitref._replace(
+            name=myth_headers.decode_string(bitref.name)
         )
 
-        bitmap_reference_end = bitmap_reference_start + bitmap_reference_each_size
-        bitref_data = data[bitmap_reference_start:bitmap_reference_end]
-        (
-            bitref_name,
-            bitref_offset, bitref_size,
-            bitref_data_1, bitref_data_2,
-            bitref_width, bitref_height,
-            bitref_unused,
-            bitref_extractor
-        ) = struct.unpack('>64s I I H H H H 32s 16s', bitref_data)
-
-        bitmap_head_start = coll_header.data_offset + bitref_offset
+        bitmap_head_start = coll_header.data_offset + bitref.offset
         (bitdata, bitmap_data) = parse_bitmap_data(
-            bitref_size, bitmap_head_start, data
+            bitref.size, bitmap_head_start, data
         )
 
         rows = decode_bitmap(bitdata, bitmap_data, color_table)
@@ -445,7 +454,7 @@ def parse_bitmaps(data, coll_header, color_table):
         if DEBUG_COLL:
             print(
                 f"""---
-                {c}: {myth_headers.decode_string(bitref_name)}
+                {i}: {bitref.name}
         data_size: {len(bitmap_data)}
             width: {bitdata.width}
            height: {bitdata.height}
@@ -463,7 +472,7 @@ logical_bit_depth: {bitdata.logical_bit_depth}
                 print('rows 1-10 columns 1-150:')
                 render_terminal(rows)
         if rows:
-            bitmaps.append((bitdata.width, bitdata.height, rows))
+            bitmaps.append((bitref.name, bitdata.width, bitdata.height, rows))
     return bitmaps
 
 def render_terminal(rows):
@@ -503,8 +512,8 @@ def sequences_to_bitmaps(bitmaps, bitmap_indices, sequences):
     return bms
 
 def parse_collection_header(data, header):
-    coll_header = Header256._make(struct.unpack(
-        Header256Fmt, data[header.tag_data_offset:header.tag_data_offset+Header256Size]
+    coll_header = Header256._make(struct.unpack_from(
+        Header256Fmt, data, offset=header.tag_data_offset
     ))
     return coll_header._replace(
         data_offset=header.tag_data_offset + coll_header.data_offset
@@ -514,7 +523,7 @@ def parse_bitmap_data(total_size, start, data):
     meta_end = start + BITMAP_META_SIZE
     bitmap_data_end = start + total_size
 
-    bitmap_meta = BitmapMeta._make(struct.unpack(BitmapMetaFmt, data[start:meta_end]))
+    bitmap_meta = BitmapMeta._make(struct.unpack_from(BitmapMetaFmt, data, offset=start))
     bitmap_meta = bitmap_meta._replace(
         flags=BitmapFlags(bitmap_meta.flags),
         encoding=Encoding(bitmap_meta.encoding)
@@ -529,9 +538,11 @@ def parse_bitmap_data(total_size, start, data):
 
     return (bitmap_meta, bitmap_data)
 
-def decode_bitmap(bitdata, bitmap_data, color_table):
+def decode_bitmap(bitdata, bitmap_data, color_table=None):
     if bitdata.encoding == Encoding.EXT_R8G8B8A5H:
         return decode_bitmap_64(bitmap_data, bitdata.width, bitdata.height)
+    elif bitdata.encoding == Encoding.EXT_ARGB_8888_32:
+        return decode_bitmap_32(bitmap_data, bitdata.width, bitdata.height)
     if BitmapFlags.TRANSPARENCY_ENCODED_1BIT in bitdata.flags:
         return decode_compressed_bitmap(
             color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags
@@ -591,27 +602,22 @@ def decode_alpha(alpha):
     return (15 - (alpha & 15)) * 17
 
 def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
-    print(bitmap_data[0:128].hex())
     start = 0
     rows = []
     for row_i in range(height):
         span_start = start + 4
-        (num_spans, num_pixels) = struct.unpack('>H H', bitmap_data[start:span_start])
+        (num_spans, num_pixels) = struct.unpack_from('>H H', bitmap_data, offset=start)
         if num_spans > width or num_pixels > width:
             print(row_i, num_spans, num_pixels, width)
             return
         spans = []
-        span_end = span_start
-        for span_i in range(num_spans):
-            span_end = span_start + 4
-            span = struct.unpack(
-                '>H H', bitmap_data[span_start:span_end]
-            )
+        for span in utils.iter_unpack(
+            span_start, num_spans,
+            '>H H', bitmap_data
+        ):
             spans.append(span)
 
-            span_start = span_end
-
-        pixel_start = span_end
+        pixel_start = span_start + (num_spans * 4)
         pixel_end = pixel_start
         col_i = 0
         row = []
@@ -672,6 +678,26 @@ def is_transparent_or_opaque(s):
 def is_opaque(s):
     return a5h3pixel_a(s) == A5H3PIXEL_A_MASK
 
+def decode_bitmap_32(bitmap_data, width, height):
+    pixel_count = width * height
+    pixels = []
+    for (b, g, r, a) in utils.iter_unpack(
+        0, pixel_count,
+        ">B B B B", bitmap_data
+    ):
+        pixels.append((r, g, b, a))
+    
+    rows = []
+    pix_i = 0
+    for row_i in range(height):
+        row = []
+        for col_i in range(width):
+            pixel = pixels[pix_i]
+            row.append(pixel)
+            pix_i += 1
+        rows.append(row)
+    return rows
+
 def decode_pix_64(alpha_state, bitmap_data, byte_index):
     pix = {
         'a': a5h3_pixel_a_int(alpha_state),
@@ -687,7 +713,6 @@ def decode_pix_64(alpha_state, bitmap_data, byte_index):
         pix['a2'] = a5h3_pixel_a_int(bitmap_data[byte_index+3])
         byte_index += 4
     return (pix, byte_index)
-
 
 def decode_bitmap_64(bitmap_data, width, height):
     pixels = []
@@ -731,8 +756,8 @@ def decode_bitmap_64(bitmap_data, width, height):
         rows.append(row)
     return rows
 
-def parse_hue_change(data):
-    hue_change = HueChange._make(struct.unpack(HueChangeFmt, data))
+def parse_hue_change(values):
+    hue_change = HueChange._make(values)
     return hue_change._replace(
         name=myth_headers.decode_string(hue_change.name),
         hue0=round(hue_change.hue0 / ANGLE_SF),
@@ -742,9 +767,12 @@ def parse_hue_change(data):
         median_hue=round(hue_change.median_hue / ANGLE_SF),
     )
 
-def parse_d256_ref(data):
-    ref = D256Ref._make(struct.unpack(D256RefFmt, data))
-    return ref._replace(name=myth_headers.decode_string(ref.name))
+def parse_d256_ref(values):
+    ref = D256Ref._make(values)
+    return ref._replace(
+        name=myth_headers.decode_string(ref.name),
+        flags=D256RefFlags(ref.flags)
+    )
 
 def parse_d256_header(data, tag_header):
     head_start = tag_header.tag_data_offset
@@ -754,52 +782,48 @@ def parse_d256_header(data, tag_header):
 def parse_d256_bitmaps(data, head):
     head_end = myth_headers.TAG_HEADER_SIZE + D256HeadSize
     total_ref_start = head_end + head.ref_offset
-    ref_size = 128
     total_ref_end = total_ref_start + head.ref_size
     total_ref_data = data[total_ref_start:total_ref_end]
 
-    ref_start = 0
     ret = []
-    for i in range(head.ref_count):
-        ref_end = ref_start + ref_size
-        ref = parse_d256_ref(total_ref_data[ref_start:ref_end])
+    for values in utils.iter_unpack(
+        0, head.ref_count,
+        D256RefFmt, total_ref_data
+    ):
+        ref = parse_d256_ref(values)
         if DEBUG_COLL:
-            print(f'{i:03} {ref.name:<64} {ref.width:>3}x{ref.height:<3} orig={ref.original_width:>2}x{ref.original_height:<2}')
+            print(f'{ref.name:<64} {ref.width:>3}x{ref.height:<3} orig={ref.original_width:>2}x{ref.original_height:<2} {ref.flags}')
         bitmap_meta_start = head_end + ref.offset
         (bitmap_meta, bitmap_data) = parse_bitmap_data(ref.size, bitmap_meta_start, data)
-        rows = decode_bitmap_64(bitmap_data, bitmap_meta.width, bitmap_meta.height)
+        rows = decode_bitmap(bitmap_meta, bitmap_data)
         if DEBUG_COLL:
             print(bitmap_meta, 'datalen:', len(bitmap_data))
             render_terminal(rows)
 
-        ret.append((bitmap_meta.width, bitmap_meta.height, rows))
-
-        ref_start = ref_end
+        ret.append((ref.name, bitmap_meta.width, bitmap_meta.height, rows))
     return ret
 
 def parse_d256_hues(data, head):
     head_end = myth_headers.TAG_HEADER_SIZE + D256HeadSize
 
     total_hue_start = head_end + head.hue_changes_offset
-    hue_size = 128
     total_hue_end = total_hue_start + head.hue_changes_size
     total_hue_data = data[total_hue_start:total_hue_end]
 
     hues = []
-    hue_start = 0
-    for i in range(head.hue_change_count):
-        hue_end = hue_start + hue_size
-        hue_change = parse_hue_change(total_hue_data[hue_start:hue_end])
+    for values in utils.iter_unpack(
+        0, head.hue_change_count,
+        HueChangeFmt, total_hue_data
+    ):
+        hue_change = parse_hue_change(values)
         hues.append(hue_change)
         if DEBUG_COLL:
             print(
-                f'{i:03} {hue_change.name:<64} '
+                f'{hue_change.name:<64} '
                 f'  0={hue_change.hue0:<3} 1={hue_change.hue1:<3} '
                 f'median={hue_change.median_hue:<3} min_sat={hue_change.minimum_saturation:<3}'
             )
             print(hue_change.colors_effected)
-
-        hue_start = hue_end
     return hues
 
 def parse_d256(data):
