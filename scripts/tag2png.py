@@ -13,7 +13,7 @@ PNG_HEAD = b'\x89PNG\r\n\x1a\n'
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-def main(tag_path, png_path):
+def main(tag_path, output_dir):
     """
     Parse a Myth TFL or Myth II .256 tag file and output a PNG file
     """
@@ -21,36 +21,27 @@ def main(tag_path, png_path):
 
     (game_version, tag_id, bitmaps) = parse_256_tag(data)
 
-    if not png_path:
-        png_path = f'../output/png/{game_version}-{tag_id}.png'
-        path = pathlib.Path(sys.path[0], png_path).resolve()
+    if not output_dir:
+        output_dir = f'../output/png/{game_version}-{tag_id}'
+        path = pathlib.Path(sys.path[0], output_dir).resolve()
     else:
-        path = pathlib.Path(png_path).with_suffix('.png')
+        path = pathlib.Path(output_dir)
 
     bitmap_count = len(bitmaps)
 
     if prompt(path, bitmap_count):
-        for i, (width, height, rows) in enumerate(bitmaps):
+        pathlib.Path(path).mkdir(parents=True, exist_ok=True)
+        for i, (name, width, height, rows) in enumerate(bitmaps):
             png = make_png(width, height, rows)
             
-            bitmap_path = path
-            if (bitmap_count > 1):
-                bitmap_path = path.with_stem(f'{path.stem}-{i}')
-
-            pathlib.Path(bitmap_path.parent).mkdir(parents=True, exist_ok=True)
+            bitmap_path = path / f'{i}-{name}.png'
             with open(bitmap_path, 'wb') as png_file:
                 png_file.write(png)
                 print(f"PNG extracted. Output saved to {bitmap_path} ({width} x {height})")
 
 def prompt(prompt_path, bitmap_count):
     # return True
-    prefix = ''
-    suffix = ''
-    if (bitmap_count > 1):
-        prompt_path = prompt_path.with_stem(f'{prompt_path.stem}-n')
-        prefix = f'{bitmap_count}x bitmaps '
-        suffix = ' (n=bitmap)'
-    response = input(f"Write {prefix}to: {prompt_path}{suffix} [Y/n]: ").strip().lower()
+    response = input(f"Write {bitmap_count}x bitmaps to: {prompt_path} [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
 def parse_256_tag(data):
@@ -125,17 +116,17 @@ def png_u31(value):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 tag2png.py <input_file> [<output_file>]")
+        print("Usage: python3 tag2png.py <input_file> [<output_dir>]")
         sys.exit(1)
     
     input_file = sys.argv[1]
     if len(sys.argv) == 3:
-        output_file = sys.argv[2]
+        output_dir = sys.argv[2]
     else:
-        output_file = None
+        output_dir = None
     
     try:
-        main(input_file, output_file)
+        main(input_file, output_dir)
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:
