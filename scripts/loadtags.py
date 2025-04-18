@@ -256,8 +256,14 @@ def read_file_headers(path_dir, plugin_names):
                     priority = -1
                 else:
                     priority = archive_priority(mono_header)
-                if priority < 0:
-                    # Include foundation, patches, addons
+                if (
+                    # Include foundation, patches
+                    priority < -1 or
+                    # Include patch template addons, not sure if this will always hold true
+                    # but we want to exclude large detail addons by default which all seem to
+                    # have version=101
+                    (priority == -1 and mono_header.version < 100)
+                ):
                     plugins.append((priority, mono_header.version, dirfile, mono_header))
                 elif len(plugin_names) and dirfile.name == plugin_names[-1]:
                     # Hack for now, treat last plugin passed in as the mesh/entrypoint plugin
