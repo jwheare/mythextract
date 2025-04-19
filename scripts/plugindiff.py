@@ -11,7 +11,7 @@ import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-def main(file_1, file_2):
+def main(file_1, file_2, tag_type, tag_id):
     """
     Parse two plugin files and print the differences
     """
@@ -41,9 +41,10 @@ def main(file_1, file_2):
 
         diff_mono_headers(mono_header_1, mono_header_2)
 
-        diff_entrypoints(entrypoint_map_1, entrypoint_map_2)
+        if not tag_type and not tag_id:
+            diff_entrypoints(entrypoint_map_1, entrypoint_map_2)
 
-        diff_tags(tags_1, tags_2, data_map_1, data_map_2)
+        diff_tags(tags_1, tags_2, data_map_1, data_map_2, tag_type, tag_id)
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -58,6 +59,28 @@ def print_tag(side, tag_header, data):
         f'{data_hash} | '
         f'{tag_header.name}'
     )
+
+def diff_tag_harder(tag_type, tag_id, tag_data_1, tag_data_2):
+    if tag_type in ['stli', 'temp']:
+        (stli_header_1, stli_text_1) = myth_headers.parse_text_tag(tag_data_1)
+        (stli_header_2, stli_text_2) = myth_headers.parse_text_tag(tag_data_2)
+        print(f'---\n{tag_type}.{tag_id}')
+        print(f"< [{stli_header_1.tag_id}] {stli_header_1.name}")
+        print(f"> [{stli_header_2.tag_id}] {stli_header_2.name}")
+        stli_set_1 = set(stli_text_1.split(b'\r'))
+        stli_set_2 = set(stli_text_2.split(b'\r'))
+        stli_diff_r = stli_set_1 - stli_set_2
+        stli_diff_a = stli_set_2 - stli_set_1
+        if len(stli_diff_r) > 0:
+            print("Items removed:")
+            for i, s in enumerate(stli_diff_r):
+                print(f"{i:>3} {myth_headers.decode_string(s)}")
+        if len(stli_diff_a) > 0:
+            print("Items added:")
+            for i, s in enumerate(stli_diff_a):
+                print(f"{i:>3} {myth_headers.decode_string(s)}")
+    else:
+        return
 
 def diff_entrypoints(entrypoint_map_1, entrypoint_map_2):
     if len(entrypoint_map_1) or len(entrypoint_map_2):
@@ -91,7 +114,7 @@ Entrypoints
             print(f'  >  |{entry_2}')
     print('---')
 
-def diff_tags(tags_1, tags_2, data_map_1, data_map_2):
+def diff_tags(tags_1, tags_2, data_map_1, data_map_2, tag_type, tag_id):
     print(
         """
 Tags
@@ -100,29 +123,38 @@ Tags
 -----+------+------+------+-------+-------"""
     )
     for tag_type_1, tag_ids_1 in tags_1.items():
-        for tag_id_1, headers_1 in tag_ids_1.items():
-            (location_1, tag_header_1, tag_data_1) = loadtags.get_tag_info(tags_1, data_map_1, tag_type_1, tag_id_1)
-            if tag_type_1 not in tags_2:
-                # tag types in 1 but not 2
-                print_tag('<', tag_header_1, tag_data_1)
-            elif tag_id_1 not in tags_2[tag_type_1]:
-                # tag id in 1 but not 2
-                print_tag('<', tag_header_1, tag_data_1)
-            else:
-                # data mismatch
-                (location_2, tag_header_2, tag_data_2) = loadtags.get_tag_info(tags_2, data_map_2, tag_type_1, tag_id_1)
-                if tag_data_1 != tag_data_2:
-                    print_tag('<', tag_header_1, tag_data_1)
-                    print_tag('>', tag_header_2, tag_data_2)
+        if not tag_type or tag_type_1 == tag_type:
+            for tag_id_1, headers_1 in tag_ids_1.items():
+                if not tag_id or tag_id_1 == tag_id:
+                    (location_1, tag_header_1, tag_data_1) = loadtags.get_tag_info(tags_1, data_map_1, tag_type_1, tag_id_1)
+                    if tag_type_1 not in tags_2:
+                        # tag types in 1 but not 2
+                        print_tag('<', tag_header_1, tag_data_1)
+                    elif tag_id_1 not in tags_2[tag_type_1]:
+                        # tag id in 1 but not 2
+                        print_tag('<', tag_header_1, tag_data_1)
+                    else:
+                        # data mismatch
+                        (location_2, tag_header_2, tag_data_2) = loadtags.get_tag_info(tags_2, data_map_2, tag_type_1, tag_id_1)
+                        if tag_data_1 != tag_data_2:
+                            print_tag('<', tag_header_1, tag_data_1)
+                            print_tag('>', tag_header_2, tag_data_2)
+                            if tag_type and tag_id:
+                                diff_tag_harder(
+                                    tag_type, tag_id,
+                                    tag_data_1, tag_data_2
+                                )
     for tag_type_2, tag_ids_2 in tags_2.items():
-        for tag_id_2, headers_2 in tag_ids_2.items():
-            (location_2, tag_header_2, tag_data_2) = loadtags.get_tag_info(tags_2, data_map_2, tag_type_2, tag_id_2)
-            if tag_type_2 not in tags_1:
-                # tag types in 2 but not 1
-                print_tag('>', tag_header_2, tag_data_2)
-            elif tag_id_2 not in tags_1[tag_type_2]:
-                # tag id in 2 but not 1
-                print_tag('>', tag_header_2, tag_data_2)
+        if not tag_type or tag_type_2 == tag_type:
+            for tag_id_2, headers_2 in tag_ids_2.items():
+                if not tag_id or tag_id_2 == tag_id:
+                    (location_2, tag_header_2, tag_data_2) = loadtags.get_tag_info(tags_2, data_map_2, tag_type_2, tag_id_2)
+                    if tag_type_2 not in tags_1:
+                        # tag types in 2 but not 1
+                        print_tag('>', tag_header_2, tag_data_2)
+                    elif tag_id_2 not in tags_1[tag_type_2]:
+                        # tag id in 2 but not 1
+                        print_tag('>', tag_header_2, tag_data_2)
 
 def diff_mono_headers(mono_header_1, mono_header_2):
     print(mono_header_1)
@@ -139,9 +171,14 @@ if __name__ == "__main__":
     
     file_1 = sys.argv[1]
     file_2 = sys.argv[2]
-    
+
+    tag_type = None
+    tag_id = None
+    if len(sys.argv) > 4:
+        tag_type = sys.argv[3]
+        tag_id = sys.argv[4]
     try:
-        main(file_1, file_2)
+        main(file_1, file_2, tag_type, tag_id)
     except KeyboardInterrupt:
         sys.exit(130)
     except BrokenPipeError:
