@@ -10,6 +10,7 @@ import mono2tag
 import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+VERBOSE = (os.environ.get('VERBOSE') == '1')
 
 def main(file_1, file_2, tag_type, tag_id):
     """
@@ -39,6 +40,8 @@ def main(file_1, file_2, tag_type, tag_id):
             mono_header_2
         )])
 
+        print(f'< {path_1}')
+        print(f'> {path_2}')
         diff_mono_headers(mono_header_1, mono_header_2)
 
         if not tag_type and not tag_id:
@@ -60,11 +63,12 @@ def print_tag(side, tag_header, data):
         f'{tag_header.name}'
     )
 
-def diff_tag_harder(tag_type, tag_id, tag_data_1, tag_data_2):
-    if tag_type in ['stli', 'temp']:
+def diff_tag_harder(tag_header_1, tag_data_1, tag_header_2, tag_data_2):
+    if tag_header_1.tag_type in ['stli', 'temp']:
         (stli_header_1, stli_text_1) = myth_headers.parse_text_tag(tag_data_1)
         (stli_header_2, stli_text_2) = myth_headers.parse_text_tag(tag_data_2)
-        print(f'---\n{tag_type}.{tag_id}')
+        print('---')
+        print(f'{tag_header_1.tag_type}.{tag_header_1.tag_id}')
         print(f"< [{stli_header_1.tag_id}] {stli_header_1.name}")
         print(f"> [{stli_header_2.tag_id}] {stli_header_2.name}")
         stli_set_1 = set(stli_text_1.split(b'\r'))
@@ -139,10 +143,10 @@ Tags
                         if tag_data_1 != tag_data_2:
                             print_tag('<', tag_header_1, tag_data_1)
                             print_tag('>', tag_header_2, tag_data_2)
-                            if tag_type and tag_id:
+                            if VERBOSE or (tag_type and tag_id):
                                 diff_tag_harder(
-                                    tag_type, tag_id,
-                                    tag_data_1, tag_data_2
+                                    tag_header_1, tag_data_1,
+                                    tag_header_2, tag_data_2
                                 )
     for tag_type_2, tag_ids_2 in tags_2.items():
         if not tag_type or tag_type_2 == tag_type:
@@ -156,13 +160,16 @@ Tags
                         # tag id in 2 but not 1
                         print_tag('>', tag_header_2, tag_data_2)
 
+def diff_val(value):
+    if type(value) is bytes:
+        return f'0x{value.hex()}'
+    return value
+
 def diff_mono_headers(mono_header_1, mono_header_2):
-    print(mono_header_1)
-    print(mono_header_2)
-    print('     game version', mono_header_1.game_version, mono_header_2.game_version)
-    print('  entry tag count', mono_header_1.entry_tag_count, mono_header_2.entry_tag_count)
-    print('        tag count', mono_header_1.tag_count, mono_header_2.tag_count)
-    print('    tag list size', mono_header_1.tag_list_size, mono_header_2.tag_list_size)
+    mh1 = mono_header_1.header._asdict()
+    mh2 = mono_header_2.header._asdict()
+    for f in mono_header_1.header._fields:
+        print(f'{f:<22} | {diff_val(mh1[f]):<64} | {diff_val(mh2[f]):<64}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
