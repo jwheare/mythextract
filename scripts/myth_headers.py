@@ -117,11 +117,11 @@ SBMonoHeaderFmt = """>
     32s
     64s
     H H
+    4s
     L
     L
-    L
-    L
-    L
+    4s
+    4x
     4s
 """
 SBMonoHeader = namedtuple('SBMonoHeader', [
@@ -134,7 +134,6 @@ SBMonoHeader = namedtuple('SBMonoHeader', [
     'flags',
     'size',
     'header_checksum',
-    'unused',
     'signature'
 ])
 
@@ -317,14 +316,16 @@ def parse_sb_mono_header(header):
     return mono._replace(
         name=decode_string(mono.name),
         description=decode_string(mono.description),
-        type=ArchiveType(mono.type)
+        type=ArchiveType(mono.type),
+        signature=decode_string(mono.signature),
     )
 
 def encode_sb_mono_header(mono):
     return struct.pack(SBMonoHeaderFmt, *mono._replace(
         name=encode_string(mono.name),
         description=encode_string(mono.description),
-        type=mono.type.value
+        type=mono.type.value,
+        signature=encode_string(mono.signature),
     ))
 
 def mono_header_size(header):

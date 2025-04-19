@@ -197,7 +197,7 @@ def debug_include(mono_header, include, order):
             f'flags={mono_header.flags} '
             f'v={mono_header.version:<5} '
             f'order={"|".join(str(o) for o in order):<6} '
-            f'ck={hex(mono_header.checksum):<10} '
+            f'ck=0x{mono_header.checksum.hex():<10} '
             f'{included}[{mono_header.game_version}] '
             f'{mono_header.type.name:<10} '
             f'entry={mono_header.entry_tag_count:<3} '
