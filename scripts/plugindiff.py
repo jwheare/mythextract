@@ -169,7 +169,7 @@ def diff_mono_headers(mono_header_1, mono_header_2):
     mh1 = mono_header_1.header._asdict()
     mh2 = mono_header_2.header._asdict()
     for f in mono_header_1.header._fields:
-        print(f'{f:<22} | {diff_val(mh1[f]):<64} | {diff_val(mh2[f]):<64}')
+        print(f'{f:<16} | {diff_val(mh1[f]):<32} | {diff_val(mh2[f]):<32}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
