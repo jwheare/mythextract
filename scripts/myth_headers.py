@@ -223,14 +223,15 @@ TFLHeader = namedtuple('TFLHeader', [
 ])
 
 SBHeaderFmt = """>
-    h b b
+    x b b b
     32s 4s 4s
     i l
     L h b b
     4s
 """
 SBHeader = namedtuple('SBHeader', [
-    # FFFF         00       00
+    # FF unused
+    # FF            00       00
     'identifier', 'flags', 'type',
     # 6E61722030320000000000000000000000000000000000000000000000000000
     'name',
@@ -248,7 +249,7 @@ def tfl2sb(tfl_header, tag_content):
     sb_header = SBHeader(
         identifier=-1,
         flags=0,
-        type=0,
+        type=ArchiveType.TAG,
         name=tfl_header.name,
         tag_type=tfl_header.tag_type,
         tag_id=tfl_header.tag_id,
@@ -425,8 +426,14 @@ def game_version(header_tuple):
     elif header_tuple.signature == 'mth2':
         return 2
 
-def fix_tag_header_offset(header_tuple):
-    return header_tuple._replace(tag_data_offset=TAG_HEADER_SIZE)
+def normalise_tag_header(header_tuple):
+    return header_tuple._replace(
+        tag_data_offset=TAG_HEADER_SIZE,
+        identifier=-1,
+        type=0,
+        destination=-1,
+        owner_index=-1,
+    )
 
 def tag_header_fmt(header_tuple):
     version = game_version(header_tuple)
@@ -436,7 +443,7 @@ def tag_header_fmt(header_tuple):
         return SBHeaderFmt
 
 def encode_header(header):
-    encoded = fix_tag_header_offset(header)._replace(
+    encoded = normalise_tag_header(header)._replace(
         name=encode_string(header.name),
         tag_type=encode_string(header.tag_type),
         tag_id=encode_string(header.tag_id),

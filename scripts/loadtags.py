@@ -119,7 +119,7 @@ def locate_tag_data(tags, data_map, tag_type, tag_id, location):
                 tag_start = tag_header.tag_data_offset
                 tag_end = tag_start + tag_header.tag_data_size
                 return (
-                    myth_headers.fix_tag_header_offset(tag_header),
+                    myth_headers.normalise_tag_header(tag_header),
                     myth_headers.encode_header(tag_header) + data_map[location][tag_start:tag_end]
                 )
     return (None, None)
