@@ -134,7 +134,7 @@ def diff_mono_headers(mono_header_1, mono_header_2):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python3 mono2tag.py <file_1> <file_2>")
+        print("Usage: python3 plugindiff.py <file_1> <file_2>")
         sys.exit(1)
     
     file_1 = sys.argv[1]
