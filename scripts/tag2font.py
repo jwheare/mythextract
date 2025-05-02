@@ -66,7 +66,11 @@ def parse_font_tag(data):
             f'glyphs={num_glyphs} '
             f'asc_h={ascending_height} desc_h={descending_height} total_h={total_height} '
             f'lead_h={leading_height} lead_w={leading_width} '
-            f'flags={flags.hex()}'
+            f'flags={flags.hex()} '
+            f'italic={myth_headers.decode_string(italic_font)} '
+            f'bold={myth_headers.decode_string(bold_font)} '
+            f'condensed={myth_headers.decode_string(condensed_font)} '
+            f'underline={myth_headers.decode_string(underlined_font)} '
         )
 
         glyph_head_start = font_header_end
