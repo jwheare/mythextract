@@ -11,6 +11,7 @@ import mono2tag
 import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+FORCE = (os.environ.get('FORCE') == '1')
 
 def main(game_directory, level, plugin_names):
     """
@@ -44,7 +45,7 @@ def fix_mesh_actions(mesh_tag_data):
     map_action_end = map_action_start + action_size_diff
     map_action_data = mesh_tag_data[map_action_start:map_action_end]
 
-    if remainder_size:
+    if FORCE or remainder_size:
         fixed_tag_data = mesh_tag.rewrite_action_data(map_action_count, map_action_data, mesh_tag_data)
         
         fixed_path = pathlib.Path(sys.path[0], f'../output/fixed_mesh_actions/meshes/{tag_header.name}').resolve()
