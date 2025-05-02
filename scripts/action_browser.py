@@ -23,11 +23,12 @@ def main(game_directory, level, plugin_names):
             if level.startswith('file='):
                 file = level[5:]
                 mesh_tag_data = myth_headers.load_file(file)
-                parse_mesh_actions(tags, data_map, mesh_tag_data)
+            
+                tree_curses.enter(parse_mesh_actions(tags, data_map, mesh_tag_data))
             else:
                 for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
-                    parse_mesh_actions(tags, data_map, mesh_tag_data)
+                    tree_curses.enter(parse_mesh_actions(tags, data_map, mesh_tag_data))
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
@@ -81,7 +82,7 @@ def parse_mesh_actions(tags, data_map, mesh_tag_data):
 
     (actions, _) = mesh_tag.parse_map_actions(mesh_header, mesh_tag_data)
 
-    actions_tui(actions, palette, tags, action_help)
+    return actions_tree(actions, palette, tags, action_help)
 
 def build_backrefs(actions):
     backrefs = {}
@@ -278,7 +279,7 @@ def action_type_help(action_help, act):
             more_help += f'(default expiry: {help_obj['expiration_mode']}) '
     return (help_text, more_help)
 
-def actions_tui(actions, palette, tags, action_help):
+def actions_tree(actions, palette, tags, action_help):
     nodes = []
     backrefs = build_backrefs(actions)
     for (action_id, act) in actions.items():
@@ -321,7 +322,7 @@ def actions_tui(actions, palette, tags, action_help):
             'more_help': more_help,
         }))
     tree = tree_curses.TreeNode("Root", None, children=nodes)
-    tree_curses.enter(tree)
+    return tree
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
