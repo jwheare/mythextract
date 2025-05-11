@@ -1,0 +1,193 @@
+
+
+# L flags
+# 00100202
+
+# 4s collection_tag
+# 736F6D32
+
+# 26h sequence_indexes
+# 0002 0003 FFFF 0002 0003 FFFF 0000 FFFF 0006 FFFF 0008 0009 000A
+# FFFF FFFF 0001 FFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFF FFFF
+
+# 4s burning_death_projectile_group_tag
+# h burning_death_projectile_group_type
+# FFFFFFFF
+# FFFF
+
+# B experience_kill_bonus
+# B experience_bonus_radius
+# FF FF
+
+# H propelled_system_shock
+# H damage_to_propulsion
+# FFFF
+# FFFF
+
+# 16b terrain_costs[MAXIMUM_NUMBER_OF_TERRAIN_TYPES=16]
+# 0B 0D FF FF FF FF 08 0A 00 00 00 FF FF FF FF FF
+
+# H terrain_impassability_flags
+# 0000
+
+# h pathfinding_radius
+# 009A
+
+# 16b movement_modifiers[MAXIMUM_NUMBER_OF_TERRAIN_TYPES=16]
+# FF FF CC CC FF FF FF FF FF FF FF FF FF FF FF FF
+
+# H absorbed_fraction
+# h warning_distance
+# h critical_distance
+# h healing_fraction
+# h initial_ammunition_lower_bound
+# h initial_ammunition_delta
+# h activation_distance
+# 0000
+# 0800
+# 1000
+# 0000
+# 0000
+# 0000
+# 0800
+
+# 2x unused
+# 4000
+
+# H turning_speed
+# h base_movement_speed
+# 071C
+# 0026
+
+# H left_handed_fraction
+# h size
+# 0000
+# 0001
+
+# 4s object_tag
+# 736F6F74
+
+# h number_of_attacks
+# h desired_projectile_volume
+# 0001
+# FFFF
+
+# struct monster_attack_definition attacks[MAXIMUM_NUMBER_OF_ATTACKS_PER_MONSTER=4]
+# 03000000782073670000024D000100040000000000010007000000000000FFFF000000000001FFFF000000000001000000000000000000030000000000000000
+# 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+# 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+# 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+# 4s map_action_tag
+# FFFFFFFF
+
+# h attack_frequency_lower_bound
+# h attack_frequency_delta
+# 000F
+# 0010
+
+# 4s exploding_projectile_group_tag
+# 736F6578
+
+# h hack_flags
+# h maximum_ammunition_count
+# H hard_death_system_shock
+# H flinch_system_shock
+# 0000
+# 0000
+# BFFF
+# 3333
+
+# 4s melee_impact_projectile_group_tag
+# 4s dying_projectile_group_tag
+# 736F686A
+# FFFFFFFF
+
+# 4s spelling_string_list_tag
+# 4s names_string_list_tag
+# 4s flavor_string_list_tag
+# 736F7371
+# 736F6E61
+# 736F666D
+
+# b use_attack_frequency
+# b more_hack_flags
+# 00
+# 32
+
+# h monster_class
+# h monster_allegiance
+# h experience_point_value
+# 0000
+# 0001
+# 0003
+
+# 40s sound_tags[MAXIMUM_NUMBER_OF_MONSTER_DEFINITION_SOUNDS=10]
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+
+# 4s blocked_impact_projectile_group_tag
+# 4s absorbed_impact_projectile_group_tag
+# 4s ammunition_projectile_tag
+# FFFFFFFF
+# FFFFFFFF
+# FFFFFFFF
+
+
+# h visibility_type
+# h combined_power
+# h longest_range
+# h cost
+# 0001
+# 0064
+# 3000
+# 0064
+
+# 10b sound_types[MAXIMUM_NUMBER_OF_MONSTER_DEFINITION_SOUNDS=10]
+# FF FF FF FF FF FF FF FF FF FF
+
+# h enemy_experience_kill_bonus
+# 0000
+
+# 4s entrance_projectile_group_tag
+# 4s local_projectile_group_tag
+# 4s special_ability_string_list_tag
+# 4s exit_projectile_group_tag
+# 736F656E
+# FFFFFFFF
+# FFFFFFFF
+# 736F6578
+
+# h maximum_mana
+# h mana_recharge_rate
+# H berserk_system_shock
+# H berserk_vitality
+# h maximum_artifacts_carried
+# 2x unused
+# 0000
+# 0000
+# 0000
+# 0000
+# 0000
+# 0000
+
+# 4s initial_artifacts_projectile_group_tag
+# 00000000
+
+# L extra_flags
+# 00000000
+
+# 208x unused
+# 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+
+# 264x runtime unused
+# 000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
