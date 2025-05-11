@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from collections import namedtuple
 import enum
 import os
 
@@ -119,8 +118,42 @@ ProjDmgFmt = ('ProjDmg', [
     ('h', 'damage_to_velocity', 256),
 ])
 
+class ProjFlags(enum.Flag):
+    USES_OWNER_COLOR_TABLE_INDEX = enum.auto()
+    IS_GUIDED = enum.auto()
+    IS_BLOODY = enum.auto()
+    DETONATES_WHEN_ANIMATION_LOOPS = enum.auto()
+    DETONATES_WHEN_TRANSFER_LOOPS = enum.auto()
+    DETONATES_AT_REST = enum.auto()
+    AFFECTED_BY_WIND = enum.auto()
+    ANIMATES_AT_REST = enum.auto()
+    BECOMES_DORMANT_AT_REST = enum.auto()
+    CAN_ANIMATE_BACKWARDS = enum.auto()
+    CONTRAIL_FREQUENCY_RESETS_AFTER_BOUNCING = enum.auto()
+    CAN_BE_MIRRORED = enum.auto()
+    PROMOTED_AT_END_OF_LIFESPAN = enum.auto()
+    MELEE_ATTACK = enum.auto()
+    CANNOT_BE_ACCELERATED = enum.auto()
+    BLOODIES_LANDSCAPE = enum.auto()
+    IS_ON_FIRE = enum.auto()
+    REMAINS_AFTER_DETONATION = enum.auto()
+    PASSES_THROUGH_TARGET = enum.auto()
+    CANNOT_BE_MIRRORED_VERTICALLY = enum.auto()
+    FLOATS = enum.auto()
+    IS_MEDIA_SURFACE_EFFECT = enum.auto()
+    DAMAGE_PROPORTIONAL_TO_MANA = enum.auto()
+    IS_ONLY_DESTROYED_BY_LIFESPAN = enum.auto()
+    IS_LIGHTNING = enum.auto()
+    CHOOSES_NEARBY_TARGET = enum.auto()
+    CONTINUALLY_DETONATES = enum.auto()
+    MAKES_OWNER_MONSTER_VISIBLE = enum.auto()
+    CAN_SET_LANDSCAPE_ON_FIRE = enum.auto()
+    CENTERED_ON_TARGET = enum.auto()
+    MARKS_TARGET_AS_HAVING_BEEN_CHOSEN = enum.auto()
+    DETONATES_IMMEDIATELY = enum.auto()
+
 ProjFmt = ('Proj', [
-    ('L', 'flags'),
+    ('L', 'flags', ProjFlags),
     ('4s', 'collection_tag'),
     ('h', 'flight_sequence'),
     ('h', 'debris_sequence'),
