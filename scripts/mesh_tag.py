@@ -258,8 +258,8 @@ class MeshFlags(enum.Flag, boundary=enum.CONFORM):
     ASSASSIN = enum.auto()
     HUNTING = enum.auto()
     CUSTOM = enum.auto()
-    UNKNOWN_1 = enum.auto()
-    UNKNOWN_2 = enum.auto()
+    KING_OF_THE_HILL_TFL = enum.auto()
+    KING_OF_THE_MAP = enum.auto()
     SINGLE_PLAYER_MAP = enum.auto()
     SUPPORTS_UNIT_TRADING = enum.auto()
     SUPPORTS_VETERANS = enum.auto()
@@ -390,12 +390,14 @@ class NetgameFlag(enum.Flag, boundary=enum.CONFORM):
     ASSASSIN = enum.auto()
     HUNTING = enum.auto()
     CUSTOM = enum.auto()
-NetgameFlagInfo = {
+    KING_OF_THE_HILL_TFL = enum.auto()
+    KING_OF_THE_MAP = enum.auto()
+NetgameFlagInfo = OrderedDict({
     NetgameFlag.BODY_COUNT: 'bc',
     NetgameFlag.STEAL_THE_BACON: 'stb',
     NetgameFlag.LAST_MAN_ON_THE_HILL: 'lmoth',
     NetgameFlag.SCAVENGER_HUNT: 'scav',
-    NetgameFlag.FLAG_RALLY: 'flag',
+    NetgameFlag.FLAG_RALLY: 'fr',
     NetgameFlag.CAPTURE_THE_FLAG: 'ctf',
     NetgameFlag.BALLS_ON_PARADE: 'balls',
     NetgameFlag.TERRITORIES: 'terries',
@@ -405,7 +407,10 @@ NetgameFlagInfo = {
     NetgameFlag.ASSASSIN: 'ass',
     NetgameFlag.HUNTING: 'hunt',
     NetgameFlag.CUSTOM: 'custom',
-}
+    NetgameFlag.KING_OF_THE_HILL_TFL: 'koth_tfl',
+    NetgameFlag.KING_OF_THE_MAP: 'kotm',
+})
+
 def netgame_flag_info(flag):
     if all([f in flag for f in list(NetgameFlag)]):
         return ['all']
