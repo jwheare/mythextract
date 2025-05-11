@@ -6,271 +6,161 @@ import myth_headers
 import utils
 
 CONNECTOR_SIZE = 128
-ConnectorFmt = """>
-    L
-    4s
-    h
-    h
-    h
-    h
-    16x
-"""
-Connector = namedtuple('Connector', [
-    'flags',
-    'collection_reference_tag',
-    'normal_sequence_index',
-    'origin_object_height_fraction',
-    'distance_between_interpolants',
-    'damaged_sequence_index',
+ConnectorFmt = ('Connector', [
+    ('L', 'flags'),
+    ('4s', 'collection_reference_tag'),
+    ('h', 'normal_sequence_index'),
+    ('h', 'origin_object_height_fraction'),
+    ('h', 'distance_between_interpolants'),
+    ('h', 'damaged_sequence_index'),
+    ('16x', None),
 ])
 
 PARTICLE_SYS_SIZE = 132
-ParticleSysFmt = """>
-    L
-    4s
-    l
-    l
-    l
-    h
-    h
-    h
-    h
-    12s
-    12s
-    h
-    h
-    h
-    h
-    24s
-    4s
-    4s
-    h
-    h
-    h
-    h
-    h
-    30x
-"""
-ParticleSys = namedtuple('ParticleSys', [
-    'flags',
-    'collection_reference_tag',
-    'minimum_view_distance',
-    'transparency_rolloff_point',
-    'transparency_cutoff_point',
-    'sequence_index',
-    'number_of_particles',
-    'maximum_particle_number_delta',
-    'scale',
-    'velocity_lower_bound',
-    'velocity_delta',
-    'x0_particle_number',
-    'x1_particle_number',
-    'y0_particle_number',
-    'y1_particle_number',
-    'state_variables',
-    'ambient_sound_tag',
-    'splash_local_projectile_group_tag',
-    'box_width',
-    'box_top_height',
-    'box_bottom_height',
-    'max_splashes_per_cell',
-    'time_between_building_effects',
+ParticleSysFmt = ('ParticleSys', [
+    ('L', 'flags'),
+    ('4s', 'collection_reference_tag'),
+    ('l', 'minimum_view_distance'),
+    ('l', 'transparency_rolloff_point'),
+    ('l', 'transparency_cutoff_point'),
+    ('h', 'sequence_index'),
+    ('h', 'number_of_particles'),
+    ('h', 'maximum_particle_number_delta'),
+    ('h', 'scale'),
+    ('12s', 'velocity_lower_bound'),
+    ('12s', 'velocity_delta'),
+    ('h', 'x0_particle_number'),
+    ('h', 'x1_particle_number'),
+    ('h', 'y0_particle_number'),
+    ('h', 'y1_particle_number'),
+    ('24s', 'state_variables'),
+    ('4s', 'ambient_sound_tag'),
+    ('4s', 'splash_local_projectile_group_tag'),
+    ('h', 'box_width'),
+    ('h', 'box_top_height'),
+    ('h', 'box_bottom_height'),
+    ('h', 'max_splashes_per_cell'),
+    ('h', 'time_between_building_effects'),
+    ('30x', None),
 ])
 
 MEDIA_SIZE = 256
 MAX_MEDIA_PRGR = 16
-MediaFmt = """>
-    L
-    4s
-    16x
-    64s
-    h
-    8s
-    h
-    4s
-    h
-    h
-    h
-    h
-    h
-    h
-    h
-    h
-    h
-    134x
-"""
-Media = namedtuple('Media', [
-    'flags',
-    'collection_reference_tag',
-    'projectile_group_tags',
-    'reflection_tint_fraction',
-    'reflection_tint_color',
-    'surface_effect_density',
-    'surface_effect_local_projectile_group_tag',
-    'wobble_magnitude_i',
-    'wobble_magnitude_j',
-    'wobble_magnitude_k',
-    'wobble_phase_multiplier_i',
-    'wobble_phase_multiplier_j',
-    'wobble_phase_multiplier_k',
-    'effects_per_cell',
-    'time_between_building_effects',
-    'reflection_transparency',
+MediaFmt = ('Media', [
+    ('L', 'flags'),
+    ('4s', 'collection_reference_tag'),
+    ('16x', None),
+    ('64s', 'projectile_group_tags', utils.list_pack('MediaPgrTags', MAX_MEDIA_PRGR, '>4s')),
+    ('h', 'reflection_tint_fraction'),
+    ('8s', 'reflection_tint_color'),
+    ('h', 'surface_effect_density'),
+    ('4s', 'surface_effect_local_projectile_group_tag'),
+    ('h', 'wobble_magnitude_i'),
+    ('h', 'wobble_magnitude_j'),
+    ('h', 'wobble_magnitude_k'),
+    ('h', 'wobble_phase_multiplier_i'),
+    ('h', 'wobble_phase_multiplier_j'),
+    ('h', 'wobble_phase_multiplier_k'),
+    ('h', 'effects_per_cell'),
+    ('h', 'time_between_building_effects'),
+    ('h', 'reflection_transparency'),
+    ('134x', None),
 ])
 
 MODEL_SIZE = 8
-ModelFmt = """>
-    L 4s
-"""
-Model = namedtuple('Model', [
-    'flags',
-    'geometry_tag',
+ModelFmt = ('Model', [
+    ('L', 'flags'),
+    ('4s', 'geometry_tag'),
 ])
 
 GEOM_SIZE = 8
-GeomFmt = """>
-    L 4s
-"""
-Geom = namedtuple('Geom', [
-    'flags',
-    'collection_reference_tag',
+GeomFmt = ('Geom', [
+    ('L', 'flags'),
+    ('4s', 'collection_reference_tag'),
 ])
 
 ANIM_SIZE = 1024
 ANIM_FRAME_SIZE = 16
 MAX_ANIM_FRAMES = 31
-AnimFmt = """>
-    L
-    h
-    h
-    496s
-    444x
-    h
-    h
-    h
-    h
-    h
-    h
-    4s
-    4s
-    h
-    h
-    40x
-    L
-    L
-    L
-"""
-Anim = namedtuple('Anim', [
-    'flags',
-    'number_of_frames',
-    'ticks_per_frame',
-    'frames',
-    'shadow_map_width',
-    'shadow_map_height',
-    'shadow_bytes_per_row',
-    'pad',
-    'origin_offset_x',
-    'origin_offset_y',
-    'forward_sound_tag',
-    'backward_sound_tag',
-    'forward_sound_type',
-    'backward_sound_type',
-    'shadow_maps_offset',
-    'shadow_maps_size',
-    'shadow_maps',
+AnimFrameFmt = ('AnimFrame', [
+    ('L', 'flags'),
+    ('4s', 'model_tag'),
+    ('h', 'model_type'),
+    ('h', 'permutation_index'),
+    ('4x', None),
 ])
-AnimFrameFmt = """>
-    L 4s
-    h h
-    4x
-"""
-AnimFrame = namedtuple('AnimFrame', [
-    'flags',
-    'model_tag',
-    'model_type',
-    'permutation_index',
+AnimFmt = ('Anim', [
+    ('L', 'flags'),
+    ('h', 'number_of_frames'),
+    ('h', 'ticks_per_frame'),
+    ('496s', 'frames', utils.list_codec('AnimFrames', MAX_ANIM_FRAMES, AnimFrameFmt)),
+    ('444x', None),
+    ('h', 'shadow_map_width'),
+    ('h', 'shadow_map_height'),
+    ('h', 'shadow_bytes_per_row'),
+    ('h', 'pad'),
+    ('h', 'origin_offset_x'),
+    ('h', 'origin_offset_y'),
+    ('4s', 'forward_sound_tag'),
+    ('4s', 'backward_sound_tag'),
+    ('h', 'forward_sound_type'),
+    ('h', 'backward_sound_type'),
+    ('40x', None),
+    ('L', 'shadow_maps_offset'),
+    ('L', 'shadow_maps_size'),
+    ('L', 'shadow_maps'),
 ])
 
 SCENERY_SIZE = 128
 MAX_SCENERY_PRGR = 4
 MAX_SCENERY_SEQ = 6
-SceneryFmt = """>
-    L
-    4s
-    4s
-    4s
-    h
-    h
-    4x
-    16s
-    12s
-    58x
-    h
-    8s
-    h
-    h
-    h
-    h
-"""
-Scenery = namedtuple('Scenery', [
-    'flags',
-    'collection_reference_tag',
-    'object_tag',
-    'projectile_tag',
-    'valid_netgame_scoring_type',
-    'netgame_flag_number',
-    'projectile_group_tags',
-    'sequence_indexes',
-    'model_permutation_delta',
-    'projectile_group_types',
-    'collection_reference_index',
-    'impact_projectile_group_type',
-    'object_type',
-    'projectile_type',
+SceneryFmt = ('Scenery', [
+    ('L', 'flags'),
+    ('4s', 'collection_reference_tag'),
+    ('4s', 'object_tag'),
+    ('4s', 'projectile_tag'),
+    ('h', 'valid_netgame_scoring_type'),
+    ('h', 'netgame_flag_number'),
+    ('4x', None),
+    ('16s', 'projectile_group_tags', utils.list_pack(
+        'SceneryPgrTags', MAX_SCENERY_PRGR, '>4s'
+    )),
+    ('12s', 'sequence_indexes', utils.list_pack(
+        'ScenerySeqIndexes', MAX_SCENERY_SEQ, '>h'
+    )),
+    ('58x', None),
+    ('h', 'model_permutation_delta'),
+    ('8s', 'projectile_group_types', utils.list_pack(
+        'SceneryPgrTypes', MAX_SCENERY_PRGR, '>h'
+    )),
+    ('h', 'collection_reference_index'),
+    ('h', 'impact_projectile_group_type'),
+    ('h', 'object_type'),
+    ('h', 'projectile_type'),
 ])
-
     
-def parse_tag(data, size, ntuple, fmt):
+def parse_tag(data, size, fmt):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + size
-    return ntuple._make(struct.unpack(fmt, data[start:end]))
+    return utils.decode_data(fmt, data[start:end])
 
 def parse_connector(data):
-    return parse_tag(data, CONNECTOR_SIZE, Connector, ConnectorFmt)
+    return parse_tag(data, CONNECTOR_SIZE, ConnectorFmt)
 
 def parse_particle_sys(data):
-    return parse_tag(data, PARTICLE_SYS_SIZE, ParticleSys, ParticleSysFmt)
+    return parse_tag(data, PARTICLE_SYS_SIZE, ParticleSysFmt)
 
 def parse_media(data):
-    media = parse_tag(data, MEDIA_SIZE, Media, MediaFmt)
-    return media._replace(
-        projectile_group_tags=struct.unpack(f'>{MAX_MEDIA_PRGR * "4s"}', media.projectile_group_tags)
-    )
+    return parse_tag(data, MEDIA_SIZE, MediaFmt)
 
 def parse_model(data):
-    return parse_tag(data, MODEL_SIZE, Model, ModelFmt)
+    return parse_tag(data, MODEL_SIZE, ModelFmt)
 
 def parse_geom(data):
-    return parse_tag(data, GEOM_SIZE, Geom, GeomFmt)
+    return parse_tag(data, GEOM_SIZE, GeomFmt)
 
 def parse_anim(data):
-    anim = parse_tag(data, ANIM_SIZE, Anim, AnimFmt)
-
-    frames = []
-    for values in utils.iter_struct(
-        0, MAX_ANIM_FRAMES,
-        AnimFrameFmt, anim.frames
-    ):
-        frame = AnimFrame._make(values)
-        frames.append(frame)
-    return anim._replace(
-        frames=frames
-    )
+    return parse_tag(data, ANIM_SIZE, AnimFmt)
 
 def parse_scenery(data):
-    scenery = parse_tag(data, SCENERY_SIZE, Scenery, SceneryFmt)
-    return scenery._replace(
-        projectile_group_tags=struct.unpack(f'>{MAX_SCENERY_PRGR * "4s"}', scenery.projectile_group_tags),
-        sequence_indexes=struct.unpack(f'>{MAX_SCENERY_SEQ}h', scenery.sequence_indexes),
-        projectile_group_types=struct.unpack(f'>{MAX_SCENERY_PRGR}h', scenery.projectile_group_types),
-    )
+    return parse_tag(data, SCENERY_SIZE, SceneryFmt)
