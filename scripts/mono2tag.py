@@ -111,9 +111,6 @@ def get_entrypoints(data, mono_header):
         entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.filename]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 
-def italic2ansi(text):
-    return re.sub(r'[\|]i([^|]+)[\|]p', '\x1b[3m\\1\x1b[0m', text)
-
 NameColorMap = {
     '0': 245, # White
     '1': 26, # Blue
@@ -132,7 +129,7 @@ def name2color(text):
 
 def format_entry_name(long_name, name):
     color = name2color(name)
-    text = italic2ansi(long_name)
+    text = utils.ansi_format(long_name)
     if color:
         return f'\x1b[38;5;{color}m{text:<64}\x1b[0m'
     return f'{text:<64}'
