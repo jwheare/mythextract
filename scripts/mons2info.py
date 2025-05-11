@@ -12,17 +12,25 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 
 def main(game_directory, mons_id, plugin_names):
     """
-    Load Myth game tags and plugins and output header info for a mesh
+    Load Myth game tags and plugins and output header info for a mons
     """
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
         if mons_id and mons_id != 'all':
-            parse_mons_tag(game_version, tags, data_map, mons_id)
+            mons = parse_mons_tag(game_version, tags, data_map, mons_id)
+            print_tag(mons, mons_id, tags['mons'][mons_id], tags, data_map)
         else:
+            # print_mons_debug(game_version, tags, data_map)
             print_mons_tags(tags)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
+
+def print_mons_debug(game_version, tags, data_map):
+    for mons_id, mons_headers in tags['mons'].items():
+        mons = parse_mons_tag(game_version, tags, data_map, mons_id)
+        if mons.use_attack_frequency:
+            print(mons_id)
 
 def print_mons_tags(tags):
     for mons_id, mons_headers in tags['mons'].items():
@@ -32,10 +40,7 @@ def print_mons_tags(tags):
 
 def parse_mons_tag(game_version, tags, data_map, mons_id):
     mons_tag_data = loadtags.get_tag_data(tags, data_map, 'mons', mons_id)
-
-    mons = mons_tag.parse_tag(mons_tag_data)
-    
-    print_tag(mons, mons_id, tags['mons'][mons_id], tags, data_map)
+    return mons_tag.parse_tag(mons_tag_data)
 
 def coll_sequences(tags, data_map, coll_tag):
     collection = myth_headers.decode_string(coll_tag)

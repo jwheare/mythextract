@@ -65,9 +65,11 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id):
 
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
     
-    print('data len', len(mesh_tag_data))
-
     locations = [l for (l, th) in tags['mesh'][mesh_id]]
+
+    # print(mesh_id, mesh_header.mesh_size)
+
+    print('data len', len(mesh_tag_data))
     print_header(mesh_header, mesh_id, locations)
 
 def print_header(mesh_header, mesh_id, locations):
