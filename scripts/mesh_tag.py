@@ -519,6 +519,15 @@ def parse_palette_entry(values):
         'markers': {},
     }
 
+# Not scientific, could be tweaked
+def mesh_size(mesh_header):
+    if mesh_header.mesh_size < 440000:
+        return 'small'
+    elif mesh_header.mesh_size < 500000:
+        return 'medium'
+    else:
+        return 'large'
+
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)
     marker_palette_end = marker_palette_start + mesh_header.marker_palette_size
