@@ -30,128 +30,165 @@ TIME_SF = 30
 # 002C <- size
 # 0000 320C <- offset
 # 0000 <- indent
-
 # unused
 # 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000 0000
-ActionHeadFmt = """>
-    H H
-    4s
-    L
-    L L
-    H H L
-    H
-    34x
-"""
-ActionHead = namedtuple('ActionHead', [
-    'id', 'expiration_mode',
-    'type',
-    'flags',
-    'trigger_time_lower_bound', 'trigger_time_delta',
-    'num_params', 'size', 'offset',
-    'indent',
+
+class ActionExpiration(enum.Enum):
+    TRIGGER = 0
+    EXECUTION = enum.auto()
+    SUCCESSFUL_EXECUTION = enum.auto()
+    NEVER = enum.auto()
+    FAILED_EXECUTION = enum.auto()
+
+class ActionFlag(enum.Flag):
+    INITIALLY_ACTIVE = enum.auto()
+    ACTIVATES_ONLY_ONCE = enum.auto()
+    NO_INITIAL_DELAY = enum.auto()
+    ONLY_INITIAL_DELAY = enum.auto()
+    DELETED_ON_DEACTIVATION = enum.auto()
+
+ActionHeadFmt = ('ActionHead', [
+    ('H', 'id'),
+    ('H', 'expiration_mode', ActionExpiration),
+    ('4s', 'type', myth_headers.decode_string_none, myth_headers.encode_string_none),
+    ('L', 'flags', ActionFlag),
+    ('L', 'trigger_time_lower_bound', TIME_SF),
+    ('L', 'trigger_time_delta', TIME_SF),
+    ('H', 'num_params'),
+    ('H', 'size'),
+    ('L', 'offset'),
+    ('H', 'indent'),
+    ('34x', None),
 ])
 
-MeshHeaderFmt = """>
-    4s 4s
-H H
-L L L
-L L L
-L L L L
-L L L L
-4s 4s
-L
-4s
-l
+class MeshFlags(enum.Flag, boundary=enum.CONFORM):
+    BODY_COUNT = enum.auto()
+    STEAL_THE_BACON = enum.auto()
+    LAST_MAN_ON_THE_HILL = enum.auto()
+    SCAVENGER_HUNT = enum.auto()
+    FLAG_RALLY = enum.auto()
+    CAPTURE_THE_FLAG = enum.auto()
+    BALLS_ON_PARADE = enum.auto()
+    TERRITORIES = enum.auto()
+    CAPTURES = enum.auto()
+    KING_OF_THE_HILL = enum.auto()
+    STAMPEDE = enum.auto()
+    ASSASSIN = enum.auto()
+    HUNTING = enum.auto()
+    CUSTOM = enum.auto()
+    KING_OF_THE_HILL_TFL = enum.auto() # Currently non functional?
+    KING_OF_THE_MAP = enum.auto() # Currently non functional?
+    SINGLE_PLAYER_MAP = enum.auto()
+    SUPPORTS_UNIT_TRADING = enum.auto()
+    SUPPORTS_VETERANS = enum.auto()
+    HAS_LIMITED_TERRAIN_VISIBILITY = enum.auto()
+    IS_COMPLETE = enum.auto()
+    CAN_BE_USED_BY_DEMO = enum.auto()
+    LEAVES_OVERHEAD_MAP_CLOSED = enum.auto()
+    IS_TRAINING_MAP = enum.auto()
+    CAN_CATCH_FIRE = enum.auto()
+    HAS_CEILING = enum.auto()
+    HAS_TERRAIN_FOLLOWING_CAMERA = enum.auto()
+    OVERHEAD_MAP_DOESNT_SCROLL = enum.auto()
+    MODELS_DONT_LIMIT_RENDERING = enum.auto()
+    USES_ANTICLUMP = enum.auto()
+    USES_VTFL = enum.auto()
+    REQUIRES_PLUGIN = enum.auto()
 
-h h 8s 8s
-l h
-B B
-8s
-4s
-L L L
+class ExtraFlags(enum.Flag):
+    LAST_LEVEL = enum.auto()
+    PREGAME_CUTSCENE_BEFORE_NARRATION = enum.auto()
+    PREGAME_CUTSCENE_AFTER_NARRATION = enum.auto()
+    SECRET_LEVEL = enum.auto()
 
-4s
-4s
-4s
-4s
-4s 4s
-4s 4s 4s
-4s 4s
-4s 4s
-
-L L L
-L L L
-8s h H
-4s
-4s 4s 4s
-8s
-
-4s 4s
-4s 4s
-L f f f
-L L L L
-64s 64s 64s
-4s
-8s f
-
-4s
-4s
-32s
-L
-f
-
-468x
-"""
-MeshHeader = namedtuple('MeshHeader', [
-    'landscape_collection_tag', 'media_tag',
-    'submesh_width', 'submesh_height',
-    'mesh_offset', 'mesh_size', 'mesh_ptr',
-    'data_offset', 'data_size', 'data_ptr',
-    'marker_palette_entries', 'marker_palette_offset', 'marker_palette_size', 'marker_palette_ptr',
-    'marker_count', 'markers_offset', 'markers_size', 'markers_ptr',
-    'mesh_lighting_tag', 'connector_tag',
-    'flags',
-    'particle_system_tag',
-    'team_count',
-
-    'dark_fraction', 'light_fraction', 'dark_color', 'light_color',
-    'transition_point', 'ceiling_height',
-    'min_vtfl_version', 'max_vtfl_version',
-    'edge_of_mesh_buffer_zones',
-    'global_ambient_sound_tag',
-    'map_action_count', 'map_actions_offset', 'map_action_buffer_size',
-    
-    'map_description_string_list_tag',
-    'postgame_collection_tag',
-    'pregame_collection_tag',
-    'overhead_map_collection_tag',
-    'next_mesh', 'next_mesh_alternate',
-    'cutscene_tag_pregame', 'cutscene_tag_success', 'cutscene_tag_failure',
-    'pregame_storyline_tag', 'storyline_string_tags_2',
-    'storyline_string_tags_3', 'storyline_string_tags_4',
-
-    'media_coverage_region_offset', 'media_coverage_region_size', 'media_coverage_region_ptr',
-    'mesh_LOD_data_offset', 'mesh_LOD_data_size', 'mesh_LOD_data_ptr',
-    'global_tint_color', 'global_tint_fraction', 'pad',
-    'wind_tag',
-    'screen_collection_tags_1', 'screen_collection_tags_2', 'screen_collection_tags_3',
-    'blood_color',
-
-    'picture_caption_string_list_tag', 'narration_sound_tag',
-    'win_ambient_sound_tag', 'loss_ambient_sound_tag',
-    'reverb_environment', 'reverb_volume', 'reverb_decay_time', 'reverb_damping',
-    'connector_count', 'connectors_offset', 'connectors_size', 'connectors_ptr',
-    'cutscene_file_pregame', 'cutscene_file_success', 'cutscene_file_failure',
-    'hints_string_list_tag',
-    'fog_color', 'fog_density',
-
-    'difficulty_level_override_string_list_tag',
-    'team_names_override_string_list_tag',
-    'plugin_name',
-    'extra_flags',
-    'minimum_zoom_factor',
-
-    # Runtime
+MeshHeaderFmt = ('MeshHeader', [
+    ('4s', 'landscape_collection_tag'),
+    ('4s', 'media_tag'),
+    ('H', 'submesh_width'),
+    ('H', 'submesh_height'),
+    ('L', 'mesh_offset'),
+    ('L', 'mesh_size'),
+    ('L', 'mesh_ptr'),
+    ('L', 'data_offset'),
+    ('L', 'data_size'),
+    ('L', 'data_ptr'),
+    ('L', 'marker_palette_entries'),
+    ('L', 'marker_palette_offset'),
+    ('L', 'marker_palette_size'),
+    ('L', 'marker_palette_ptr'),
+    ('L', 'marker_count'),
+    ('L', 'markers_offset'),
+    ('L', 'markers_size'),
+    ('L', 'markers_ptr'),
+    ('4s', 'mesh_lighting_tag'),
+    ('4s', 'connector_tag'),
+    ('L', 'flags', MeshFlags),
+    ('4s', 'particle_system_tag'),
+    ('l', 'team_count'),
+    ('h', 'dark_fraction'),
+    ('h', 'light_fraction'),
+    ('8s', 'dark_color'),
+    ('8s', 'light_color'),
+    ('l', 'transition_point'),
+    ('h', 'ceiling_height'),
+    ('B', 'min_vtfl_version'),
+    ('B', 'max_vtfl_version'),
+    ('8s', 'edge_of_mesh_buffer_zones'),
+    ('4s', 'global_ambient_sound_tag'),
+    ('L', 'map_action_count'),
+    ('L', 'map_actions_offset'),
+    ('L', 'map_action_buffer_size'),
+    ('4s', 'map_description_string_list_tag'),
+    ('4s', 'postgame_collection_tag'),
+    ('4s', 'pregame_collection_tag'),
+    ('4s', 'overhead_map_collection_tag'),
+    ('4s', 'next_mesh'),
+    ('4s', 'next_mesh_alternate'),
+    ('4s', 'cutscene_tag_pregame'),
+    ('4s', 'cutscene_tag_success'),
+    ('4s', 'cutscene_tag_failure'),
+    ('4s', 'pregame_storyline_tag'),
+    ('4s', 'storyline_string_tags_2'),
+    ('4s', 'storyline_string_tags_3'),
+    ('4s', 'storyline_string_tags_4'),
+    ('L', 'media_coverage_region_offset'),
+    ('L', 'media_coverage_region_size'),
+    ('L', 'media_coverage_region_ptr'),
+    ('L', 'mesh_LOD_data_offset'),
+    ('L', 'mesh_LOD_data_size'),
+    ('L', 'mesh_LOD_data_ptr'),
+    ('8s', 'global_tint_color'),
+    ('h', 'global_tint_fraction'),
+    ('H', 'pad'),
+    ('4s', 'wind_tag'),
+    ('4s', 'screen_collection_tags_1'),
+    ('4s', 'screen_collection_tags_2'),
+    ('4s', 'screen_collection_tags_3'),
+    ('8s', 'blood_color'),
+    ('4s', 'picture_caption_string_list_tag'),
+    ('4s', 'narration_sound_tag'),
+    ('4s', 'win_ambient_sound_tag'),
+    ('4s', 'loss_ambient_sound_tag'),
+    ('L', 'reverb_environment'),
+    ('f', 'reverb_volume'),
+    ('f', 'reverb_decay_time'),
+    ('f', 'reverb_damping'),
+    ('L', 'connector_count'),
+    ('L', 'connectors_offset'),
+    ('L', 'connectors_size'),
+    ('L', 'connectors_ptr'),
+    ('64s', 'cutscene_file_pregame'),
+    ('64s', 'cutscene_file_success'),
+    ('64s', 'cutscene_file_failure'),
+    ('4s', 'hints_string_list_tag'),
+    ('8s', 'fog_color'),
+    ('f', 'fog_density'),
+    ('4s', 'difficulty_level_override_string_list_tag'),
+    ('4s', 'team_names_override_string_list_tag'),
+    ('32s', 'plugin_name'),
+    ('L', 'extra_flags', ExtraFlags),
+    ('f', 'minimum_zoom_factor'),
+    ('468x', None),
 ])
 
 # nested tags
@@ -200,140 +237,6 @@ MeshHeader = namedtuple('MeshHeader', [
 #     [anim] -> mode -> geom -> core -> .256
 #     [anim] -> soun
 
-
-# 00000000 0003 0002 28DD(10461) 0000 0000BC4A(48202) 00008CB9(36025) 000005B7(1463)
-#                    m_id           posx            posy            posz
-# [8x00] 0000(00000) 0000 0000 [20x00] 0000        06EA(i=1770) 7916(30998)
-#        yaw angle (/182.05)           player_idx  data_idx       data_id
-MarkerHeadFmt = """>
-    L H H
-    H H
-    L L l
-    8x
-    H
-    2x 2x 20x
-
-    6x
-"""
-MarkerHead = namedtuple('MarkerHead', [
-    'flags', 'type', 'palette_index',
-    'id', 'min_difficulty',
-    'pos_x', 'pos_y', 'pos_z',
-    'yaw',
-    # Runtime
-    # player_index, data_index, data_id
-])
-
-# type flag tag             team pad  netgame_flags unused_flags  unused                   runtime
-# 0003 0004 64776172 [dwar] 0000 0000 0000          FFFF          0000 0000 0000 0000 0000 0000 0002  0000
-MarkerPaletteEntryFmt = """>
-    H H
-    4s
-    h 2x
-    L
-    10x
-
-    6x
-"""
-
-MarkerPaletteEntry = namedtuple('MarkerPaletteEntry', [
-    'type', 'flags',
-    'marker_tag',
-    'team_index',
-    'netgame_flags'
-])
-
-class MeshFlags(enum.Flag, boundary=enum.CONFORM):
-    BODY_COUNT = enum.auto()
-    STEAL_THE_BACON = enum.auto()
-    LAST_MAN_ON_THE_HILL = enum.auto()
-    SCAVENGER_HUNT = enum.auto()
-    FLAG_RALLY = enum.auto()
-    CAPTURE_THE_FLAG = enum.auto()
-    BALLS_ON_PARADE = enum.auto()
-    TERRITORIES = enum.auto()
-    CAPTURES = enum.auto()
-    KING_OF_THE_HILL = enum.auto()
-    STAMPEDE = enum.auto()
-    ASSASSIN = enum.auto()
-    HUNTING = enum.auto()
-    CUSTOM = enum.auto()
-    KING_OF_THE_HILL_TFL = enum.auto()
-    KING_OF_THE_MAP = enum.auto()
-    SINGLE_PLAYER_MAP = enum.auto()
-    SUPPORTS_UNIT_TRADING = enum.auto()
-    SUPPORTS_VETERANS = enum.auto()
-    HAS_LIMITED_TERRAIN_VISIBILITY = enum.auto()
-    IS_COMPLETE = enum.auto()
-    CAN_BE_USED_BY_DEMO = enum.auto()
-    LEAVES_OVERHEAD_MAP_CLOSED = enum.auto()
-    IS_TRAINING_MAP = enum.auto()
-    CAN_CATCH_FIRE = enum.auto()
-    HAS_CEILING = enum.auto()
-    HAS_TERRAIN_FOLLOWING_CAMERA = enum.auto()
-    OVERHEAD_MAP_DOESNT_SCROLL = enum.auto()
-    MODELS_DONT_LIMIT_RENDERING = enum.auto()
-    USES_ANTICLUMP = enum.auto()
-    USES_VTFL = enum.auto()
-    REQUIRES_PLUGIN = enum.auto()
-
-class ExtraFlags(enum.Flag):
-    LAST_LEVEL = enum.auto()
-    PREGAME_CUTSCENE_BEFORE_NARRATION = enum.auto()
-    PREGAME_CUTSCENE_AFTER_NARRATION = enum.auto()
-    SECRET_LEVEL = enum.auto()
-
-class ActionFlag(enum.Flag):
-    INITIALLY_ACTIVE = enum.auto()
-    ACTIVATES_ONLY_ONCE = enum.auto()
-    NO_INITIAL_DELAY = enum.auto()
-    ONLY_INITIAL_DELAY = enum.auto()
-    DELETED_ON_DEACTIVATION = enum.auto()
-
-class ActionExpiration(enum.Enum):
-    TRIGGER = 0
-    EXECUTION = enum.auto()
-    SUCCESSFUL_EXECUTION = enum.auto()
-    NEVER = enum.auto()
-    FAILED_EXECUTION = enum.auto()
-
-class ParamType(enum.Enum):
-    FLAG = 0
-    STRING = enum.auto()
-    MONSTER_IDENTIFIER = enum.auto()
-    ACTION_IDENTIFIER = enum.auto()
-    ANGLE = enum.auto()
-    INTEGER = enum.auto()
-    WORLD_DISTANCE = enum.auto()
-    FIELD_NAME = enum.auto()
-    FIXED = enum.auto()
-    PROJECTILE = enum.auto()
-    STRING_LIST = enum.auto()
-    SOUND = enum.auto()
-    PROJECTILE_OR_WORLD_POINT_2D = enum.auto() # TFL = WORLD_POINT_2D / SB = PROJECTILE
-    WORLD_POINT_2D = enum.auto()
-    WORLD_RECTANGLE_2D = enum.auto()
-    OBJECT_IDENTIFIER = enum.auto()
-    MODEL_IDENTIFIER = enum.auto()
-    SOUND_SOURCE_IDENTIFIER = enum.auto()
-    WORLD_POINT_3D = enum.auto()
-    LOCAL_PROJECTILE_GROUP_IDENTIFIER = enum.auto()
-    MODEL_ANIMATION_IDENTIFIER = enum.auto()
-
-def param_id_marker(param_type, param_name):
-    if param_type == ParamType.MONSTER_IDENTIFIER:
-        return MarkerType.UNIT
-    if param_type == ParamType.SOUND_SOURCE_IDENTIFIER:
-        return MarkerType.AMBIENT_SOUND
-    if param_type == ParamType.OBJECT_IDENTIFIER:
-        return MarkerType.PROJECTILE
-    if param_type == ParamType.MODEL_IDENTIFIER:
-        return MarkerType.MODEL
-    if param_type == ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER:
-        return MarkerType.LOCAL_PROJECTILE_GROUP
-    if param_type == ParamType.MODEL_ANIMATION_IDENTIFIER:
-        return MarkerType.ANIMATION
-
 class MarkerType(enum.Enum):
     OBSERVER = 0
     SCENERY = enum.auto()
@@ -356,6 +259,19 @@ Marker2Tag = {
     MarkerType.LOCAL_PROJECTILE_GROUP: 'lpgr',
     MarkerType.ANIMATION: 'anim',
 }
+def param_id_marker(param_type, param_name):
+    if param_type == ParamType.MONSTER_IDENTIFIER:
+        return MarkerType.UNIT
+    if param_type == ParamType.SOUND_SOURCE_IDENTIFIER:
+        return MarkerType.AMBIENT_SOUND
+    if param_type == ParamType.OBJECT_IDENTIFIER:
+        return MarkerType.PROJECTILE
+    if param_type == ParamType.MODEL_IDENTIFIER:
+        return MarkerType.MODEL
+    if param_type == ParamType.LOCAL_PROJECTILE_GROUP_IDENTIFIER:
+        return MarkerType.LOCAL_PROJECTILE_GROUP
+    if param_type == ParamType.MODEL_ANIMATION_IDENTIFIER:
+        return MarkerType.ANIMATION
 
 class MarkerPaletteFlag(enum.Flag, boundary=enum.CONFORM):
     UNCONTROLLABLE = enum.auto()
@@ -412,10 +328,18 @@ NetgameFlagInfo = OrderedDict({
 })
 
 def netgame_flag_info(flag):
-    if all([f in flag for f in list(NetgameFlag)]):
+    actual_flag = flag
+    # These flags don't work, we just use the terries and koth_tfl values
+    actual_flag &= ~(NetgameFlag.KING_OF_THE_MAP | NetgameFlag.KING_OF_THE_HILL_TFL)
+    if NetgameFlag.TERRITORIES in flag:
+        actual_flag |= NetgameFlag.KING_OF_THE_MAP
+    if NetgameFlag.KING_OF_THE_HILL in flag:
+        actual_flag |= NetgameFlag.KING_OF_THE_HILL_TFL
+
+    if all([f in actual_flag for f in list(NetgameFlag)]):
         return ['all']
     else:
-        return [info for f, info in NetgameFlagInfo.items() if f in flag]
+        return [info for f, info in NetgameFlagInfo.items() if f in actual_flag]
 
 class MarkerFlag(enum.Flag):
     IS_INVISIBLE = enum.auto()
@@ -441,6 +365,63 @@ MarkerFlagInfo = {
 def marker_flag_info(flag):
     return [info for f, info in MarkerFlagInfo.items() if f in flag]
 
+# 00000000 0003 0002 28DD(10461) 0000 0000BC4A(48202) 00008CB9(36025) 000005B7(1463)
+#                    m_id           posx            posy            posz
+# [8x00] 0000(00000) 0000 0000 [20x00] 0000        06EA(i=1770) 7916(30998)
+#        yaw angle (/182.05)           player_idx  data_idx       data_id
+MarkerHeadFmt = ('MarkerHead', [
+    ('L', 'flags', MarkerFlag),
+    ('H', 'type', MarkerType),
+    ('H', 'palette_index'),
+    ('H', 'id'),
+    ('H', 'min_difficulty'),
+    ('L', 'pos_x', WORLD_POINT_SF),
+    ('L', 'pos_y', WORLD_POINT_SF),
+    ('l', 'pos_z', WORLD_POINT_SF),
+    ('8x', None),
+    ('H', 'yaw', ANGLE_SF),
+    ('2x', None),
+    ('2x', None),
+    ('20x', None),
+    ('6x', None),
+])
+
+# type flag tag             team pad  netgame_flags unused_flags  unused                   runtime
+# 0003 0004 64776172 [dwar] 0000 0000 0000          FFFF          0000 0000 0000 0000 0000 0000 0002  0000
+MarkerPaletteEntryFmt = ('MarkerPaletteEntry', [
+    ('H', 'type', MarkerType),
+    ('H', 'flags', MarkerPaletteFlag),
+    ('4s', 'marker_tag', myth_headers.decode_string),
+    ('h', 'team_index'),
+    ('2x', None),
+    ('L', 'netgame_flags', NetgameFlag),
+    ('10x', None),
+    ('6x', None),
+])
+
+class ParamType(enum.Enum):
+    FLAG = 0
+    STRING = enum.auto()
+    MONSTER_IDENTIFIER = enum.auto()
+    ACTION_IDENTIFIER = enum.auto()
+    ANGLE = enum.auto()
+    INTEGER = enum.auto()
+    WORLD_DISTANCE = enum.auto()
+    FIELD_NAME = enum.auto()
+    FIXED = enum.auto()
+    PROJECTILE = enum.auto()
+    STRING_LIST = enum.auto()
+    SOUND = enum.auto()
+    PROJECTILE_OR_WORLD_POINT_2D = enum.auto() # TFL = WORLD_POINT_2D / SB = PROJECTILE
+    WORLD_POINT_2D = enum.auto()
+    WORLD_RECTANGLE_2D = enum.auto()
+    OBJECT_IDENTIFIER = enum.auto()
+    MODEL_IDENTIFIER = enum.auto()
+    SOUND_SOURCE_IDENTIFIER = enum.auto()
+    WORLD_POINT_3D = enum.auto()
+    LOCAL_PROJECTILE_GROUP_IDENTIFIER = enum.auto()
+    MODEL_ANIMATION_IDENTIFIER = enum.auto()
+
 Difficulty = [
     'Timid',
     'Simple',
@@ -456,13 +437,7 @@ def align(align_bytes, value):
     return (value + (align_bytes-1)) & (align_bytes * -1)
 
 def parse_header(data):
-    mesh_header = MeshHeader._make(
-        struct.unpack_from(MeshHeaderFmt, data, offset=myth_headers.TAG_HEADER_SIZE)
-    )
-    return mesh_header._replace(
-        flags=MeshFlags(mesh_header.flags),
-        extra_flags=ExtraFlags(mesh_header.extra_flags)
-    )
+    return utils.decode_data(MeshHeaderFmt, data, offset=myth_headers.TAG_HEADER_SIZE)
 
 def required_plugin(mesh_header):
     if MeshFlags.REQUIRES_PLUGIN in mesh_header.flags and mesh_header.plugin_name:
@@ -494,22 +469,12 @@ def cutscenes(game_version, header):
     )
 
 def encode_header(header):
-    return struct.pack(MeshHeaderFmt, *header._replace(
-        flags=header.flags.value,
-        extra_flags=header.extra_flags.value
-    ))
+    return utils.encode_data(MeshHeaderFmt, header)
 
 def get_offset(offset):
     return myth_headers.TAG_HEADER_SIZE + MESH_HEADER_SIZE + offset
 
-def parse_palette_entry(values):
-    entry = MarkerPaletteEntry._make(values)
-    entry = entry._replace(
-        marker_tag=myth_headers.decode_string(entry.marker_tag),
-        flags=MarkerPaletteFlag(entry.flags),
-        netgame_flags=NetgameFlag(entry.netgame_flags),
-        type=MarkerType(entry.type)
-    )
+def parse_palette_entry(entry):
     return {
         'flags': entry.flags,
         'type': entry.type,
@@ -538,14 +503,14 @@ def parse_markers(mesh_header, data):
         'markers': {},
         'count': 0,
     }
-    for values in utils.iter_unpack(
+    for entry in utils.iter_decode(
         0, mesh_header.marker_palette_entries,
         MarkerPaletteEntryFmt, marker_palette_data
     ):
-        entry = parse_palette_entry(values)
-        palette_list = palette.get(entry['type'], [])
-        palette_list.append(entry)
-        palette[entry['type']] = palette_list
+        entry_dict = parse_palette_entry(entry)
+        palette_list = palette.get(entry_dict['type'], [])
+        palette_list.append(entry_dict)
+        palette[entry_dict['type']] = palette_list
 
     if DEBUG_MARKERS:
         print('Palette')
@@ -558,11 +523,11 @@ def parse_markers(mesh_header, data):
     marker_end = marker_start + mesh_header.markers_size
     marker_data = data[marker_start:marker_end]
 
-    for values in utils.iter_unpack(
+    for mhead in utils.iter_decode(
         0, mesh_header.marker_count,
         MarkerHeadFmt, marker_data
     ):
-        (marker, palette_item) = parse_marker_head(values, palette)
+        (marker, palette_item) = parse_marker_head(mhead, palette)
         if palette_item:
             palette_item['markers'][marker['marker_id']] = marker
         else:
@@ -573,18 +538,10 @@ def parse_markers(mesh_header, data):
 
     return (palette, orphans)
 
-def parse_marker_head(values, palette):
-    mhead = MarkerHead._make(values)
-    mhead = mhead._replace(
-        type=MarkerType(mhead.type),
-        flags=MarkerFlag(mhead.flags)
-    )
+def parse_marker_head(mhead, palette):
     palette_item = None
     if (mhead.type in palette) and (mhead.palette_index < len(palette[mhead.type])):
         palette_item = palette[mhead.type][mhead.palette_index]
-
-    pos = (mhead.pos_x / WORLD_POINT_SF, mhead.pos_y / WORLD_POINT_SF, mhead.pos_z / WORLD_POINT_SF)
-    facing = mhead.yaw / ANGLE_SF
 
     marker = {
         'marker_id': mhead.id,
@@ -593,8 +550,8 @@ def parse_marker_head(values, palette):
         'tag': palette_item['tag'] if palette_item else None,
         'flags': mhead.flags,
         'min_difficulty': mhead.min_difficulty,
-        'facing': facing,
-        'pos': pos
+        'facing': mhead.yaw,
+        'pos': (mhead.pos_x, mhead.pos_y, mhead.pos_z)
     }
     return (marker, palette_item)
 
@@ -677,11 +634,20 @@ def encode_map_action_data(game_version, actions):
         else:
             action_type = b'\xff\xff\xff\xff'
 
-        action_data += struct.pack(
+        action_data += utils.encode_data(
             ActionHeadFmt,
-            action_id, action['expiration_mode'].value, action_type, action['flags'].value,
-            round(action['trigger_time_lower_bound'] * TIME_SF), round(action['trigger_time_delta'] * TIME_SF),
-            num_params, len(param_data), param_offset, action['indent']
+            (
+                action_id,
+                action['expiration_mode'],
+                action_type,
+                action['flags'],
+                action['trigger_time_lower_bound'],
+                action['trigger_time_delta'],
+                num_params,
+                len(param_data),
+                param_offset,
+                action['indent']
+            )
         )
         all_param_data += param_data
 
@@ -752,21 +718,6 @@ def encode_map_actions(mesh_tag_data, actions):
     (map_action_count, map_action_data) = encode_map_action_data(myth_headers.game_version(tag_header), actions)
     return rewrite_action_data(map_action_count, map_action_data, mesh_tag_data)
 
-def parse_action_head(values):
-    # action_id, expiration_mode, action_type, flags, trigger_time_lower_bound, trigger_time_delta, num_params, size, offset, indent
-    action_head = ActionHead._make(values)
-    if all(f == b'' for f in action_head.type.split(b'\xff')):
-        type = None
-    else:
-        type = myth_headers.decode_string(action_head.type)
-    return action_head._replace(
-        type=type,
-        expiration_mode=ActionExpiration(action_head.expiration_mode),
-        flags=ActionFlag(action_head.flags),
-        trigger_time_lower_bound=action_head.trigger_time_lower_bound / TIME_SF,
-        trigger_time_delta=action_head.trigger_time_delta / TIME_SF,
-    )
-
 def parse_map_actions(mesh_header, data):
     tag_header = myth_headers.parse_header(data)
     game_version = myth_headers.game_version(tag_header)
@@ -780,12 +731,10 @@ def parse_map_actions(mesh_header, data):
     action_data_end = 0
     ends = [0]
     actions = OrderedDict()
-    for values in utils.iter_unpack(
+    for action_head in utils.iter_decode(
         0, num_actions,
         ActionHeadFmt, map_action_data
     ):
-        action_head = parse_action_head(values)
-
         action_data_start = action_head_end + action_head.offset
         action_data_end = action_data_start + action_head.size
         action_data = map_action_data[action_data_start:action_data_end]

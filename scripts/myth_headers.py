@@ -297,14 +297,26 @@ def parse_gor_header(header):
         name=decode_string(gor.name),
     )
 
+def decode_string_none(s):
+    if all(f == b'' for f in s.split(b'\xff')):
+        return None
+    else:
+        return decode_string(s)
+
 def decode_string(s):
     return s.split(b'\0', 1)[0].decode('mac-roman')
 
-def encode_string(b):
-    if b is None:
+def encode_string_none(s):
+    if s is None:
+        return b'\xff\xff\xff\xff'
+    else:
+        return encode_string(s)
+
+def encode_string(s):
+    if s is None:
         return b''
     else:
-        return b.encode('mac-roman')
+        return s.encode('mac-roman')
 
 
 def parse_sb_mono_header(header):

@@ -182,9 +182,12 @@ def single_codec(name, fmt):
         '_DefFmt': fmt,
     })
 
-def decode_data(data_format, data):
+def decode_data(data_format, data, offset=None):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
-    values = struct.unpack(fmt_string, data)
+    if offset is not None:
+        values = struct.unpack_from(fmt_string, data, offset)
+    else:
+        values = struct.unpack(fmt_string, data)
     return _decode_data_values(name, values, decoders, fields)
 
 def encode_data(data_format, nt):
