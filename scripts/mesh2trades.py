@@ -92,6 +92,35 @@ def set_initial_counts(units):
 
 def process_attacks(mons, tags, data_map):
     attacks = []
+
+
+    (_, ex_prgr_header, ex_prgr_data) = loadtags.get_tag_info(
+        tags, data_map, 'prgr', myth_headers.decode_string(
+            mons.exploding_projectile_group_tag
+        )
+    )
+    if ex_prgr_data:
+        (ex_prgr_head, ex_prgr_projlist) = myth_projectile.parse_prgr(ex_prgr_data)
+        for ex_prgr_proj in ex_prgr_projlist:
+            (_, ex_proj_header, ex_proj_data) = loadtags.get_tag_info(
+                tags, data_map, 'proj', myth_headers.decode_string(
+                    ex_prgr_proj.projectile_tag
+                )
+            )
+            ex_proj = myth_projectile.parse_proj(ex_proj_data)
+            ex_dmg = ex_proj.damage.damage_lower_bound + ex_proj.damage.damage_delta
+            if ex_dmg > 2:
+                attacks.append({
+                    'name': f'{ex_proj_header.name} (explosion)',
+                    'throw': False,
+                    'type': ex_proj.damage.type,
+                    'dmg': ex_dmg,
+                    'dps': ex_dmg,
+                    'special': False,
+                    'melee': False,
+                    'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
+                    'range': 0,
+                })
     for attack in mons.attacks:
         if attack:
             (_, proj_header, proj_data) = loadtags.get_tag_info(
@@ -99,6 +128,9 @@ def process_attacks(mons, tags, data_map):
                     attack.projectile_tag
                 )
             )
+
+            if mons_tag.AttackFlag.IS_REFLEXIVE in attack.flags:
+                continue
 
             if not proj_data:
                 if mons_tag.AttackFlag.USES_CARRIED_PROJECTLE in attack.flags:
@@ -110,6 +142,7 @@ def process_attacks(mons, tags, data_map):
                         'dps': None,
                         'special': False,
                         'melee': False,
+                        'aoe': False,
                         'range': attack.maximum_range,
                     })
                 continue
@@ -171,6 +204,7 @@ def process_attacks(mons, tags, data_map):
                     'dps': dps,
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
+                    'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
                     'range': attack.maximum_range,
                 })
     return attacks
@@ -397,9 +431,10 @@ def team_trade_parts(units, max_points=None):
             trades.append(graph('vit ', round(u['max_vitality']*2), 10, 20, f" {vit_range}"))
             for attack in u['attacks']:
                 special = " (special)" if attack['special'] else ""
+                aoe = " (aoe)" if attack['aoe'] else ""
                 attack_type = "melee" if attack['melee'] else "ranged"
                 if attack['dps']:
-                    trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}"))
+                    trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}{aoe}"))
                 throw = ' (throw)' if attack['throw'] else ''
                 trades.append(graph('ran ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}"))
 
