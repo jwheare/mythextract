@@ -13,8 +13,6 @@ DEBUG_MARKERS = (os.environ.get('DEBUG_MARKERS') == '1')
 
 MESH_HEADER_SIZE = 1024
 ACTION_HEAD_SIZE = 64
-PALETTE_SIZE = 32
-MARKER_SIZE = 64
 WORLD_POINT_SF = 512
 ANGLE_SF = (0xffff / 360)
 FIXED_SF = 1 << 16
@@ -50,7 +48,7 @@ class ActionFlag(enum.Flag):
 ActionHeadFmt = ('ActionHead', [
     ('H', 'id'),
     ('H', 'expiration_mode', ActionExpiration),
-    ('4s', 'type', myth_headers.decode_string_none, myth_headers.encode_string_none),
+    ('4s', 'type', utils.decode_string_none, utils.encode_string_none),
     ('L', 'flags', ActionFlag),
     ('L', 'trigger_time_lower_bound', TIME_SF),
     ('L', 'trigger_time_delta', TIME_SF),
@@ -391,7 +389,7 @@ MarkerHeadFmt = ('MarkerHead', [
 MarkerPaletteEntryFmt = ('MarkerPaletteEntry', [
     ('H', 'type', MarkerType),
     ('H', 'flags', MarkerPaletteFlag),
-    ('4s', 'marker_tag', myth_headers.decode_string),
+    ('4s', 'marker_tag', utils.decode_string),
     ('h', 'team_index'),
     ('2x', None),
     ('L', 'netgame_flags', NetgameFlag),
@@ -452,7 +450,7 @@ def has_single_player_story(game_version, data):
         return True
     if not is_single_player(mesh_header):
         return False
-    if myth_headers.all_on(mesh_header.pregame_storyline_tag):
+    if utils.all_on(mesh_header.pregame_storyline_tag):
         return False
     return True
 
@@ -464,8 +462,8 @@ def is_vtfl(header):
 
 def cutscenes(game_version, header):
     return (
-        myth_headers.decode_string(header.cutscene_file_pregame),
-        myth_headers.decode_string(header.cutscene_file_success)
+        utils.decode_string(header.cutscene_file_pregame),
+        utils.decode_string(header.cutscene_file_success)
     )
 
 def encode_header(header):
@@ -561,15 +559,15 @@ def encode_map_action_param(game_version, param):
     num_elems = len(param_elems)
 
     if param_type == ParamType.STRING:
-        string_enc = myth_headers.encode_string(param_elems[0])
+        string_enc = utils.encode_string(param_elems[0])
         elem_count = len(string_enc) + 1
         align_string_len = align(4, elem_count)
         elem_struct = f'{align_string_len}s'
-        elem_values = [myth_headers.encode_string(param_elems[0])]
+        elem_values = [utils.encode_string(param_elems[0])]
     elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
         elem_count = num_elems
         elem_struct = num_elems * '4s'
-        elem_values = [myth_headers.encode_string(elem) for elem in param_elems]
+        elem_values = [utils.encode_string(elem) for elem in param_elems]
     elif param_type == ParamType.WORLD_POINT_2D:
         elem_count = num_elems
         elem_struct = f'{num_elems * 2}L'
@@ -608,7 +606,7 @@ def encode_map_action_param(game_version, param):
 
     return struct.pack(
         f'>H H 4s {elem_struct}',
-        param_type.value, elem_count, myth_headers.encode_string(param['name']),
+        param_type.value, elem_count, utils.encode_string(param['name']),
         *elem_values
     )
 
@@ -630,7 +628,7 @@ def encode_map_action_data(game_version, actions):
             param_data += encode_map_action_param(game_version, param)
 
         if action['type']:
-            action_type = myth_headers.encode_string(action['type'])
+            action_type = utils.encode_string(action['type'])
         else:
             action_type = b'\xff\xff\xff\xff'
 
@@ -749,7 +747,7 @@ def parse_map_actions(mesh_header, data):
             
             (param_type, num_elems, param_name) = struct.unpack(">H H 4s", param_head_data)
 
-            param_name = myth_headers.decode_string(param_name)
+            param_name = utils.decode_string(param_name)
 
             if DEBUG_ACTIONS:
                 print(action_head.id, action_head.type, param_head_data.hex(), param_name, param_type, end=' ')
@@ -817,10 +815,10 @@ def parse_map_actions(mesh_header, data):
             remainder = None
             if param_type == ParamType.STRING:
                 remainder = param_elems[0][num_elems:]
-                param_elems = myth_headers.decode_string(param_elems[0][:num_elems])
+                param_elems = utils.decode_string(param_elems[0][:num_elems])
             elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
                 remainder = param_elems[num_elems:]
-                param_elems = [myth_headers.decode_string(elem) for elem in param_elems[:num_elems]]
+                param_elems = [utils.decode_string(elem) for elem in param_elems[:num_elems]]
             elif param_type == ParamType.FLAG:
                 # Only look at the first byte
                 remainder = param_elems[1:]

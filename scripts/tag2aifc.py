@@ -4,8 +4,8 @@ import os
 import struct
 import pathlib
 
-import myth_headers
 import myth_sound
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -13,7 +13,7 @@ def main(tag_path, aifc_path):
     """
     Parse a Myth TFL or Myth II soun tag file and output the aifc file
     """
-    data = myth_headers.load_file(tag_path)
+    data = utils.load_file(tag_path)
 
     try:
         (game_version, tag_id, permutations) = myth_sound.parse_soun_tag(data)

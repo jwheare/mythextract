@@ -1,8 +1,7 @@
 from collections import namedtuple
 import re
 import struct
-
-import myth_headers
+import sys
 
 def print_bytes(byte_sequence, group_size):
     group_i = 0
@@ -21,10 +20,10 @@ def print_named_tuple(t, pad=42, strings=[]):
                 print(f'{f.rjust(pad)} {v}')
         else:
             if f in strings:
-                val = myth_headers.decode_string(val)
-            if type(val) is bytes and myth_headers.all_off(val):
+                val = decode_string(val)
+            if type(val) is bytes and all_off(val):
                 val = f'[00 x {len(val.split(b'\x00'))-1}]'
-            elif type(val) is bytes and myth_headers.all_on(val):
+            elif type(val) is bytes and all_on(val):
                 val = f'[FF x {len(val.split(b'\xff'))-1}]'
             elif type(val) is bytes:
                 val = val.hex()
@@ -205,3 +204,95 @@ def encode_data(data_format, nt):
             processed.append(value)
 
     return struct.pack(fmt_string, *processed)
+
+def decode_string_none(s):
+    if all(f == b'' for f in s.split(b'\xff')):
+        return None
+    else:
+        return decode_string(s)
+
+def decode_string(s):
+    return s.split(b'\0', 1)[0].decode('mac-roman')
+
+def encode_string_none(s):
+    if s is None:
+        return b'\xff\xff\xff\xff'
+    else:
+        return encode_string(s)
+
+def encode_string(s):
+    if s is None:
+        return b''
+    else:
+        return s.encode('mac-roman')
+
+def all_on(val):
+    return all(f == b'' for f in val.split(b'\xff'))
+
+def all_off(val):
+    return all(f == b'' for f in val.split(b'\x00'))
+
+
+TagTypes = {
+    'amso': "Ambient Sounds",
+    'arti': "Artifacts",
+    'core': "Collection References",
+    '.256': "Collections",
+    'conn': "Connectors",
+    'ditl': "Dialog String Lists",
+    'd256': "Detail Collections",
+    'dmap': "Detail Maps",
+    'dtex': "Detail Textures",
+    'bina': "Dialogs",
+    'font': "Fonts",
+    'form': "Formations",
+    'geom': "Geometries",
+    'inte': "Interface",
+    'ligh': "Lightning",
+    'phys': "Local Physics",
+    'lpgr': "Local Projectile Groups",
+    'medi': "Media Types",
+    'meef': "Mesh Effect",
+    'meli': "Mesh Lighting",
+    'mesh': "Meshes",
+    'anim': "Model Animations",
+    'mode': "Models",
+    'mons': "Monsters",
+    'obje': "Objects",
+    'obpc': "Observer Constants",
+    'part': "Particle Systems",
+    'pref': "Preferences",
+    'prel': "Preloaded Data",
+    'prgr': "Projectile Groups",
+    'proj': "Projectiles",
+    'reco': "Recordings",
+    'save': "Saved Games",
+    'scen': "Scenery",
+    'scri': "Scripts",
+    'soli': "Sound Lists",
+    'soun': "Sounds",
+    'stli': "String Lists",
+    'temp': "Templates",
+    'text': "Text",
+    'unit': "Units",
+    'wind': "Wind",
+}
+
+def local_folder(tag_header):
+    return tag_type_name(tag_header.tag_type)
+
+def tag_type_name(tag_type):
+    return TagTypes[tag_type.lower()].lower()
+
+def load_file(path, length=None):
+    try:
+        with open(path, 'rb') as infile:
+            if length:
+                data = infile.read(length)
+            else:
+                data = infile.read()
+    except FileNotFoundError:
+        print(f"Error: File not found - {path}")
+        sys.exit(1)
+
+    return data

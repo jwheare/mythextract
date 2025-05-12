@@ -7,6 +7,7 @@ import zlib
 
 import myth_headers
 import myth_collection
+import utils
 
 BITMAP_META_SIZE = 52
 PNG_HEAD = b'\x89PNG\r\n\x1a\n'
@@ -17,7 +18,7 @@ def main(tag_path, output_dir):
     """
     Parse a Myth TFL or Myth II .256 tag file and output a PNG file
     """
-    data = myth_headers.load_file(tag_path)
+    data = utils.load_file(tag_path)
 
     (game_version, tag_id, bitmaps) = parse_256_tag(data)
 

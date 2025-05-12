@@ -8,6 +8,7 @@ import mesh_tag
 import mesh2info
 import mono2tag
 import loadtags
+import utils
 
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -22,7 +23,7 @@ def main(game_directory, level, plugin_names):
         if level:
             if level.startswith('file='):
                 file = level[5:]
-                mesh_tag_data = myth_headers.load_file(file)
+                mesh_tag_data = utils.load_file(file)
                 parse_mesh_actions(mesh_tag_data)
             else:
                 for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):

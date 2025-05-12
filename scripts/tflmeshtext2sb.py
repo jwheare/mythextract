@@ -9,6 +9,7 @@ import myth_headers
 import mesh_tag
 import mesh2info
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 TIME = (os.environ.get('TIME') == '1')
@@ -43,7 +44,7 @@ TFLTagMap = {
 
 def load_file(path):
     t = time.perf_counter()
-    data = myth_headers.load_file(path)
+    data = utils.load_file(path)
     TIME and print(path, f'{(time.perf_counter() - t):.3f}')
 
     return data
@@ -85,17 +86,17 @@ def convert_level(game_version, tags, data_map, mesh_id):
 
     # Extract narration text
     storyline_data = loadtags.get_tag_data(
-        tags, data_map, 'text', myth_headers.decode_string(mesh_header.pregame_storyline_tag)
+        tags, data_map, 'text', utils.decode_string(mesh_header.pregame_storyline_tag)
     )
 
     # Extract description stli
     desc_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', myth_headers.decode_string(mesh_header.map_description_string_list_tag)
+        tags, data_map, 'stli', utils.decode_string(mesh_header.map_description_string_list_tag)
     )
 
     # Extract caption stli
     caption_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', myth_headers.decode_string(mesh_header.picture_caption_string_list_tag)
+        tags, data_map, 'stli', utils.decode_string(mesh_header.picture_caption_string_list_tag)
     )
 
     (text_tag, desc_tag, caption_tag) = TFLTagMap[level]
@@ -121,7 +122,7 @@ def convert_level(game_version, tags, data_map, mesh_id):
 
                 sb_tag_data = myth_headers.tfl2sb(tag_header, tag_content)
 
-                file_path = (output_path / f'{myth_headers.local_folder(tag_header)}/{tag_header.name}')
+                file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
                 pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
                 with open(file_path, 'wb') as tag_file:

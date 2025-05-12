@@ -7,6 +7,7 @@ import pathlib
 import myth_headers
 import mono2tag
 import mesh_tag
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -16,7 +17,7 @@ def main(mono_path, output_file):
     If no tag provided, list all tags
     """
     mono_path = pathlib.Path(mono_path)
-    data = myth_headers.load_file(mono_path)
+    data = utils.load_file(mono_path)
 
     try:
         mono_header = myth_headers.parse_mono_header(mono_path.name, data)
@@ -63,11 +64,11 @@ Mismatching entries that need fixing are marked with an x
         mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data, mono_header)
         if mesh_data:
             mesh_header = mesh_tag.parse_header(mesh_data)
-            desc_tag = myth_headers.decode_string(mesh_header.map_description_string_list_tag)
+            desc_tag = utils.decode_string(mesh_header.map_description_string_list_tag)
             desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data, mono_header)
             if desc_data:
                 (_, desc_text) = myth_headers.parse_text_tag(desc_data)
-                level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
+                level_name = utils.decode_string(desc_text.split(b'\r')[0])
                 correct = ''
                 if level_name != entry_long_name:
                     correct = 'x'

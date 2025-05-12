@@ -183,7 +183,7 @@ def parse_color(data):
 def parse_collection_ref(data):
     colref = CollectionRef._make(struct.unpack(CollectionRefFmt, data[64:]))
     return colref._replace(
-        collection_tag=myth_headers.decode_string(colref.collection_tag),
+        collection_tag=utils.decode_string(colref.collection_tag),
         colors=parse_hue_permutations(colref),
         tint=parse_color(colref.tint)
     )
@@ -335,7 +335,7 @@ def parse_sequences(data, coll_header):
             ):
                 instances_indices.append(bitmap_instance_index)
 
-            name = myth_headers.decode_string(seq_name)
+            name = utils.decode_string(seq_name)
             if DEBUG_COLL:
                 print(
                     f'{i:>2} sequence: {name:<32} '
@@ -373,7 +373,7 @@ def parse_bitmaps(data, coll_header, color_table):
     )):
         bitref = BitmapReference._make(values)
         bitref = bitref._replace(
-            name=myth_headers.decode_string(bitref.name)
+            name=utils.decode_string(bitref.name)
         )
 
         bitmap_head_start = coll_header.data_offset + bitref.offset
@@ -691,7 +691,7 @@ def decode_bitmap_64(bitmap_data, width, height):
 def parse_hue_change(values):
     hue_change = HueChange._make(values)
     return hue_change._replace(
-        name=myth_headers.decode_string(hue_change.name),
+        name=utils.decode_string(hue_change.name),
         hue0=round(hue_change.hue0 / ANGLE_SF),
         hue1=round(hue_change.hue1 / ANGLE_SF),
         colors_effected=struct.unpack(">32B", hue_change.colors_effected),
@@ -702,7 +702,7 @@ def parse_hue_change(values):
 def parse_d256_ref(values):
     ref = D256Ref._make(values)
     return ref._replace(
-        name=myth_headers.decode_string(ref.name),
+        name=utils.decode_string(ref.name),
         flags=D256RefFlags(ref.flags)
     )
 

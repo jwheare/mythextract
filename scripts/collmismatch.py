@@ -3,12 +3,12 @@ import sys
 import os
 import struct
 
-import myth_headers
 import myth_collection
 import mesh_tag
 import mesh2info
 import mono2tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -39,13 +39,13 @@ def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
         (unit_location, unit_header, unit_tag_data) = loadtags.get_tag_info(tags, data_map, tag_type, tag_id)
 
         if unit_tag_data:
-            mons_tag_id = myth_headers.decode_string(unit_tag_data[64:68])
+            mons_tag_id = utils.decode_string(unit_tag_data[64:68])
             (mons_location, mons_header, mons_data) = loadtags.get_tag_info(tags, data_map, 'mons', mons_tag_id)
             mons_coll = None
             if mons_data:
-                mons_coll = myth_headers.decode_string(mons_data[68:72])
+                mons_coll = utils.decode_string(mons_data[68:72])
 
-            core_tag_id = myth_headers.decode_string(unit_tag_data[68:72])
+            core_tag_id = utils.decode_string(unit_tag_data[68:72])
             (core_location, core_header, core_data) = loadtags.get_tag_info(tags, data_map, 'core', core_tag_id)
             core_coll = None
             if core_data:

@@ -5,6 +5,7 @@ import struct
 import random
 
 import myth_headers
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -14,7 +15,7 @@ def main(form_tag, num_units):
     """
 
     try:
-        data = myth_headers.load_file(form_tag)
+        data = utils.load_file(form_tag)
         parse_form_file(data, num_units)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")

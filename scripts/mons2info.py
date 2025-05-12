@@ -3,10 +3,10 @@ import sys
 import os
 import struct
 
-import myth_headers
 import myth_collection
 import mons_tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -43,7 +43,7 @@ def parse_mons_tag(game_version, tags, data_map, mons_id):
     return mons_tag.parse_tag(mons_tag_data)
 
 def coll_sequences(tags, data_map, coll_tag):
-    collection = myth_headers.decode_string(coll_tag)
+    collection = utils.decode_string(coll_tag)
     (location, header, data) = loadtags.get_tag_info(tags, data_map, '.256', collection)
     coll_header = myth_collection.parse_collection_header(data, header)
     return (location, f'{header.tag_id} [{header.name}]', myth_collection.parse_sequences(data, coll_header))
@@ -69,9 +69,9 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                         else:
                             print(f'{f:<42} [{attack_i}]: {a_f}: {a_v}')
         else:
-            if type(val) is bytes and myth_headers.all_off(val):
+            if type(val) is bytes and utils.all_off(val):
                 val = f'[00 x {len(val.split(b'\x00'))-1}]'
-            elif type(val) is bytes and myth_headers.all_on(val):
+            elif type(val) is bytes and utils.all_on(val):
                 val = f'[FF x {len(val.split(b'\xff'))-1}]'
             print(f'{f:<42} {val}')
             # print(f'[{mons_id}] {f} {val} {locations}')

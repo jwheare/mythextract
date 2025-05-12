@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import struct
 import enum
-import sys
 from collections import namedtuple
+
+import utils
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
@@ -27,51 +28,6 @@ ArchivePriority = {
     ArchiveType.INTERFACE: 0,
     ArchiveType.TAG: 0,
     ArchiveType.METASERVER: 0,
-}
-
-TagTypes = {
-    'amso': "Ambient Sounds",
-    'arti': "Artifacts",
-    'core': "Collection References",
-    '.256': "Collections",
-    'conn': "Connectors",
-    'ditl': "Dialog String Lists",
-    'd256': "Detail Collections",
-    'dmap': "Detail Maps",
-    'dtex': "Detail Textures",
-    'bina': "Dialogs",
-    'font': "Fonts",
-    'form': "Formations",
-    'geom': "Geometries",
-    'inte': "Interface",
-    'ligh': "Lightning",
-    'phys': "Local Physics",
-    'lpgr': "Local Projectile Groups",
-    'medi': "Media Types",
-    'meef': "Mesh Effect",
-    'meli': "Mesh Lighting",
-    'mesh': "Meshes",
-    'anim': "Model Animations",
-    'mode': "Models",
-    'mons': "Monsters",
-    'obje': "Objects",
-    'obpc': "Observer Constants",
-    'part': "Particle Systems",
-    'pref': "Preferences",
-    'prel': "Preloaded Data",
-    'prgr': "Projectile Groups",
-    'proj': "Projectiles",
-    'reco': "Recordings",
-    'save': "Saved Games",
-    'scen': "Scenery",
-    'scri': "Scripts",
-    'soli': "Sound Lists",
-    'soun': "Sounds",
-    'stli': "String Lists",
-    'temp': "Templates",
-    'text': "Text",
-    'unit': "Units",
-    'wind': "Wind",
 }
 
 # 
@@ -262,62 +218,14 @@ def tfl2sb(tfl_header, tag_content):
     )
     return encode_header(sb_header) + tag_content
 
-
-def local_folder(tag_header):
-    return tag_type_name(tag_header.tag_type)
-
-def tag_type_name(tag_type):
-    return TagTypes[tag_type.lower()].lower()
-
-def all_on(val):
-    return all(f == b'' for f in val.split(b'\xff'))
-
-def all_off(val):
-    return all(f == b'' for f in val.split(b'\x00'))
-
-def load_file(path, length=None):
-    try:
-        with open(path, 'rb') as infile:
-            if length:
-                data = infile.read(length)
-            else:
-                data = infile.read()
-    except FileNotFoundError:
-        print(f"Error: File not found - {path}")
-        sys.exit(1)
-
-    return data
-
 def parse_gor_header(header):
     header_data = header[:GOR_HEADER_SIZE]
     if len(header_data) < GOR_HEADER_SIZE:
         raise ValueError("Invalid header")
     gor = GORHeader._make(struct.unpack(GORHeaderFmt, header_data))
     return gor._replace(
-        name=decode_string(gor.name),
+        name=utils.decode_string(gor.name),
     )
-
-def decode_string_none(s):
-    if all(f == b'' for f in s.split(b'\xff')):
-        return None
-    else:
-        return decode_string(s)
-
-def decode_string(s):
-    return s.split(b'\0', 1)[0].decode('mac-roman')
-
-def encode_string_none(s):
-    if s is None:
-        return b'\xff\xff\xff\xff'
-    else:
-        return encode_string(s)
-
-def encode_string(s):
-    if s is None:
-        return b''
-    else:
-        return s.encode('mac-roman')
-
 
 def parse_sb_mono_header(header):
     header_data = header[:SB_MONO_HEADER_SIZE]
@@ -326,18 +234,18 @@ def parse_sb_mono_header(header):
 
     mono = SBMonoHeader._make(struct.unpack(SBMonoHeaderFmt, header_data))
     return mono._replace(
-        name=decode_string(mono.name),
-        description=decode_string(mono.description),
+        name=utils.decode_string(mono.name),
+        description=utils.decode_string(mono.description),
         type=ArchiveType(mono.type),
-        signature=decode_string(mono.signature),
+        signature=utils.decode_string(mono.signature),
     )
 
 def encode_sb_mono_header(mono):
     return struct.pack(SBMonoHeaderFmt, *mono._replace(
-        name=encode_string(mono.name),
-        description=encode_string(mono.description),
+        name=utils.encode_string(mono.name),
+        description=utils.encode_string(mono.description),
         type=mono.type.value,
-        signature=encode_string(mono.signature),
+        signature=utils.encode_string(mono.signature),
     ))
 
 def mono_header_size(header):
@@ -457,17 +365,17 @@ def tag_header_fmt(header_tuple):
 
 def encode_header(header):
     encoded = normalise_tag_header(header)._replace(
-        name=encode_string(header.name),
-        tag_type=encode_string(header.tag_type),
-        tag_id=encode_string(header.tag_id),
-        signature=encode_string(header.signature)
+        name=utils.encode_string(header.name),
+        tag_type=utils.encode_string(header.tag_type),
+        tag_id=utils.encode_string(header.tag_id),
+        signature=utils.encode_string(header.signature)
     )
     return struct.pack(tag_header_fmt(header), *encoded)
 
 def decode_header(header):
     return header._replace(
-        name=decode_string(header.name),
-        tag_type=decode_string(header.tag_type),
-        tag_id=decode_string(header.tag_id),
-        signature=decode_string(header.signature)
+        name=utils.decode_string(header.name),
+        tag_type=utils.decode_string(header.tag_type),
+        tag_id=utils.decode_string(header.tag_id),
+        signature=utils.decode_string(header.signature)
     )

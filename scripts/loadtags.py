@@ -7,6 +7,7 @@ import sys
 
 import myth_headers
 import mono2tag
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 IS_VTFL = (os.environ.get('VTFL') == '1')
@@ -148,7 +149,7 @@ def build_tag_map(files):
         if not game_version:
             game_version = mono_header.game_version
 
-        data = myth_headers.load_file(path)
+        data = utils.load_file(path)
         data_map[mono_header.filename] = data
 
         if mono_header.entry_tag_count:
@@ -229,7 +230,7 @@ def plugin_version_flags(mono_header):
 
 def dep_plugin(path_dir, plugin_dep, sub_order):
     dep_path = (path_dir / plugin_dep)
-    dep_header = myth_headers.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
+    dep_header = utils.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
     dep_mono_header = myth_headers.parse_mono_header(dep_path.name, dep_header)
     return (0, sub_order, dep_path, dep_mono_header)
 
@@ -249,7 +250,7 @@ def read_file_headers(path_dir, plugin_names):
             and not dirfile.name == 'scrap.gor'
             and not dirfile.name == 'plugin cache'
         ):
-            header_data = myth_headers.load_file(dirfile, myth_headers.SB_MONO_HEADER_SIZE)
+            header_data = utils.load_file(dirfile, myth_headers.SB_MONO_HEADER_SIZE)
             try:
                 mono_header = myth_headers.parse_mono_header(dirfile.name, header_data)
                 if mono_header.game_version == 1:

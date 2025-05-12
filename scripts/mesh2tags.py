@@ -4,11 +4,11 @@ import os
 import pathlib
 import struct
 
-import myth_headers
 import tag2local
 import mesh2info
 import mono2tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 IS_VTFL = (os.environ.get('VTFL') == '1')
@@ -36,7 +36,7 @@ def extract_mesh_tags(mesh_id, tags, data_map, plugin_names):
     )
     tdg = tag2local.TagDataGenerator(tags, data_map, plugin_names)
     all_tag_data = []
-    for td in tdg.get_tag_data('mesh', myth_headers.encode_string(mesh_id)):
+    for td in tdg.get_tag_data('mesh', utils.encode_string(mesh_id)):
         all_tag_data.append(td)
 
     output_dir = f'../output/mesh2tags/{mesh_tag_header.name}/local'
@@ -44,7 +44,7 @@ def extract_mesh_tags(mesh_id, tags, data_map, plugin_names):
 
     if prompt(output_path):
         for (tag_header, tag_data) in all_tag_data:
-            file_path = (output_path / f'{myth_headers.local_folder(tag_header)}/{tag_header.name}')
+            file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
             pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
             with open(file_path, 'wb') as tag_file:

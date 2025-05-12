@@ -3,6 +3,7 @@ import sys
 import os
 
 import myth_headers
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -10,14 +11,14 @@ def main(tag_path, index):
     """
     Parse a Myth TFL or Myth II stli tag file and output as text
     """
-    data = myth_headers.load_file(tag_path)
+    data = utils.load_file(tag_path)
 
     try:
         (stli_header, stli_text) = myth_headers.parse_text_tag(data)
         print(f"[{stli_header.tag_id}] {stli_header.name}")
         for i, s in enumerate(stli_text.split(b'\r')):
             if index in [None, i]:
-                print(f"{i:>3} {myth_headers.decode_string(s)}")
+                print(f"{i:>3} {utils.decode_string(s)}")
     except UnicodeDecodeError as e:
         raise ValueError(f"Error processing binary data: {e}")
 

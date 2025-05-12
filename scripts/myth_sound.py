@@ -120,7 +120,7 @@ def parse_soun_tag(data):
         soun_header_end, soun_header.permutation_count,
         PermDescFmt, data
     ):
-        p_desc = myth_headers.decode_string(p_desc)
+        p_desc = utils.decode_string(p_desc)
         p_descs.append(p_desc)
 
     for i, values in enumerate(utils.iter_unpack(

@@ -131,7 +131,7 @@ def main(pref_file):
     """
 
     try:
-        data = myth_headers.load_file(pref_file)
+        data = utils.load_file(pref_file)
         parse_pref_file(data)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -154,13 +154,13 @@ def parse_pref_plugins(plugin_data, count1, count2):
 def parse_net_pref(pref_data):
     net_prefs = NetPrefs._make(struct.unpack(NetPrefsFmt, pref_data[:NET_PREF_SIZE]))
     return net_prefs._replace(
-        game_name=myth_headers.decode_string(net_prefs.game_name),
-        mesh_name=myth_headers.decode_string(net_prefs.mesh_name),
-        game_password=myth_headers.decode_string(net_prefs.game_password),
-        mesh_tag=myth_headers.decode_string(net_prefs.mesh_tag),
-        player_name=myth_headers.decode_string(net_prefs.player_name),
-        team_name=myth_headers.decode_string(net_prefs.team_name),
-        net=myth_headers.decode_string(net_prefs.net),
+        game_name=utils.decode_string(net_prefs.game_name),
+        mesh_name=utils.decode_string(net_prefs.mesh_name),
+        game_password=utils.decode_string(net_prefs.game_password),
+        mesh_tag=utils.decode_string(net_prefs.mesh_tag),
+        player_name=utils.decode_string(net_prefs.player_name),
+        team_name=utils.decode_string(net_prefs.team_name),
+        net=utils.decode_string(net_prefs.net),
         color1=parse_pref_color(net_prefs.color1),
         color2=parse_pref_color(net_prefs.color2),
         plugins=parse_pref_plugins(net_prefs.plugins, net_prefs.plugin_count1, net_prefs.plugin_count2),

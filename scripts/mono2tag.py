@@ -17,7 +17,7 @@ def main(mono_path, tag_type, tag_id, output_file):
     If no tag provided, list all tags
     """
     mono_path = pathlib.Path(mono_path)
-    data = myth_headers.load_file(mono_path)
+    data = utils.load_file(mono_path)
 
     try:
         mono_header = myth_headers.parse_mono_header(mono_path.name, data)
@@ -82,9 +82,9 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
     entry_tag_count = 0
     entry_tag_data = b''
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
-        entry_id = myth_headers.encode_string(entry_id)
-        entry_name = myth_headers.encode_string(entry_name)
-        entry_long_name = myth_headers.encode_string(entry_long_name)
+        entry_id = utils.encode_string(entry_id)
+        entry_name = utils.encode_string(entry_name)
+        entry_long_name = utils.encode_string(entry_long_name)
         entry_tag_data += struct.pack('>16s 32s 64s', entry_id, entry_name, entry_long_name)
         entry_tag_count += 1
     new_size = entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE
@@ -105,9 +105,9 @@ def get_entrypoints(data, mono_header):
         '>16s 32s 64s',
         data
     ):
-        entry_id = myth_headers.decode_string(entry_id)
-        entry_name = myth_headers.decode_string(entry_name)
-        entry_long_name = myth_headers.decode_string(entry_long_name)
+        entry_id = utils.decode_string(entry_id)
+        entry_name = utils.decode_string(entry_name)
+        entry_long_name = utils.decode_string(entry_long_name)
         entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.filename]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 

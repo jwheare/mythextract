@@ -7,6 +7,7 @@ import myth_headers
 import mesh_tag
 import mono2tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -76,9 +77,9 @@ def print_header(mesh_header, mesh_id, locations):
     mhd = mesh_header._asdict()
     for f in mesh_header._fields:
         val = mhd[f]
-        if type(val) is bytes and myth_headers.all_off(val):
+        if type(val) is bytes and utils.all_off(val):
             val = f'[00 x {len(val.split(b'\x00'))-1}]'
-        elif type(val) is bytes and myth_headers.all_on(val):
+        elif type(val) is bytes and utils.all_on(val):
             val = f'[FF x {len(val.split(b'\xff'))-1}]'
         elif f.startswith('cutscene_file'):
             val = val.rstrip(b'\x00')

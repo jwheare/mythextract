@@ -8,6 +8,7 @@ import hashlib
 import myth_headers
 import mono2tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 VERBOSE = (os.environ.get('VERBOSE') == '1')
@@ -17,9 +18,9 @@ def main(file_1, file_2, tag_type, tag_id):
     Parse two plugin files and print the differences
     """
     path_1 = pathlib.Path(file_1)
-    data_1 = myth_headers.load_file(path_1)
+    data_1 = utils.load_file(path_1)
     path_2 = pathlib.Path(file_2)
-    data_2 = myth_headers.load_file(path_2)
+    data_2 = utils.load_file(path_2)
 
     try:
         mono_header_1 = myth_headers.parse_mono_header(path_1.name, data_1)
@@ -78,11 +79,11 @@ def diff_tag_harder(tag_header_1, tag_data_1, tag_header_2, tag_data_2):
         if len(stli_diff_r) > 0:
             print("Items removed:")
             for i, s in enumerate(stli_diff_r):
-                print(f"{i:>3} {myth_headers.decode_string(s)}")
+                print(f"{i:>3} {utils.decode_string(s)}")
         if len(stli_diff_a) > 0:
             print("Items added:")
             for i, s in enumerate(stli_diff_a):
-                print(f"{i:>3} {myth_headers.decode_string(s)}")
+                print(f"{i:>3} {utils.decode_string(s)}")
     else:
         return
 

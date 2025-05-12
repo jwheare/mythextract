@@ -9,6 +9,7 @@ import mesh2info
 import mono2tag
 import loadtags
 import tree_curses
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -22,7 +23,7 @@ def main(game_directory, level, plugin_names):
         if level:
             if level.startswith('file='):
                 file = level[5:]
-                mesh_tag_data = myth_headers.load_file(file)
+                mesh_tag_data = utils.load_file(file)
             
                 tree_curses.enter(parse_mesh_actions(tags, data_map, mesh_tag_data))
             else:
@@ -39,7 +40,7 @@ def build_action_help(tags, data_map):
     for action_type in tags['temp'].keys():
         action_template_data = loadtags.get_tag_data(tags, data_map, 'temp', action_type)
         action_template = action_template_data[myth_headers.TAG_HEADER_SIZE:]
-        template_lines = [myth_headers.decode_string(tpl_line) for tpl_line in action_template.split(b'\r')]
+        template_lines = [utils.decode_string(tpl_line) for tpl_line in action_template.split(b'\r')]
         params = {}
         for param in template_lines[2:]:
             if param.strip():

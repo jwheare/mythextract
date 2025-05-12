@@ -63,7 +63,7 @@ def main(dmap_tag):
     Show info stored in detail map tags
     """
     try:
-        data = myth_headers.load_file(dmap_tag)
+        data = utils.load_file(dmap_tag)
         parse_dmap_tag(data)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -71,8 +71,8 @@ def main(dmap_tag):
 def parse_dmap_header1(data):
     dmap_header1 = DmapHeader1._make(struct.unpack(DmapHeader1Fmt, data[:DMAP_HEADER1_SIZE]))
     return dmap_header1._replace(
-        dtex_ids=[t if not myth_headers.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"4s"}', dmap_header1.dtex_ids)],
-        scales=[t if not myth_headers.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"B"}', dmap_header1.scales)],
+        dtex_ids=[t if not utils.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"4s"}', dmap_header1.dtex_ids)],
+        scales=[t if not utils.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"B"}', dmap_header1.scales)],
     )
 def parse_dmap_header2(data):
     return DmapHeader2._make(struct.unpack(DmapHeader2Fmt, data[:DMAP_HEADER2_SIZE]))
@@ -109,13 +109,13 @@ def parse_dmap_tag(data):
             data
         ):
             entry = DmapEntry._make(values)
-            if not myth_headers.all_on(entry.dtex_id) and not myth_headers.all_off(entry.dtex_id):
+            if not utils.all_on(entry.dtex_id) and not utils.all_off(entry.dtex_id):
                 entries.append(entry)
                 print(
                     f'\x1b[48;2;{entry.r};{entry.g};{entry.b}m \x1b[0m '
-                    f'{myth_headers.decode_string(entry.dtex_id)} '
+                    f'{utils.decode_string(entry.dtex_id)} '
                     f'pixels_per_cell={entry.pixels_per_cell} '
-                    f'desc={myth_headers.decode_string(entry.name)}'
+                    f'desc={utils.decode_string(entry.name)}'
                 )
 
         v_indices_start = header.v_indices_offset

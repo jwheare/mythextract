@@ -79,12 +79,12 @@ def parse_mesh_trades(game_version, tags, data_map, mesh_id):
 
 def get_level_name(mesh_header, tags, data_map):
     level_name_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', myth_headers.decode_string(
+        tags, data_map, 'stli', utils.decode_string(
             mesh_header.map_description_string_list_tag
         )
     )
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    return utils.ansi_format(myth_headers.decode_string(level_name_text.split(b'\r')[0]))
+    return utils.ansi_format(utils.decode_string(level_name_text.split(b'\r')[0]))
 
 def sort_units(units):
     return sorted(units, key=lambda k : (not k['tradeable'], k['spellings']))
@@ -102,7 +102,7 @@ def process_attacks(mons, tags, data_map):
 
 
     (_, ex_prgr_header, ex_prgr_data) = loadtags.get_tag_info(
-        tags, data_map, 'prgr', myth_headers.decode_string(
+        tags, data_map, 'prgr', utils.decode_string(
             mons.exploding_projectile_group_tag
         )
     )
@@ -110,7 +110,7 @@ def process_attacks(mons, tags, data_map):
         (ex_prgr_head, ex_prgr_projlist) = myth_projectile.parse_prgr(ex_prgr_data)
         for ex_prgr_proj in ex_prgr_projlist:
             (_, ex_proj_header, ex_proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', myth_headers.decode_string(
+                tags, data_map, 'proj', utils.decode_string(
                     ex_prgr_proj.projectile_tag
                 )
             )
@@ -131,7 +131,7 @@ def process_attacks(mons, tags, data_map):
     for attack in mons.attacks:
         if attack:
             (_, proj_header, proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', myth_headers.decode_string(
+                tags, data_map, 'proj', utils.decode_string(
                     attack.projectile_tag
                 )
             )
@@ -166,7 +166,7 @@ def process_attacks(mons, tags, data_map):
                     continue
 
                 (_, coll_header, coll_data) = loadtags.get_tag_info(
-                    tags, data_map, '.256', myth_headers.decode_string(
+                    tags, data_map, '.256', utils.decode_string(
                         mons.collection_tag
                     )
                 )
@@ -229,25 +229,25 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
             unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
             (mons_id, core) = mons_tag.parse_unit(unit_data)
             (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
-                tags, data_map, 'mons', myth_headers.decode_string(mons_id)
+                tags, data_map, 'mons', utils.decode_string(mons_id)
             )
             mons = mons_tag.parse_tag(mons_data)
 
             obje_data = loadtags.get_tag_data(
-                tags, data_map, 'obje', myth_headers.decode_string(mons.object_tag)
+                tags, data_map, 'obje', utils.decode_string(mons.object_tag)
             )
             obje_tag = mons_tag.parse_obje(obje_data)
 
-            if myth_headers.all_on(mons.spelling_string_list_tag) or myth_headers.all_off(mons.spelling_string_list_tag):
+            if utils.all_on(mons.spelling_string_list_tag) or utils.all_off(mons.spelling_string_list_tag):
                 spellings = [mons_header.name, mons_header.name]
             else:
                 spelling_data = loadtags.get_tag_data(
-                    tags, data_map, 'stli', myth_headers.decode_string(
+                    tags, data_map, 'stli', utils.decode_string(
                         mons.spelling_string_list_tag
                     )
                 )
                 (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-                spellings = [myth_headers.decode_string(s) for s in spelling_text.split(b'\r')]
+                spellings = [utils.decode_string(s) for s in spelling_text.split(b'\r')]
 
             attacks = process_attacks(mons, tags, data_map)
             can_block = mons.sequence_indexes[5] > -1

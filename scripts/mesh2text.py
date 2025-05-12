@@ -10,13 +10,14 @@ import mesh_tag
 import mono2tag
 import mesh2info
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 TIME = (os.environ.get('TIME') == '1')
 
 def load_file(path):
     t = time.perf_counter()
-    data = myth_headers.load_file(path)
+    data = utils.load_file(path)
     TIME and print(path, f'{(time.perf_counter() - t):.3f}')
 
     return data
@@ -98,15 +99,15 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
         return
 
     # Extract narration text
-    text_tag = myth_headers.decode_string(mesh_header.pregame_storyline_tag)
+    text_tag = utils.decode_string(mesh_header.pregame_storyline_tag)
     storyline_data = loadtags.get_tag_data(tags, data_map, 'text', text_tag)
 
     # Extract level name
-    desc_tag = myth_headers.decode_string(mesh_header.map_description_string_list_tag)
+    desc_tag = utils.decode_string(mesh_header.map_description_string_list_tag)
     desc_data = loadtags.get_tag_data(tags, data_map, 'stli', desc_tag)
 
     # Extract pregame captions
-    caption_tag = myth_headers.decode_string(mesh_header.picture_caption_string_list_tag)
+    caption_tag = utils.decode_string(mesh_header.picture_caption_string_list_tag)
     caption_data = loadtags.get_tag_data(tags, data_map, 'stli', caption_tag)
 
     output_text(
@@ -131,7 +132,7 @@ def output_text(
     if desc_data:
         (desc_header, desc_text) = myth_headers.parse_text_tag(desc_data)
         desc_tag_values = (desc_header.tag_id, desc_header.name)
-        level_name = myth_headers.decode_string(desc_text.split(b'\r')[0])
+        level_name = utils.decode_string(desc_text.split(b'\r')[0])
 
     # Extract caption
     caption = ''
@@ -139,7 +140,7 @@ def output_text(
     if caption_data:
         (caption_header, caption_text) = myth_headers.parse_text_tag(caption_data)
         caption_tag_values = (caption_header.tag_id, caption_header.name)
-        caption = myth_headers.decode_string(caption_text.split(b'\r')[0])
+        caption = utils.decode_string(caption_text.split(b'\r')[0])
 
     if DEBUG:
         print(level, intro_tag_values, desc_tag_values, caption_tag_values, level_name)

@@ -4,7 +4,6 @@ import os
 import pathlib
 import struct
 
-import myth_headers
 import myth_tags
 import mesh_tag
 import myth_collection
@@ -12,6 +11,7 @@ import myth_sound
 import myth_projectile
 import mons_tag
 import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -35,7 +35,7 @@ def extract_tags(tag_type, tag_id, tags, data_map, plugin_names):
         sys.exit(1)
     all_tag_data = []
     tdg = TagDataGenerator(tags, data_map, plugin_names)
-    for td in tdg.get_tag_data(tag_type, myth_headers.encode_string(tag_id)):
+    for td in tdg.get_tag_data(tag_type, utils.encode_string(tag_id)):
         all_tag_data.append(td)
 
     output_dir = f'../output/tag2local/{tag_type}.{header.name}/local'
@@ -43,7 +43,7 @@ def extract_tags(tag_type, tag_id, tags, data_map, plugin_names):
 
     if prompt(output_path):
         for (tag_header, tag_data) in all_tag_data:
-            file_path = (output_path / f'{myth_headers.local_folder(tag_header)}/{tag_header.name}')
+            file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
             pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
             with open(file_path, 'wb') as tag_file:
@@ -77,10 +77,10 @@ class TagDataGenerator:
         if self.fetched_check(tag_type, tag_id):
             return
 
-        if myth_headers.all_on(tag_id) or myth_headers.all_off(tag_id):
+        if utils.all_on(tag_id) or utils.all_off(tag_id):
             return
         (location, tag_header, tag_data) = loadtags.get_tag_info(
-            self.tags, self.data_map, tag_type, myth_headers.decode_string(tag_id)
+            self.tags, self.data_map, tag_type, utils.decode_string(tag_id)
         )
         if tag_data:
             # Copy otherwise this list is just a reference to the original list from
@@ -112,7 +112,7 @@ class TagDataGenerator:
                 for palette_type, p_list in palette.items():
                     for p_val in p_list:
                         tag_type = mesh_tag.Marker2Tag.get(palette_type)
-                        yield from self.get_tag_data(mesh_tag.Marker2Tag.get(palette_type), myth_headers.encode_string(p_val['tag']), tree)
+                        yield from self.get_tag_data(mesh_tag.Marker2Tag.get(palette_type), utils.encode_string(p_val['tag']), tree)
 
                 # action tags
                 (actions, _) = mesh_tag.parse_map_actions(mesh_header, tag_data)
@@ -121,12 +121,12 @@ class TagDataGenerator:
                         for p in act['parameters']:
                             if p['type'] == mesh_tag.ParamType.SOUND:
                                 for el in p['elements']:
-                                    yield from self.get_tag_data('soun', myth_headers.encode_string(el), tree)
+                                    yield from self.get_tag_data('soun', utils.encode_string(el), tree)
                     elif act['type'] == 'ligh':
                         for p in act['parameters']:
                             if p['type'] == mesh_tag.ParamType.PROJECTILE:
                                 for el in p['elements']:
-                                    yield from self.get_tag_data('proj', myth_headers.encode_string(el), tree)
+                                    yield from self.get_tag_data('proj', utils.encode_string(el), tree)
 
             elif tag_header.tag_type == 'soun':
                 soun = myth_sound.parse_soun_header(tag_data)
@@ -146,7 +146,7 @@ class TagDataGenerator:
 
             elif tag_header.tag_type == 'core':
                 core = myth_collection.parse_collection_ref(tag_data)
-                yield from self.get_tag_data('.256', myth_headers.encode_string(core.collection_tag), tree)
+                yield from self.get_tag_data('.256', utils.encode_string(core.collection_tag), tree)
 
             elif tag_header.tag_type == 'unit':
                 (mons, core) = mons_tag.parse_unit(tag_data)

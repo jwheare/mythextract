@@ -123,7 +123,7 @@ MonsTagFmt = ('MonsTag', [
     ('h', 'desired_projectile_volume'),
     ('256s', 'attacks', utils.list_codec(
         'Attacks', MAX_ATTACKS, AttackDefFmt,
-        filter_fun=lambda self, attack: not myth_headers.all_off(attack.projectile_tag)
+        filter_fun=lambda self, attack: not utils.all_off(attack.projectile_tag)
     )),
     ('4s', 'map_action_tag'),
     ('h', 'attack_frequency_lower_bound'),
@@ -145,7 +145,7 @@ MonsTagFmt = ('MonsTag', [
     ('h', 'experience_point_value'),
     ('40s', 'sound_tags', utils.list_pack(
         'MonsSoundTags', 10, '>4s',
-        filter_fun=lambda self, tag: not myth_headers.all_on(tag),
+        filter_fun=lambda self, tag: not utils.all_on(tag),
         empty_value=struct.pack('>l', -1)
     )),
     ('4s', 'blocked_impact_projectile_group_tag'),
