@@ -20,6 +20,7 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 NO_TRADING = (os.environ.get('NO_TRADING') == '1')
 COUNTS = os.environ.get('COUNTS')
 GAME_TYPE = os.environ.get('GAME_TYPE')
+STATS = os.environ.get('STATS')
 
 NetgameNames = OrderedDict({
     'bc': 'Body Count',
@@ -57,7 +58,12 @@ def main(game_directory, level, plugin_names):
 
 def parse_mesh_trades(game_version, tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
-    mesh_header = mesh_tag.parse_header(mesh_tag_data)
+    try:
+        mesh_header = mesh_tag.parse_header(mesh_tag_data)
+    except (struct.error, UnicodeDecodeError) as e:
+        print("Error loading mesh")
+        return
+
     if mesh_tag.is_single_player(mesh_header):
         print("Not a netmap")
         sys.exit(0)
@@ -65,10 +71,11 @@ def parse_mesh_trades(game_version, tags, data_map, mesh_id):
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
     
     level_name = get_level_name(mesh_header, tags, data_map)
-    (units, diffs, max_points) = parse_game_teams(tags, data_map, palette, level_name)
+    mesh_size = mesh_tag.mesh_size(mesh_header)
+    (game_type, units, diffs, max_points) = parse_game_teams(tags, data_map, palette, level_name, mesh_size)
 
     if not NO_TRADING:
-        input_loop(units, diffs, max_points)
+        input_loop(game_type, units, diffs, max_points)
 
 def get_level_name(mesh_header, tags, data_map):
     level_name_data = loadtags.get_tag_data(
@@ -77,7 +84,7 @@ def get_level_name(mesh_header, tags, data_map):
         )
     )
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    return utils.ansi_format(myth_headers.decode_string(level_name_text))
+    return utils.ansi_format(myth_headers.decode_string(level_name_text.split(b'\r')[0]))
 
 def sort_units(units):
     return sorted(units, key=lambda k : (not k['tradeable'], k['spellings']))
@@ -209,7 +216,7 @@ def process_attacks(mons, tags, data_map):
                 })
     return attacks
 
-def parse_game_teams(tags, data_map, palette, level_name):
+def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
     game_type_units = OrderedDict()
     has_stampede_targets = False
     has_assassin_target = False
@@ -308,17 +315,19 @@ def parse_game_teams(tags, data_map, palette, level_name):
         game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
         game_type_choice = included_game_types[game_type_choice_i-1]
 
-    shared_units = game_type_units['all']
+    shared_units = game_type_units.get('all', {})
     teams = game_type_units.get(game_type_choice, shared_units)
     trades = {}
     for team, units in teams.items():
-        merged_units = shared_units[team] | units
-        trades[team] = team_trade_parts(set_initial_counts(sort_units(
+        merged_units = units
+        if team in shared_units:
+            merged_units = shared_units[team] | merged_units
+        trades[team] = team_trade_parts(game_type_choice, set_initial_counts(sort_units(
             list(merged_units.values())
         )))
 
     game_type = NetgameNames[game_type_choice]
-    print(f"\n---\n\n{level_name}: {game_type}\n")
+    print(f"\n---\n\n{game_type}: {level_name} ({mesh_size})\n")
 
     mismatch = False
     for team_id, (total, diffs, trade) in trades.items():
@@ -336,12 +345,16 @@ def parse_game_teams(tags, data_map, palette, level_name):
         print('\n'.join(trades[team_choice][2]))
     
     (max_points, diffs, trade) = trades[team_choice]
-    units = sort_units(
-        list((shared_units[team_choice] | teams[team]).values())
-    )
-    return (units, diffs, max_points)
 
-def input_loop(units, diffs, max_points):
+    final_merged_units = teams[team]
+    if team_choice in shared_units:
+        final_merged_units = shared_units[team_choice] | teams[team]
+    units = sort_units(
+        list(final_merged_units.values())
+    )
+    return (game_type_choice, units, diffs, max_points)
+
+def input_loop(game_type, units, diffs, max_points):
     print("\n\x1b[1A", end='')
     while True:
         adjust = input("\x1b[KAdjust unit: (type unit num and count separated by a space, or num+ / num- for increment/decrement or num++ / num-- for max/min or num= to accept suggestion) ").strip().lower()
@@ -369,7 +382,7 @@ def input_loop(units, diffs, max_points):
         if unit is not None and count is not None:
             units[unit]['count'] = min(count, units[unit]['max'])
 
-        (total, diffs, trade) = team_trade_parts(units, max_points)
+        (total, diffs, trade) = team_trade_parts(game_type, units, max_points)
         # Move cursor up
         print(f"\x1b[{len(trade)+2}A", end='')
         for line in trade:
@@ -379,7 +392,7 @@ def input_loop(units, diffs, max_points):
         else:
             print(f"\x1b[K")
 
-def team_trade_parts(units, max_points=None):
+def team_trade_parts(game_type, units, max_points=None):
     trades = []
     divider = []
     untradeable = []
@@ -390,7 +403,7 @@ def team_trade_parts(units, max_points=None):
     if max_points:
         diff = max_points - total
     for i, u in enumerate(units):
-        if u['target']:
+        if u['target'] and game_type in ['ass', 'stamp']:
             afford = 0
         elif u['tradeable']:
             afford = diff // u['cost']
@@ -405,60 +418,53 @@ def team_trade_parts(units, max_points=None):
                     diff_amount = f'• \x1b[91msell: {-afford:<2}\x1b[0m '
 
             if NO_TRADING:
-                trades.append(
-                    f"{i+1:>2}) {u['spellings'][1]:<32}"
-                    f"{u['count']:>2} / "
-                    f"{u['max']:<2} "
-                    f"• cost: {u['cost']:<2} "
-                    f"• value: {(u['cost']*u['count']):<3} "
-                    f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
-                )
-            else:
-                trades.append(
-                    f"{i+1:>2}) {u['spellings'][1]:<32}"
-                    f"{u['count']:>2} / "
-                    f"{u['max']:<2} "
-                    f"• cost: {u['cost']:<2} "
-                    f"• value: {(u['cost']*u['count']):<3} "
-                    f"{diff_amount} "
-                    f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
-                )
-            trades.append(graph('spd ', u['speed'], 15, 20, f" {u['speed']}"))
-            if u['max_vitality'] == u['min_vitality']:
-                vit_range = f'{round(u['max_vitality'], 2)}'
-            else:
-                vit_range = f'{round(u['min_vitality'], 2)} - {round(u['max_vitality'], 2)}'
-            trades.append(graph('vit ', round(u['max_vitality']*2), 10, 20, f" {vit_range}"))
-            for attack in u['attacks']:
-                special = " (special)" if attack['special'] else ""
-                aoe = " (aoe)" if attack['aoe'] else ""
-                attack_type = "melee" if attack['melee'] else "ranged"
-                if attack['dps']:
-                    trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}{aoe}"))
-                throw = ' (throw)' if attack['throw'] else ''
-                trades.append(graph('ran ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}"))
+                diff_amount = ''
+            trades.append(
+                f"{i+1:>2}) {u['spellings'][1]:<32}"
+                f"{u['count']:>2} / "
+                f"{u['max']:<2} "
+                f"• cost: {u['cost']:<2} "
+                f"• value: {(u['cost']*u['count']):<3} "
+                f"{diff_amount} "
+                f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
+            )
+            if STATS:
+                trades.append(graph('spd ', u['speed'], 15, 20, f" {u['speed']}"))
+                if u['max_vitality'] == u['min_vitality']:
+                    vit_range = f'{round(u['max_vitality'], 2)}'
+                else:
+                    vit_range = f'{round(u['min_vitality'], 2)} - {round(u['max_vitality'], 2)}'
+                trades.append(graph('vit ', round(u['max_vitality']*2), 10, 20, f" {vit_range}"))
+                for attack in u['attacks']:
+                    special = " (special)" if attack['special'] else ""
+                    aoe = " (aoe)" if attack['aoe'] else ""
+                    attack_type = "melee" if attack['melee'] else "ranged"
+                    if attack['dps']:
+                        trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}{aoe}"))
+                    throw = ' (throw)' if attack['throw'] else ''
+                    trades.append(graph('ran ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}"))
 
-            if u['can_block']:
-                trades.append('    can \x1b[92mblock\x1b[0m')
-            if u['heal_kills']:
-                trades.append('    \x1b[91mkilled by heal\x1b[0m')
-            mods = u['modifiers']._asdict()
-            puss_dur = mods['paralysis_duration']
-            if puss_dur == 0:
-                trades.append('    \x1b[92mimmune\x1b[0m to puss')
-            elif puss_dur > 1:
-                trades.append(f'    weak to puss: (\x1b[91m+{round((puss_dur-1)*100)}%\x1b[0m duration)')
-            elif puss_dur < 1:
-                trades.append(f'    resistant to puss: (\x1b[92m-{round((1-puss_dur)*100)}%\x1b[0m duration)')
+                if u['can_block']:
+                    trades.append('    can \x1b[92mblock\x1b[0m')
+                if u['heal_kills']:
+                    trades.append('    \x1b[91mkilled by heal\x1b[0m')
+                mods = u['modifiers']._asdict()
+                puss_dur = mods['paralysis_duration']
+                if puss_dur == 0:
+                    trades.append('    \x1b[92mimmune\x1b[0m to puss')
+                elif puss_dur > 1:
+                    trades.append(f'    weak to puss: (\x1b[91m+{round((puss_dur-1)*100)}%\x1b[0m duration)')
+                elif puss_dur < 1:
+                    trades.append(f'    resistant to puss: (\x1b[92m-{round((1-puss_dur)*100)}%\x1b[0m duration)')
 
-            for dmg in ['slashing', 'kinetic', 'explosive', 'electric', 'fire']:
-                damage = mods[f'{dmg}_damage']
-                if damage == 0:
-                    trades.append(f'    \x1b[92mimmune\x1b[0m to {dmg}')
-                elif damage > 1:
-                    trades.append(f'    weak to {dmg}: (\x1b[91m+{round((damage-1)*100)}%\x1b[0m)')
-                elif damage < 1:
-                    trades.append(f'    resistant to {dmg}: (\x1b[92m-{round((1-damage)*100)}%\x1b[0m)')
+                for dmg in ['slashing', 'kinetic', 'explosive', 'electric', 'fire']:
+                    damage = mods[f'{dmg}_damage']
+                    if damage == 0:
+                        trades.append(f'    \x1b[92mimmune\x1b[0m to {dmg}')
+                    elif damage > 1:
+                        trades.append(f'    weak to {dmg}: (\x1b[91m+{round((damage-1)*100)}%\x1b[0m)')
+                    elif damage < 1:
+                        trades.append(f'    resistant to {dmg}: (\x1b[92m-{round((1-damage)*100)}%\x1b[0m)')
 
         elif u['count']:
             afford = 0
