@@ -99,59 +99,80 @@ def process_attacks(mons, tags, data_map):
                     attack.projectile_tag
                 )
             )
-            if proj_data:
-                proj = myth_projectile.parse_proj(proj_data)
-                if proj.damage.type != myth_projectile.DamageType.HEALING:
-                    dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
-                    seq_ticks = []
-                    recov_s = attack.recovery_time
-                    for attack_s in attack.sequences:
-                        if attack_s:
-                            (_, coll_header, coll_data) = loadtags.get_tag_info(
-                                tags, data_map, '.256', myth_headers.decode_string(
-                                    mons.collection_tag
-                                )
-                            )
-                            coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
-                            seqs = myth_collection.parse_sequences(coll_data, coll_head)
-                            seq = seqs[attack_s.sequence_index]
-                            seq_meta = seq['metadata']
 
-                            ticks = (seq_meta.frames_per_view * seq_meta.ticks_per_frame)
-                            ticks += seq_meta.transfer_period
-                            seq_ticks.append(ticks)
+            if not proj_data:
+                if mons_tag.AttackFlag.USES_CARRIED_PROJECTLE in attack.flags:
+                    attacks.append({
+                        'name': 'throw',
+                        'throw': True,
+                        'type': None,
+                        'dmg': None,
+                        'dps': None,
+                        'special': False,
+                        'melee': False,
+                        'range': attack.maximum_range,
+                    })
+                continue
 
-                            tick_s = ticks / 30
-                            time_s = tick_s + recov_s
+            proj = myth_projectile.parse_proj(proj_data)
+            if proj.damage.type == myth_projectile.DamageType.HEALING:
+                continue
 
-                            total_ticks = ticks + (recov_s * 30)
-                            dmg_per_tick = dmg / total_ticks
-                            dps = max(dmg, dmg / time_s)
-                            if DEBUG:
-                                print(
-                                    f'{mons.collection_tag} [{seq['name']}] '
-                                    f'dmg={dmg} '
-                                    f'ticks={ticks} transfer={seq_meta.transfer_period} '
-                                    f'tick_s={tick_s} '
-                                    f'recov={recov_s} '
-                                    f'time_s={time_s} '
-                                    f'dpt={round(dmg_per_tick,2)} '
-                                    f'dps={round(dps,2)}'
-                                )
-                    if len(seq_ticks):
-                        avg_tick_s = sum(seq_ticks) / len(seq_ticks) / 30
-                        avg_time_s = avg_tick_s + recov_s
+            dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
+            seq_ticks = []
+            recov_s = attack.recovery_time
+            for attack_s in attack.sequences:
+                if not attack_s:
+                    continue
 
-                        avg_dps = max(dmg, dmg / avg_time_s)
+                (_, coll_header, coll_data) = loadtags.get_tag_info(
+                    tags, data_map, '.256', myth_headers.decode_string(
+                        mons.collection_tag
+                    )
+                )
+                coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
+                seqs = myth_collection.parse_sequences(coll_data, coll_head)
+                seq = seqs[attack_s.sequence_index]
+                seq_meta = seq['metadata']
 
-                        attacks.append((
-                            proj_header.name,
-                            proj.damage.type,
-                            dmg,
-                            dps,
-                            mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
-                            myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
-                        ))
+                ticks = (seq_meta.frames_per_view * seq_meta.ticks_per_frame)
+                ticks += seq_meta.transfer_period
+                seq_ticks.append(ticks)
+
+                tick_s = ticks / 30
+                time_s = tick_s + recov_s
+
+                total_ticks = ticks + (recov_s * 30)
+                dmg_per_tick = dmg / total_ticks
+                dps = max(dmg, dmg / time_s)
+                if DEBUG:
+                    print(
+                        f'{mons.collection_tag} [{seq['name']}] '
+                        f'dmg={dmg} '
+                        f'ticks={ticks} transfer={seq_meta.transfer_period} '
+                        f'tick_s={tick_s} '
+                        f'recov={recov_s} '
+                        f'time_s={time_s} '
+                        f'dpt={round(dmg_per_tick,2)} '
+                        f'dps={round(dps,2)}'
+                    )
+
+            if len(seq_ticks):
+                avg_tick_s = sum(seq_ticks) / len(seq_ticks) / 30
+                avg_time_s = avg_tick_s + recov_s
+
+                avg_dps = max(dmg, dmg / avg_time_s)
+
+                attacks.append({
+                    'name': proj_header.name,
+                    'throw': False,
+                    'type': proj.damage.type,
+                    'dmg': dmg,
+                    'dps': dps,
+                    'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
+                    'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
+                    'range': attack.maximum_range,
+                })
     return attacks
 
 def parse_game_teams(tags, data_map, palette, level_name):
@@ -374,10 +395,13 @@ def team_trade_parts(units, max_points=None):
             else:
                 vit_range = f'{round(u['min_vitality'], 2)} - {round(u['max_vitality'], 2)}'
             trades.append(graph('vit ', round(u['max_vitality']*2), 10, 20, f" {vit_range}"))
-            for (a_name, a_type, a_dmg, a_dps, a_special, a_melee) in u['attacks']:
-                special = " (special)" if a_special else ""
-                a_attack_type = "melee" if a_melee else "ranged"
-                trades.append(graph('dps ', round(a_dps*2), 1, 5, f" {round(a_dps, 2)} (per hit: {round(a_dmg, 2)}) [{a_type.name} - {a_attack_type}] {a_name}{special}"))
+            for attack in u['attacks']:
+                special = " (special)" if attack['special'] else ""
+                attack_type = "melee" if attack['melee'] else "ranged"
+                if attack['dps']:
+                    trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}"))
+                throw = ' (throw)' if attack['throw'] else ''
+                trades.append(graph('ran ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}"))
 
             if u['can_block']:
                 trades.append('    can \x1b[92mblock\x1b[0m')
