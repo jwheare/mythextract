@@ -435,7 +435,7 @@ def align(align_bytes, value):
     return (value + (align_bytes-1)) & (align_bytes * -1)
 
 def parse_header(data):
-    return utils.decode_data(MeshHeaderFmt, data, offset=myth_headers.TAG_HEADER_SIZE)
+    return utils.codec(MeshHeaderFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
 
 def required_plugin(mesh_header):
     if MeshFlags.REQUIRES_PLUGIN in mesh_header.flags and mesh_header.plugin_name:

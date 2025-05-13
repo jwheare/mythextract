@@ -192,7 +192,7 @@ ProjFmt = ('Proj', [
     ('4s', 'promotion_projectile_group_tag'),
     ('H', 'maximum_safe_acceleration'),
     ('H', 'acceleration_detonation_fraction'),
-    ('16s', 'damage', utils.single_codec('ProjDmg', ProjDmgFmt)),
+    ('16s', 'damage', utils.codec(ProjDmgFmt)),
     ('4s', 'artifact_tag'),
     ('4s', 'target_detonation_projectile_group_tag'),
     ('4s', 'geometry_tag'),
@@ -225,7 +225,7 @@ LightningFmt = ('Lightning', [
     ('h', 'fork_overlap_amount'),
     ('h', 'main_bolt_overlap_amount'),
     ('H', 'angular_limit'),
-    ('16s', 'damage', utils.single_codec('LightningDmg', ProjDmgFmt)),
+    ('16s', 'damage', utils.codec(ProjDmgFmt)),
     ('h', 'apparent_number_of_bolts'),
     ('h', 'collection_reference_index'),
     ('h', 'collection_index'),
@@ -235,12 +235,12 @@ LightningFmt = ('Lightning', [
 def parse_lpgr(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + LPGR_SIZE
-    return utils.decode_data(LpgrFmt, data[start:end])
+    return utils.codec(LpgrFmt)(data[start:end])
 
 def parse_prgr(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + PRGR_HEAD_SIZE
-    prgr_head = utils.decode_data(PrgrHeadFmt, data[start:end])
+    prgr_head = utils.codec(PrgrHeadFmt)(data[start:end])
     proj_start = end
 
     proj_list_codec = utils.list_codec('PrgrProjList', prgr_head.number_of_parts, PrgrProjFmt)
@@ -251,9 +251,9 @@ def parse_prgr(data):
 def parse_proj(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + PROJ_SIZE
-    return utils.decode_data(ProjFmt, data[start:end])
+    return utils.codec(ProjFmt)(data[start:end])
 
 def parse_lightning(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + LIGHTNING_SIZE
-    return utils.decode_data(LightningFmt, data[start:end])
+    return utils.codec(LightningFmt)(data[start:end])

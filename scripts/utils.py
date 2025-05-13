@@ -77,12 +77,21 @@ def _decode_data_values(name, values, decoders, fields):
     nt = namedtuple(name, fields)
     return nt._make(processed)
 
+def make_nt(data_format, values=None):
+    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
+    nt = namedtuple(name, fields)
+    if values:
+        return nt._make(values)
+    else:
+        return nt
+
 class _ListPacker:
     # Required attributes Populated dynamically by list_pack
     MAX_ITEMS = None
     DefFmt = None
     FILTER = None
     EMPTY_VALUE = None
+    OFFSET = 0
 
     def iter_decode(self, *args):
         for (item,) in iter_unpack(*args):
@@ -99,7 +108,7 @@ class _ListPacker:
         self.fmt_string = self.item_def_fmt()
         self.item_def_size = struct.calcsize(self.fmt_string)
         self.original_data = item_data
-        for item in self.iter_decode(0, self.MAX_ITEMS, self.DefFmt, self.original_data):
+        for item in self.iter_decode(self.OFFSET, self.MAX_ITEMS, self.DefFmt, self.original_data):
             if not self.FILTER or self.FILTER(item):
                 self.items.append(item)
             else:
@@ -142,13 +151,14 @@ class _ListCodec(_ListPacker):
     def __repr__(self):
         return f'ListCodec({self.items})'
 
-class _SingleCodec:
-    # Required attributes Populated dynamically by single_codec
+class _Codec:
+    # Required attributes Populated dynamically by codec
     _DefFmt = None
+    _OFFSET = 0
 
     def __init__(self, item_data):
         self._original_data = item_data
-        self._item = decode_data(self._DefFmt, self._original_data)
+        self._item = decode_data(self._DefFmt, self._original_data, self._OFFSET)
 
     @property
     def value(self):
@@ -158,35 +168,35 @@ class _SingleCodec:
         return getattr(self._item, name)
 
     def __repr__(self):
-        return f'SingleCodec({self._item})'
+        return f'{self._DefFmt[0]}({self._item})'
 
-def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None):
+def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListPacker,), {
         'MAX_ITEMS': max_items,
         'DefFmt': fmt,
         'FILTER': filter_fun,
         'EMPTY_VALUE': empty_value,
+        'OFFSET': offset,
     })
 
-def list_codec(name, max_items, fmt, filter_fun=None, empty_value=None):
+def list_codec(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListCodec,), {
         'MAX_ITEMS': max_items,
         'DefFmt': fmt,
         'FILTER': filter_fun,
         'EMPTY_VALUE': empty_value,
+        'OFFSET': offset,
     })
 
-def single_codec(name, fmt):
-    return type(name, (_SingleCodec,), {
+def codec(fmt, offset=0):
+    return type(fmt[0], (_Codec,), {
         '_DefFmt': fmt,
+        '_OFFSET': offset,
     })
 
-def decode_data(data_format, data, offset=None):
+def decode_data(data_format, data, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
-    if offset is not None:
-        values = struct.unpack_from(fmt_string, data, offset)
-    else:
-        values = struct.unpack(fmt_string, data)
+    values = struct.unpack_from(fmt_string, data, offset)
     return _decode_data_values(name, values, decoders, fields)
 
 def encode_data(data_format, nt):

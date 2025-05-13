@@ -11,51 +11,42 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 
 MAX_DTEX_TAGS_PER_DMAP = 128
 DMAP_HEADER1_SIZE = 644
-DmapHeader1Fmt = """>
-    B B
-    B
-    x
-    512s
-    128s
-"""
-DmapHeader1 = namedtuple('DmapHeader1', [
-    'width', 'height',
-    'indices', # width*height
-    'dtex_ids',
-    'scales', # pixels per cell
+DmapHeader1Fmt = ('DmapHeader1', [
+    ('B', 'width'),
+    ('B', 'height'),
+    ('B', 'indices'), # width*height
+    ('x', None,),
+    ('512s', 'dtex_ids', utils.list_pack(
+        'DmapDtexIds', MAX_DTEX_TAGS_PER_DMAP, '>4s',
+        filter_fun=lambda t: not utils.all_on(t)
+    )),
+    ('128s', 'scales', utils.list_pack(
+        'DmapScales', MAX_DTEX_TAGS_PER_DMAP, '>B',
+        filter_fun=lambda t: not utils.all_on(t)
+    )), # pixels per cell
 ])
 
 DMAP_HEADER2_SIZE = 256
-DmapHeader2Fmt = """>
-    L L
-    L
-    4x
-    L
-    4x
-    L
-    4x
-    224x
-"""
-DmapHeader2 = namedtuple('DmapHeader2', [
-    'width', 'height',
-    'v_indices_offset',
-    't_indices_offset',
-    'entries_offset',
+DmapHeader2Fmt = ('DmapHeader2', [
+    ('L', 'width'),
+    ('L', 'height'),
+    ('L', 'v_indices_offset'),
+    ('4x', None),
+    ('L', 't_indices_offset'),
+    ('4x', None),
+    ('L', 'entries_offset'),
+    ('4x', None),
+    ('224x', None),
 ])
 
-DMAP_ENTRY_SIZE = 64
-DmapEntryFmt = """>
-    4s
-    B
-    B B B
-    24x
-    32s
-"""
-DmapEntry = namedtuple('DmapEntry', [
-    'dtex_id',
-    'pixels_per_cell',
-    'r', 'g', 'b',
-    'name',
+DmapEntryFmt = ('DmapEntry', [
+    ('4s', 'dtex_id'),
+    ('B', 'pixels_per_cell'),
+    ('B', 'r'),
+    ('B', 'g'), 
+    ('B', 'b'),
+    ('24x', None),
+    ('32s', 'name', utils.decode_string),
 ])
 
 def main(dmap_tag):
@@ -69,13 +60,10 @@ def main(dmap_tag):
         raise ValueError(f"Error processing binary data: {e}")
 
 def parse_dmap_header1(data):
-    dmap_header1 = DmapHeader1._make(struct.unpack(DmapHeader1Fmt, data[:DMAP_HEADER1_SIZE]))
-    return dmap_header1._replace(
-        dtex_ids=[t if not utils.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"4s"}', dmap_header1.dtex_ids)],
-        scales=[t if not utils.all_on(t) else None for t in struct.unpack(f'>{MAX_DTEX_TAGS_PER_DMAP*"B"}', dmap_header1.scales)],
-    )
+    return utils.codec(DmapHeader1Fmt)(data[:DMAP_HEADER1_SIZE])
+
 def parse_dmap_header2(data):
-    return DmapHeader2._make(struct.unpack(DmapHeader2Fmt, data[:DMAP_HEADER2_SIZE]))
+    return utils.codec(DmapHeader2Fmt)(data[:DMAP_HEADER2_SIZE])
 
 def parse_dmap_tag(data):
     tag_header = myth_headers.parse_header(data)
@@ -91,7 +79,11 @@ def parse_dmap_tag(data):
         entries = []
         for i, scale in enumerate(header.scales):
             if scale:
-                entry = DmapEntry._make(header.dtex_ids[i], scale-1, None, None, None, None)
+                DmapEntry = make_nt(DmapEntryFmt)
+                entry = DmapEntry(
+                    dtex_id=header.dtex_ids[i],
+                    pixels_per_cell=scale-1
+                )
                 entries.append(entry)
                 print(entry)
 
@@ -101,21 +93,18 @@ def parse_dmap_tag(data):
         area = header.width * header.height
         print(header, area)
 
-        entries = []
-        for values in utils.iter_unpack(
-            header.entries_offset,
-            MAX_DTEX_TAGS_PER_DMAP,
-            DmapEntryFmt,
-            data
-        ):
-            entry = DmapEntry._make(values)
-            if not utils.all_on(entry.dtex_id) and not utils.all_off(entry.dtex_id):
-                entries.append(entry)
+        entries = utils.list_codec(
+            'DmapEntries', MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
+            filter_fun=lambda _self, e: not utils.all_on(e.dtex_id) and not utils.all_off(e.dtex_id),
+            offset=header.entries_offset
+        )(data)
+        for entry in entries:
+            if entry:
                 print(
                     f'\x1b[48;2;{entry.r};{entry.g};{entry.b}m \x1b[0m '
                     f'{utils.decode_string(entry.dtex_id)} '
                     f'pixels_per_cell={entry.pixels_per_cell} '
-                    f'desc={utils.decode_string(entry.name)}'
+                    f'desc={entry.name}'
                 )
 
         v_indices_start = header.v_indices_offset

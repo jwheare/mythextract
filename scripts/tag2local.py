@@ -149,9 +149,9 @@ class TagDataGenerator:
                 yield from self.get_tag_data('.256', utils.encode_string(core.collection_tag), tree)
 
             elif tag_header.tag_type == 'unit':
-                (mons, core) = mons_tag.parse_unit(tag_data)
-                yield from self.get_tag_data('mons', mons, tree)
-                yield from self.get_tag_data('core', core, tree)
+                unit = mons_tag.parse_unit(tag_data)
+                yield from self.get_tag_data('mons', unit.mons, tree)
+                yield from self.get_tag_data('core', unit.core, tree)
 
             elif tag_header.tag_type == 'conn':
                 conn = myth_tags.parse_connector(tag_data)

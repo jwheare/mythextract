@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from collections import namedtuple
 import os
 import struct
 
@@ -15,29 +14,28 @@ IMA_COMPRESSION_RATIO = 4
 DEBUG_SOUN = (os.environ.get('DEBUG_SOUN') == '1')
 
 SOUN_HEADER_SIZE = 64
-SoundHeaderFmt = """>
-    L h h H
-    H H H H
-
-    h
-    L L
-
-    4s H H
-    L L L
-
-    I I I I
-"""
-SoundHeader = namedtuple('SoundHeader', [
-    'flags', 'loudness', 'play_fraction', 'external_frequency_modifier',
-    'pitch_lower_bound', 'pitch_delta', 'volume_lower_bound', 'volume_delta',
-
-    'first_subtitle_within_string_list_index',
-    'sound_offset', 'sound_size',
-
-    'subtitle_string_list_tag', 'subtitle_string_list_index', 'unused',
-    'permutation_count', 'permutations_offset', 'permutations_size',
-
-    'd6', 'd7', 'd8', 'd9'
+SoundHeaderFmt = ('SoundHeader', [
+    ('L', 'flags'),
+    ('h', 'loudness'),
+    ('h', 'play_fraction'),
+    ('H', 'external_frequency_modifier'),
+    ('H', 'pitch_lower_bound'),
+    ('H', 'pitch_delta'),
+    ('H', 'volume_lower_bound'),
+    ('H', 'volume_delta'),
+    ('h', 'first_subtitle_within_string_list_index'),
+    ('L', 'sound_offset'),
+    ('L', 'sound_size'),
+    ('4s', 'subtitle_string_list_tag'),
+    ('H', 'subtitle_string_list_index'),
+    ('H', 'unused'),
+    ('L', 'permutation_count'),
+    ('L', 'permutations_offset'),
+    ('L', 'permutations_size'),
+    ('I', 'd6'),
+    ('I', 'd7'),
+    ('I', 'd8'),
+    ('I', 'd9'),
 ])
 
 PERM_DESC_SIZE = 32
@@ -45,56 +43,43 @@ PermDescFmt = """>
     H H H 26s
 """
 PERM_META_SIZE = 32
-PermMetaFmt = """>
-    H H
-    H
-    H
-    H
-    I
-    H
-    I
-    H H H H H H
-"""
-PermMeta = namedtuple('PermMeta', [
-    'm1', 'm2',
-    'sample_size',
-    'm3',
-    'num_channels',
-    'sample_rate',
-    'm4',
-    'num_sample_frames',
-    'm5', 'm6', 'm7', 'm8', 'm9', 'm10'
+PermMetaFmt = ('PermMeta', [
+    ('H', 'm1'),
+    ('H', 'm2'),
+    ('H', 'sample_size'),
+    ('H', 'm3'),
+    ('H', 'num_channels'),
+    ('I', 'sample_rate'),
+    ('H', 'm4'),
+    ('I', 'num_sample_frames'),
+    ('H', 'm5'),
+    ('H', 'm6'),
+    ('H', 'm7'),
+    ('H', 'm8'),
+    ('H', 'm9'),
+    ('H', 'm10'),
 ])
 
 AMSO_SIZE = 64
 MAX_AMSO_SOUN = 6
-AmsoFmt = """>
-    L
-    h h
-    h h
-    24s
-    h
-    10x
-    12s
-    h h
-"""
-Amso = namedtuple('Amso', [
-    'flags',
-    'inner_radius', 'outer_radius',
-    'period_lower_bound', 'period_delta',
-    'sound_tags',
-    'random_sound_radius',
-    'sound_indexes',
-    'phase', 'period'
+AmsoFmt = ('Amso', [
+    ('L', 'flags'),
+    ('h', 'inner_radius'),
+    ('h', 'outer_radius'),
+    ('h', 'period_lower_bound'),
+    ('h', 'period_delta'),
+    ('24s', 'sound_tags', utils.list_pack("AmsoSoundTags", MAX_AMSO_SOUN, ">4s")),
+    ('h', 'random_sound_radius'),
+    ('10x', None),
+    ('12s', 'sound_indexes', utils.list_pack("AmsoSoundIndexes", MAX_AMSO_SOUN, ">h")),
+    ('h', 'phase'),
+    ('h', 'period'),
 ])
 
 def parse_soun_header(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + SOUN_HEADER_SIZE
-    return SoundHeader._make(struct.unpack(SoundHeaderFmt, data[start:end]))
-
-def parse_permutation_meta(values):
-    return PermMeta._make(values)
+    return utils.codec(SoundHeaderFmt)(data[start:end])
 
 def parse_soun_tag(data):
     header = myth_headers.parse_header(data)
@@ -123,11 +108,10 @@ def parse_soun_tag(data):
         p_desc = utils.decode_string(p_desc)
         p_descs.append(p_desc)
 
-    for i, values in enumerate(utils.iter_unpack(
+    for i, p_meta in enumerate(utils.iter_decode(
         permutation_end, soun_header.permutation_count,
         PermMetaFmt, data
     )):
-        p_meta = parse_permutation_meta(values)
         permutation_sound_length = p_meta.num_sample_frames * IMA4_BYTES_PER_FRAME
         permutation_sound_end = sound_data_offset + permutation_sound_length
         perm_sound_data = sound_data[sound_data_offset:permutation_sound_end]
@@ -227,13 +211,7 @@ samp_frame: {p['num_sample_frames']}
 def parse_amso(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + AMSO_SIZE
-    amso = Amso._make(struct.unpack(AmsoFmt, data[start:end]))
-    sound_tags = struct.unpack(f'>{MAX_AMSO_SOUN * "4s"}', amso.sound_tags)
-    sound_indexes = struct.unpack(f'>{MAX_AMSO_SOUN}h', amso.sound_indexes)
-    return amso._replace(
-        sound_tags=sound_tags,
-        sound_indexes=sound_indexes,
-    )
+    return utils.codec(AmsoFmt)(data[start:end])
 
 def generate_aifc(perm):
     offset = 0

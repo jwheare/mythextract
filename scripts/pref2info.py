@@ -44,85 +44,49 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 # 7. anti-clump        0x0C (12)    / 0x4C (76)
 # 9. coop              0x0D (13)    / 0x06 (06)
 # 10. difficulty  0=timid 1=simple 2=normal 3=heroic 4=legendary
+
+def parse_pref_color(color_data):
+    (r, ra, g, ga, b, ba, flags) = struct.unpack("B B B B B B H", color_data)
+    vals = ((r, g, b), (ra, ga, ba), flags)
+    return f'\x1b[48;2;{r};{g};{b}m \x1b[0m {vals}'
+
 NET_PREF_SIZE = 1612
-NetPrefsFmt = """>
-    32s
-    64s
-    32s
-
-    H H H H
-
-    l
-    4s
-    H
-    H
-
-    H
-    h
-    4s
-
-    4x
-    H
-    4x
-    H
-    2x
-
-    H H
-    510s
-
-    68s
-
-    H
-    2x
-    32s
-    32s
-    8s
-    8s
-    4s
-
-    2x
-    H H
-    510s
-    256x
-"""
-NetPrefs = namedtuple('NetPrefs', [
-    'game_name',
-    'mesh_name',
-    'game_password',
-
-    'unknown',
-    'flag1',
-    'flag2',
-    'flag3',
-
-    'time_limit',
-    'mesh_tag',
-    'difficulty',
-    'player_limit',
-
-    'load_var1',
-    'max_teams',
-    'load_var2',
-
-    'unknown2',
-    'unknown3',
-
-    'plugin_count1',
-    'plugin_count2',
-    'plugins',
-
-    'unknown4',
-
-    'player_icon',
-    'player_name',
-    'team_name',
-    'color1',
-    'color2',
-    'net',
-
-    'plugin_count1a',
-    'plugin_count2a',
-    'pluginsa',
+NetPrefsFmt = ('NetPrefs', [
+    ('32s', 'game_name', utils.decode_string),
+    ('64s', 'mesh_name', utils.decode_string),
+    ('32s', 'game_password', utils.decode_string),
+    ('H', 'unknown'),
+    ('H', 'flag1'),
+    ('H', 'flag2'),
+    ('H', 'flag3'),
+    ('l', 'time_limit'),
+    ('4s', 'mesh_tag', utils.decode_string),
+    ('H', 'difficulty', mesh_tag.difficulty),
+    ('H', 'player_limit'),
+    ('H', 'load_var1'),
+    ('h', 'max_teams'),
+    ('4s', 'load_var2'),
+    ('4x', None),
+    ('H', 'unknown2'),
+    ('4x', None),
+    ('H', 'unknown3'),
+    ('2x', None),
+    ('H', 'plugin_count1'),
+    ('H', 'plugin_count2'),
+    ('510s', 'plugins'),
+    ('68s', 'unknown4'),
+    ('H', 'player_icon'),
+    ('2x', None),
+    ('32s', 'player_name', utils.decode_string),
+    ('32s', 'team_name', utils.decode_string),
+    ('8s', 'color1', parse_pref_color),
+    ('8s', 'color2', parse_pref_color),
+    ('4s', 'net', utils.decode_string),
+    ('2x', None),
+    ('H', 'plugin_count1a'),
+    ('H', 'plugin_count2a'),
+    ('510s', 'pluginsa'),
+    ('256x', None),
 ])
 
 def main(pref_file):
@@ -136,12 +100,7 @@ def main(pref_file):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_pref_color(color_data):
-    (r, ra, g, ga, b, ba, flags) = struct.unpack("B B B B B B H", color_data)
-    vals = ((r, g, b), (ra, ga, ba), flags)
-    return f'\x1b[48;2;{r};{g};{b}m \x1b[0m {vals}'
-
-def parse_pref_plugins(plugin_data, count1, count2):
+def parse_pref_plugins(plugin_data, count1):
     next_chunk = plugin_data
     plugins = []
     for i in range(count1):
@@ -152,20 +111,10 @@ def parse_pref_plugins(plugin_data, count1, count2):
 
 
 def parse_net_pref(pref_data):
-    net_prefs = NetPrefs._make(struct.unpack(NetPrefsFmt, pref_data[:NET_PREF_SIZE]))
+    net_prefs = utils.codec(NetPrefsFmt)(pref_data[:NET_PREF_SIZE])
     return net_prefs._replace(
-        game_name=utils.decode_string(net_prefs.game_name),
-        mesh_name=utils.decode_string(net_prefs.mesh_name),
-        game_password=utils.decode_string(net_prefs.game_password),
-        mesh_tag=utils.decode_string(net_prefs.mesh_tag),
-        player_name=utils.decode_string(net_prefs.player_name),
-        team_name=utils.decode_string(net_prefs.team_name),
-        net=utils.decode_string(net_prefs.net),
-        color1=parse_pref_color(net_prefs.color1),
-        color2=parse_pref_color(net_prefs.color2),
-        plugins=parse_pref_plugins(net_prefs.plugins, net_prefs.plugin_count1, net_prefs.plugin_count2),
-        pluginsa=parse_pref_plugins(net_prefs.pluginsa, net_prefs.plugin_count1a, net_prefs.plugin_count2a),
-        difficulty=mesh_tag.difficulty(net_prefs.difficulty)
+        plugins=parse_pref_plugins(net_prefs.plugins, net_prefs.plugin_count1),
+        pluginsa=parse_pref_plugins(net_prefs.pluginsa, net_prefs.plugin_count1a),
     )
 
 def parse_pref_file(data):

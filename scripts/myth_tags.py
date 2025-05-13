@@ -142,7 +142,7 @@ SceneryFmt = ('Scenery', [
 def parse_tag(data, size, fmt):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + size
-    return utils.decode_data(fmt, data[start:end])
+    return utils.codec(fmt)(data[start:end])
 
 def parse_connector(data):
     return parse_tag(data, CONNECTOR_SIZE, ConnectorFmt)

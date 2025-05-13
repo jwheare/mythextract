@@ -92,6 +92,15 @@ class MonsFlag(enum.Flag):
     UNKNOWN = enum.auto()
     LIMITED_CHARGE_DURRATION = enum.auto()
 
+class MonsClass(enum.Enum):
+    MELEE = 0
+    MISSILE = enum.auto()
+    SUICIDE = enum.auto()
+    SPECIAL = enum.auto()
+    HARMLESS = enum.auto()
+    AMBIENT_LIFE = enum.auto()
+    INVISIBLE_OBSERVER = enum.auto()
+
 MonsTagFmt = ('MonsTag', [
     ('L', 'flags', MonsFlag),
     ('4s', 'collection_tag'),
@@ -140,7 +149,7 @@ MonsTagFmt = ('MonsTag', [
     ('4s', 'flavor_string_list_tag'),
     ('b', 'use_attack_frequency'),
     ('b', 'more_hack_flags'),
-    ('h', 'monster_class'),
+    ('h', 'monster_class', MonsClass),
     ('h', 'monster_allegiance'),
     ('h', 'experience_point_value'),
     ('40s', 'sound_tags', utils.list_pack(
@@ -153,7 +162,7 @@ MonsTagFmt = ('MonsTag', [
     ('4s', 'ammunition_projectile_tag'),
     ('h', 'visibility_type'),
     ('h', 'combined_power'),
-    ('h', 'longest_range'),
+    ('h', 'longest_range', 512),
     ('h', 'cost'),
     ('10s', 'sound_types', utils.list_pack('MonsSoundTypes', 10, '>b')),
     ('h', 'enemy_experience_kill_bonus'),
@@ -196,6 +205,11 @@ ObjeEffectFmt = ('ObjeEffect', [
     ('14x', None),
 ])
 
+UnitTagFmt = ('UnitTag', [
+    ('4s', 'mons'),
+    ('4s', 'core'),
+])
+
 ObjeTagFmt = ('ObjeTag', [
     ('h', 'flags', ObjeFlags),
     ('h', 'gravity', 512),
@@ -205,7 +219,7 @@ ObjeTagFmt = ('ObjeTag', [
     ('h', 'vitality_delta', 256),
     ('h', 'scale_lower_bound', 256),
     ('h', 'scale_delta', 256),
-    ('32s', 'effect_modifiers', utils.single_codec('ObjeEffectMod', ObjeEffectFmt)),
+    ('32s', 'effect_modifiers', utils.codec(ObjeEffectFmt)),
     ('h', 'minimum_damage', 256),
     ('14x', None),
 ])
@@ -252,7 +266,7 @@ ArtifactFmt = ('Artifact', [
     ('h', 'monster_override_type'),
     ('h', 'expiry_timer'),
     ('32s', 'bonus_effect_modifiers', utils.list_pack('ArtifactEffectMods', MAX_ARTI_EFFECT_MODS, '>h')),
-    ('64s', 'override_attack', utils.single_codec('ArtifactOverrideAttack', AttackDefFmt)),
+    ('64s', 'override_attack', utils.codec(AttackDefFmt)),
     ('4s', 'special_ability_string_list_tag'),
     ('4s', 'monster_override_tag'),
     ('h', 'collection_index'),
@@ -274,21 +288,18 @@ def sequence_name(idx):
 def parse_artifact(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + ARTIFACT_SIZE
-    return utils.decode_data(ArtifactFmt, data[start:end])
+    return utils.codec(ArtifactFmt)(data[start:end])
 
 def parse_unit(data):
     start = myth_headers.TAG_HEADER_SIZE
     end = start + 8
-    # (mons, core)
-    return struct.unpack(">4s 4s", data[myth_headers.TAG_HEADER_SIZE:end])
+    return utils.codec(UnitTagFmt)(data[myth_headers.TAG_HEADER_SIZE:end])
 
 def parse_obje(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    return utils.decode_data(ObjeTagFmt, data[start:])
+    return utils.codec(ObjeTagFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
 
 def parse_tag(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    return utils.decode_data(MonsTagFmt, data[start:])
+    return utils.codec(MonsTagFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
 
 def encode_tag(tag_header, mons_tag):
     tag_data = mons_tag.value
