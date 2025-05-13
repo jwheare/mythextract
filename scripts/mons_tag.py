@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from collections import namedtuple
 import enum
 import os
 import struct

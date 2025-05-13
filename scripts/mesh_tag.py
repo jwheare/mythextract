@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from collections import namedtuple, OrderedDict
+from collections import OrderedDict
 import enum
 import os
 import struct
