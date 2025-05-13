@@ -3,7 +3,6 @@ import sys
 import os
 import struct
 
-import myth_headers
 import mesh_tag
 import mono2tag
 import loadtags

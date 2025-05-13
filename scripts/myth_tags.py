@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import struct
-
 import myth_headers
 import utils
 

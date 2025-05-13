@@ -78,7 +78,7 @@ def parse_dmap_tag(data):
         entries = []
         for i, scale in enumerate(header.scales):
             if scale:
-                DmapEntry = make_nt(DmapEntryFmt)
+                DmapEntry = utils.make_nt(DmapEntryFmt)
                 entry = DmapEntry(
                     dtex_id=header.dtex_ids[i],
                     pixels_per_cell=scale-1

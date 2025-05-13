@@ -7,14 +7,11 @@ import sys
 
 import mesh_tag
 import mesh2info
-import mons2info
 import mons2stats
 import mono2tag
 import loadtags
 import mons_tag
 import myth_headers
-import myth_projectile
-import myth_collection
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -62,7 +59,7 @@ def parse_mesh_trades(game_version, tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
     try:
         mesh_header = mesh_tag.parse_header(mesh_tag_data)
-    except (struct.error, UnicodeDecodeError) as e:
+    except (struct.error, UnicodeDecodeError):
         print("Error loading mesh")
         return
 
@@ -89,7 +86,7 @@ def get_level_name(mesh_header, tags, data_map):
     return utils.ansi_format(utils.decode_string(level_name_text.split(b'\r')[0]))
 
 def sort_units(units):
-    return sorted(units, key=lambda k : (not k['tradeable'], k['spellings']))
+    return sorted(units, key=lambda k: (not k['tradeable'], k['spellings']))
 
 def set_initial_counts(units):
     if COUNTS:
@@ -247,7 +244,7 @@ def input_loop(game_type, units, diffs, max_points):
         if unit is not None and count is not None:
             print(f"\x1b[K{units[unit]['spellings'][1]} -> {units[unit]['count']}")
         else:
-            print(f"\x1b[K")
+            print("\x1b[K")
 
 def team_trade_parts(game_type, units, max_points=None):
     trades = []

@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
-from collections import OrderedDict
 import os
-import re
 import struct
 import sys
 
-import mesh_tag
-import mesh2info
-import mons2info
-import mono2tag
 import loadtags
 import mons_tag
 import myth_headers
@@ -190,7 +184,7 @@ def process_attacks(mons, tags, data_map):
                     'throw': False,
                     'type': proj.damage.type,
                     'dmg': dmg,
-                    'dps': dps,
+                    'dps': avg_dps,
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
