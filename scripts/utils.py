@@ -33,6 +33,9 @@ def iter_unpack(start, count, fmt, data):
     end = start + (count * struct.calcsize(fmt))
     yield from struct.iter_unpack(fmt, data[start:end])
 
+def cap_title(string):
+    return ' '.join([w.title() for w in string.split('_')])
+
 def ansi_format(text):
     italic = re.sub(r'[\|]i', '\x1b[3m', text)
     bold = re.sub(r'[\|]b', '\x1b[1m', italic)

@@ -8,6 +8,7 @@ import sys
 import mesh_tag
 import mesh2info
 import mons2info
+import mons2stats
 import mono2tag
 import loadtags
 import mons_tag
@@ -21,6 +22,7 @@ NO_TRADING = (os.environ.get('NO_TRADING') == '1')
 COUNTS = os.environ.get('COUNTS')
 GAME_TYPE = os.environ.get('GAME_TYPE')
 STATS = os.environ.get('STATS')
+TIME = os.environ.get('TIME')
 
 NetgameNames = OrderedDict({
     'bc': 'Body Count',
@@ -97,125 +99,6 @@ def set_initial_counts(units):
                 u['count'] = int(counts[i])
     return units
 
-def process_attacks(mons, tags, data_map):
-    attacks = []
-
-
-    (_, ex_prgr_header, ex_prgr_data) = loadtags.get_tag_info(
-        tags, data_map, 'prgr', utils.decode_string(
-            mons.exploding_projectile_group_tag
-        )
-    )
-    if ex_prgr_data:
-        (ex_prgr_head, ex_prgr_projlist) = myth_projectile.parse_prgr(ex_prgr_data)
-        for ex_prgr_proj in ex_prgr_projlist:
-            (_, ex_proj_header, ex_proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', utils.decode_string(
-                    ex_prgr_proj.projectile_tag
-                )
-            )
-            ex_proj = myth_projectile.parse_proj(ex_proj_data)
-            ex_dmg = ex_proj.damage.damage_lower_bound + ex_proj.damage.damage_delta
-            if ex_dmg > 2:
-                attacks.append({
-                    'name': f'{ex_proj_header.name} (explosion)',
-                    'throw': False,
-                    'type': ex_proj.damage.type,
-                    'dmg': ex_dmg,
-                    'dps': ex_dmg,
-                    'special': False,
-                    'melee': False,
-                    'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
-                    'range': 0,
-                })
-    for attack in mons.attacks:
-        if attack:
-            (_, proj_header, proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', utils.decode_string(
-                    attack.projectile_tag
-                )
-            )
-
-            if mons_tag.AttackFlag.IS_REFLEXIVE in attack.flags:
-                continue
-
-            if not proj_data:
-                if mons_tag.AttackFlag.USES_CARRIED_PROJECTLE in attack.flags:
-                    attacks.append({
-                        'name': 'throw',
-                        'throw': True,
-                        'type': None,
-                        'dmg': None,
-                        'dps': None,
-                        'special': False,
-                        'melee': False,
-                        'aoe': False,
-                        'range': attack.maximum_range,
-                    })
-                continue
-
-            proj = myth_projectile.parse_proj(proj_data)
-            if proj.damage.type == myth_projectile.DamageType.HEALING:
-                continue
-
-            dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
-            seq_ticks = []
-            recov_s = attack.recovery_time
-            for attack_s in attack.sequences:
-                if not attack_s:
-                    continue
-
-                (_, coll_header, coll_data) = loadtags.get_tag_info(
-                    tags, data_map, '.256', utils.decode_string(
-                        mons.collection_tag
-                    )
-                )
-                coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
-                seqs = myth_collection.parse_sequences(coll_data, coll_head)
-                seq = seqs[attack_s.sequence_index]
-                seq_meta = seq['metadata']
-
-                ticks = (seq_meta.frames_per_view * seq_meta.ticks_per_frame)
-                ticks += seq_meta.transfer_period
-                seq_ticks.append(ticks)
-
-                tick_s = ticks / 30
-                time_s = tick_s + recov_s
-
-                total_ticks = ticks + (recov_s * 30)
-                dmg_per_tick = dmg / total_ticks
-                dps = max(dmg, dmg / time_s)
-                if DEBUG:
-                    print(
-                        f'{mons.collection_tag} [{seq['name']}] '
-                        f'dmg={dmg} '
-                        f'ticks={ticks} transfer={seq_meta.transfer_period} '
-                        f'tick_s={tick_s} '
-                        f'recov={recov_s} '
-                        f'time_s={time_s} '
-                        f'dpt={round(dmg_per_tick,2)} '
-                        f'dps={round(dps,2)}'
-                    )
-
-            if len(seq_ticks):
-                avg_tick_s = sum(seq_ticks) / len(seq_ticks) / 30
-                avg_time_s = avg_tick_s + recov_s
-
-                avg_dps = max(dmg, dmg / avg_time_s)
-
-                attacks.append({
-                    'name': proj_header.name,
-                    'throw': False,
-                    'type': proj.damage.type,
-                    'dmg': dmg,
-                    'dps': dps,
-                    'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
-                    'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
-                    'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
-                    'range': attack.maximum_range,
-                })
-    return attacks
-
 def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
     game_type_units = OrderedDict()
     has_stampede_targets = False
@@ -227,53 +110,22 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
         if team > -1 and len(netgame_info):
             tag_id = unit['tag']
             unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
-            (mons_id, core) = mons_tag.parse_unit(unit_data)
+            unit = mons_tag.parse_unit(unit_data)
             (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
-                tags, data_map, 'mons', utils.decode_string(mons_id)
+                tags, data_map, 'mons', utils.decode_string(unit.mons)
             )
-            mons = mons_tag.parse_tag(mons_data)
-
-            obje_data = loadtags.get_tag_data(
-                tags, data_map, 'obje', utils.decode_string(mons.object_tag)
-            )
-            obje_tag = mons_tag.parse_obje(obje_data)
-
-            if utils.all_on(mons.spelling_string_list_tag) or utils.all_off(mons.spelling_string_list_tag):
-                spellings = [mons_header.name, mons_header.name]
-            else:
-                spelling_data = loadtags.get_tag_data(
-                    tags, data_map, 'stli', utils.decode_string(
-                        mons.spelling_string_list_tag
-                    )
-                )
-                (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-                spellings = [utils.decode_string(s) for s in spelling_text.split(b'\r')]
-
-            attacks = process_attacks(mons, tags, data_map)
-            can_block = mons.sequence_indexes[5] > -1
-            heal_kills = mons.healing_fraction == 0
-
+            mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)
             for netgame in netgame_info:
                 if netgame not in game_type_units:
                     game_type_units[netgame] = {}
                 if team not in game_type_units[netgame]:
                     game_type_units[netgame][team] = OrderedDict()
                 if tag_id not in game_type_units[netgame][team]:
-                    game_type_units[netgame][team][tag_id] = {
+                    game_type_units[netgame][team][tag_id] = mons_dict | {
                         'team': unit['team_index'],
-                        'spellings': spellings,
-                        'tag_id': tag_id,
                         'count': 0,
                         'max': 0,
-                        'cost': mons.cost,
                         'target': False,
-                        'speed': mons.base_movement_speed,
-                        'modifiers': obje_tag.effect_modifiers,
-                        'attacks': attacks,
-                        'can_block': can_block,
-                        'heal_kills': heal_kills,
-                        'min_vitality': obje_tag.vitality_lower_bound,
-                        'max_vitality': obje_tag.vitality_lower_bound + obje_tag.vitality_delta,
                         'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
                     }
                     visible_count = 0
@@ -327,7 +179,12 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
         )))
 
     game_type = NetgameNames[game_type_choice]
-    print(f"\n---\n\n{game_type}: {level_name} ({mesh_size})\n")
+
+    game_time = ''
+    if TIME:
+        game_time = f' - {TIME} mins'
+
+    print(f"\n---\n\n{game_type}: {level_name} ({mesh_size}){game_time}\n")
 
     mismatch = False
     for team_id, (total, diffs, trade) in trades.items():
@@ -419,8 +276,9 @@ def team_trade_parts(game_type, units, max_points=None):
 
             if NO_TRADING:
                 diff_amount = ''
+            u_name = unit_name(u)
             trades.append(
-                f"{i+1:>2}) {u['spellings'][1]:<32}"
+                f"{i+1:>7}) {u_name:<32}"
                 f"{u['count']:>2} / "
                 f"{u['max']:<2} "
                 f"• cost: {u['cost']:<2} "
@@ -429,52 +287,28 @@ def team_trade_parts(game_type, units, max_points=None):
                 f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
             )
             if STATS:
-                trades.append(graph('spd ', u['speed'], 15, 20, f" {u['speed']}"))
-                if u['max_vitality'] == u['min_vitality']:
-                    vit_range = f'{round(u['max_vitality'], 2)}'
-                else:
-                    vit_range = f'{round(u['min_vitality'], 2)} - {round(u['max_vitality'], 2)}'
-                trades.append(graph('vit ', round(u['max_vitality']*2), 10, 20, f" {vit_range}"))
-                for attack in u['attacks']:
-                    special = " (special)" if attack['special'] else ""
-                    aoe = " (aoe)" if attack['aoe'] else ""
-                    attack_type = "melee" if attack['melee'] else "ranged"
-                    if attack['dps']:
-                        trades.append(graph('dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}) [{attack['type'].name} - {attack_type}] {attack['name']}{special}{aoe}"))
-                    throw = ' (throw)' if attack['throw'] else ''
-                    trades.append(graph('ran ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}"))
-
-                if u['can_block']:
-                    trades.append('    can \x1b[92mblock\x1b[0m')
-                if u['heal_kills']:
-                    trades.append('    \x1b[91mkilled by heal\x1b[0m')
-                mods = u['modifiers']._asdict()
-                puss_dur = mods['paralysis_duration']
-                if puss_dur == 0:
-                    trades.append('    \x1b[92mimmune\x1b[0m to puss')
-                elif puss_dur > 1:
-                    trades.append(f'    weak to puss: (\x1b[91m+{round((puss_dur-1)*100)}%\x1b[0m duration)')
-                elif puss_dur < 1:
-                    trades.append(f'    resistant to puss: (\x1b[92m-{round((1-puss_dur)*100)}%\x1b[0m duration)')
-
-                for dmg in ['slashing', 'kinetic', 'explosive', 'electric', 'fire']:
-                    damage = mods[f'{dmg}_damage']
-                    if damage == 0:
-                        trades.append(f'    \x1b[92mimmune\x1b[0m to {dmg}')
-                    elif damage > 1:
-                        trades.append(f'    weak to {dmg}: (\x1b[91m+{round((damage-1)*100)}%\x1b[0m)')
-                    elif damage < 1:
-                        trades.append(f'    resistant to {dmg}: (\x1b[92m-{round((1-damage)*100)}%\x1b[0m)')
+                trades += mons2stats.mons_stats(u)
+                trades.append(64*'-')
 
         elif u['count']:
             afford = 0
             if len(untradeable) == 0:
                 divider.append("")
                 divider.append("Not tradeable:")
+                divider.append("")
+            u_name = unit_name(u)
             untradeable.append(
-                f"{u['spellings'][1]:<32}"
-                f"count={u['count']:>2} "
+                f"         {u_name:<32}"
+                f"{u['count']:>2} / "
+                f"{u['max']:<2} "
+                f"• cost: {u['cost']:<2} "
+                f"• value: {(u['cost']*u['count']):<3} "
+                " "
+                f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
             )
+            if STATS:
+                untradeable += mons2stats.mons_stats(u)
+                # untradeable.append(64*'-')
         else:
             afford = 0
         diffs.append(afford)
@@ -497,14 +331,12 @@ def team_trade_parts(game_type, units, max_points=None):
     suffix.append("")
     return (total, diffs, trades + divider + untradeable + suffix)
 
-def graph(pfx, value, low, medium, suffix=''):
-    if value < low:
-        color = "\x1b[91m"
-    elif value < medium:
-        color = "\x1b[93m"
-    else:
-        color = "\x1b[92m"
-    return f"{pfx}{color}{value*'◼︎'}\x1b[0m{suffix}"
+def unit_name(u):
+    u_name = u['spellings'][0]
+    if len(u['spellings']) > 1:
+        u_name = u['spellings'][1]
+    u_name += f' ({utils.cap_title(u['class'].name)})'
+    return u_name
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
