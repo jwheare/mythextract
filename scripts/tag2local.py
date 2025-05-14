@@ -14,6 +14,7 @@ import loadtags
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+DEAD_TAGS = (os.environ.get('DEAD_TAGS') == '1')
 
 def main(game_directory, tag_type, tag_id, plugin_names):
     """
@@ -26,19 +27,52 @@ def main(game_directory, tag_type, tag_id, plugin_names):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def extract_tags(tag_type, tag_id, tags, data_map, plugin_names):
-    (location, header) = loadtags.lookup_tag_header(
-        tags, tag_type, tag_id
-    )
-    if not header:
-        print(f'Tag not found: {tag_type.upper()}.{tag_id}')
-        sys.exit(1)
+def extract_tags(tag_type, input_tag_id, tags, data_map, plugin_names):
     all_tag_data = []
     tdg = TagDataGenerator(tags, data_map, plugin_names)
-    for td in tdg.get_tag_data(tag_type, utils.encode_string(tag_id)):
-        all_tag_data.append(td)
 
-    output_dir = f'../output/tag2local/{tag_type}.{header.name}/local'
+    if input_tag_id == 'all':
+        output_dir = f'../output/tag2local/{tag_type}_all/local'
+        extracted_tags = {}
+        if tag_type in tags:
+            for tag_id, locations in tags[tag_type].items():
+                (location, header) = locations[-1]
+                for td in tdg.get_tag_data(tag_type, utils.encode_string(tag_id)):
+                    extracted_header = td[0]
+                    if extracted_header.tag_type not in extracted_tags:
+                        extracted_tags[extracted_header.tag_type] = {}
+                    extracted_tags[extracted_header.tag_type][extracted_header.tag_id] = True
+                    all_tag_data.append(td)
+        if DEAD_TAGS:
+            dead_tags = {}
+            for check_tag_type, tag_type_tags in tags.items():
+                for check_tag_id, check_tag_locations in tag_type_tags.items():
+                    if (
+                        check_tag_type not in extracted_tags or
+                        check_tag_id not in extracted_tags[check_tag_type]
+                    ):
+                        if check_tag_type not in dead_tags:
+                            dead_tags[check_tag_type] = {}
+
+                        dead_tags[check_tag_type][check_tag_id] = check_tag_locations
+            for dead_tag_type, dead_tag_tags in dead_tags.items():
+                for dead_tag_id, dead_tag_locations in dead_tag_tags.items():
+                    (dead_tag_location, dead_tag_header) = dead_tag_locations[-1]
+                    print(f'Dead tag {dead_tag_type.upper()}.{dead_tag_id} {dead_tag_header.name}')
+
+
+    else:
+        (location, header) = loadtags.lookup_tag_header(
+            tags, tag_type, input_tag_id
+        )
+        if not header:
+            print(f'Tag not found: {tag_type.upper()}.{input_tag_id}')
+            sys.exit(1)
+        output_dir = f'../output/tag2local/{tag_type}.{header.name}/local'
+
+        for td in tdg.get_tag_data(tag_type, utils.encode_string(input_tag_id)):
+            all_tag_data.append(td)
+
     output_path = pathlib.Path(sys.path[0], output_dir).resolve()
 
     if prompt(output_path):
@@ -67,15 +101,12 @@ class TagDataGenerator:
     def fetched_check(self, tag_type, tag_id):
         if tag_type not in self.FETCHED:
             self.FETCHED[tag_type] = {}
-        if tag_id in self.FETCHED[tag_type]:
-            return True
-        else:
-            self.FETCHED[tag_type][tag_id] = True
-            return False
+        return tag_id in self.FETCHED[tag_type]
 
     def get_tag_data(self, tag_type, tag_id, tree=[]):
         if self.fetched_check(tag_type, tag_id):
             return
+        self.FETCHED[tag_type][tag_id] = True
 
         if utils.all_on(tag_id) or utils.all_off(tag_id):
             return
