@@ -110,12 +110,12 @@ class DamageFlags(enum.Flag):
 ProjDmgFmt = ('ProjDmg', [
     ('h', 'type', DamageType),
     ('H', 'flags', DamageFlags),
-    ('h', 'damage_lower_bound', 256),
-    ('h', 'damage_delta', 256),
+    ('h', 'damage_lower_bound', 255),
+    ('h', 'damage_delta', 255),
     ('h', 'radius_lower_bound', 512),
     ('h', 'radius_delta', 512),
     ('h', 'rate_of_expansion', 512),
-    ('h', 'damage_to_velocity', 256),
+    ('h', 'damage_to_velocity', 255),
 ])
 
 class ProjFlags(enum.Flag):
