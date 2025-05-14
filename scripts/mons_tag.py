@@ -52,7 +52,7 @@ AttackDefFmt = ('AttackDef', [
     ('h', 'recovery_time', 30),
     ('h', 'recovery_time_experience_delta', 30),
     ('h', 'velocity_improvement_with_experience', 512),
-    ('h', 'mana_cost', 256),
+    ('h', 'mana_cost', 255),
     ('H', 'extra_flags'),
     ('2x', None),
 ])
@@ -100,6 +100,88 @@ class MonsClass(enum.Enum):
     AMBIENT_LIFE = enum.auto()
     INVISIBLE_OBSERVER = enum.auto()
 
+MonsMovementModsFmt = ('MonsMovementMods', [
+    ('B', 'dwarf_depth_media', 255),
+    ('B', 'human_depth_media', 255),
+    ('B', 'giant_depth_media', 255),
+    ('B', 'really_deep_media', 255),
+    ('B', 'sloped', 255),
+    ('B', 'steep', 255),
+    ('B', 'grass', 255),
+    ('B', 'desert', 255),
+    ('B', 'rocky', 255),
+    ('B', 'marsh', 255),
+    ('B', 'snow', 255),
+    ('B', 'unused_0', 255),
+    ('B', 'unused_1', 255),
+    ('B', 'unused_2', 255),
+    ('B', 'walking_impassable', 255),
+    ('B', 'flying_impassable', 255),
+])
+
+class ExtendedFlagsSloped(enum.Flag, boundary=enum.CONFORM):
+    MOVES_TO_POSITION_TO_SHOOT_UPHILL = enum.auto()
+    SHIFT_CLICK_TARGETS_GROUP = enum.auto()
+    WALKS_AROUND_LARGE_UNIT_BLOCKAGES = enum.auto()
+    CHASES_ENEMIES_INTELLIGENTLY = enum.auto()
+    RESPONDS_TO_ENEMIES_WHEN_ATTACKING = enum.auto()
+    CAN_TARGET_FLYING_UNITS = 7
+
+class ExtendedFlagsGrass(enum.Flag, boundary=enum.CONFORM):
+    DOESNT_CLOSE_ON_TARGET = enum.auto()
+    RESIZABLE_SELECTION_BOX = enum.auto()
+    UNIT_CAN_CHARGE = enum.auto()
+    TURNS_IN_A_CURVE = enum.auto()
+    ENEMIES_CANT_SEE_MANA = enum.auto()
+    MANA_ISNT_SHOWN = enum.auto()
+    MIXES_MISSILE_MELEE_BEHAVIOUR = enum.auto()
+    HAS_LONG_RANGE_EYESIGHT = enum.auto()
+
+class ExtendedFlagsDesert(enum.Flag, boundary=enum.CONFORM):
+    DOUBLE_CLICK_SELECTS_MONSTER_TYPE = enum.auto()
+    MISSILE_ATTACK_NOT_HEIGHT_AFFECTED = enum.auto()
+    DOESNT_FLINCH_WHEN_HEALED = enum.auto()
+    CHASES_ENEMY_DURING_ATTACK_RECOVERY = enum.auto()
+    WALKS_ON_THE_SURFACE_OF_WATER = enum.auto()
+    DOESNT_AUTOTARGET_ENEMIES = enum.auto()
+    EXTRA_AGGRESSIVE_MISSILE_UNIT = enum.auto()
+    ADJUST_BLOCK_RATE = enum.auto()
+
+MonsTerrainCostsFmt = ('MonsTerrainCosts', [
+    ('b', 'dwarf_depth_media'), # unused in extended flags?
+    ('b', 'human_depth_media'), # unused in extended flags?
+    ('b', 'giant_depth_media'), # unused in extended flags?
+    ('b', 'deep_cost'), # unused in extended flags?
+    ('b', 'sloped'), # ExtendedFlagsSloped
+    ('b', 'steep'), # block_delay_rate - Block delay modifier (between -29 and 127)
+    ('b', 'grass'), # ExtendedFlagsGrass
+    ('b', 'desert'), # ExtendedFlagsDesert
+    ('b', 'rocky'), # run_speed - Speed modifier
+    ('b', 'marsh'), # maximum_experience_points - Max. Experience
+    ('b', 'snow'), # charge_range - Charge Range (WU)
+    ('b', 'unused_0'), # unused in extended flags?
+    ('b', 'unused_1'),  # unused in extended flags?
+    ('b', 'unused_2'),  # unused in extended flags?
+    ('b', 'walking_impassable'),  # unused in extended flags?
+    ('b', 'flying_impassable'),  # unused in extended flags?
+])
+
+def extended_flags(mons_tag):
+    return {
+        'flags1': ExtendedFlagsSloped(mons_tag.terrain_costs.sloped),
+        'block_delay_rate': mons_tag.terrain_costs.steep,
+        'flags2': ExtendedFlagsGrass(mons_tag.terrain_costs.grass),
+        'flags3': ExtendedFlagsDesert(mons_tag.terrain_costs.desert),
+        'run_speed': mons_tag.terrain_costs.rocky,
+        'maximum_experience_points': mons_tag.terrain_costs.marsh,
+        'charge_range': mons_tag.terrain_costs.snow,
+    }
+
+class Size(enum.Enum):
+    SMALL = 0
+    MAN = enum.auto()
+    GIANT = enum.auto()
+
 MonsTagFmt = ('MonsTag', [
     ('L', 'flags', MonsFlag),
     ('4s', 'collection_tag'),
@@ -110,22 +192,23 @@ MonsTagFmt = ('MonsTag', [
     ('B', 'experience_bonus_radius'),
     ('H', 'propelled_system_shock'),
     ('H', 'damage_to_propulsion'),
-    ('16s', 'terrain_costs', utils.list_pack('MonsTerrainCosts', 16, '>b')),
+    ('16s', 'terrain_costs', utils.codec(MonsTerrainCostsFmt)),
     ('H', 'terrain_impassability_flags'),
     ('h', 'pathfinding_radius'),
-    ('16s', 'movement_modifiers', utils.list_pack('MonsMovementMods', 16, '>b')),
-    ('H', 'absorbed_fraction'),
+    ('16s', 'movement_modifiers', utils.codec(MonsMovementModsFmt)),
+    ('H', 'absorbed_fraction', 1 << 16),
     ('h', 'warning_distance'),
     ('h', 'critical_distance'),
-    ('h', 'healing_fraction'),
+    ('h', 'healing_fraction', 255),
     ('h', 'initial_ammunition_lower_bound'),
     ('h', 'initial_ammunition_delta'),
     ('h', 'activation_distance'),
     ('2x', None),
-    ('H', 'turning_speed'),
-    ('h', 'base_movement_speed'),
+
+    ('H', 'turning_speed', (0xffff / 360) / 30),
+    ('h', 'base_movement_speed', 512),
     ('H', 'left_handed_fraction'),
-    ('h', 'size'), # enum: 0=Small, 1=Man-sized, 2=Giant
+    ('h', 'size', Size),
     ('4s', 'object_tag'),
     ('h', 'number_of_attacks'),
     ('h', 'desired_projectile_volume'),
@@ -140,7 +223,7 @@ MonsTagFmt = ('MonsTag', [
     ('h', 'hack_flags'),
     ('h', 'maximum_ammunition_count'),
     ('H', 'hard_death_system_shock'),
-    ('H', 'flinch_system_shock'),
+    ('H', 'flinch_system_shock', 1 << 16),
     ('4s', 'melee_impact_projectile_group_tag'),
     ('4s', 'dying_projectile_group_tag'),
     ('4s', 'spelling_string_list_tag'),
@@ -169,10 +252,10 @@ MonsTagFmt = ('MonsTag', [
     ('4s', 'local_projectile_group_tag'),
     ('4s', 'special_ability_string_list_tag'),
     ('4s', 'exit_projectile_group_tag'),
-    ('h', 'maximum_mana'),
-    ('h', 'mana_recharge_rate'),
-    ('H', 'berserk_system_shock'),
-    ('H', 'berserk_vitality'),
+    ('h', 'maximum_mana', 256),
+    ('h', 'mana_recharge_rate', 256),
+    ('H', 'berserk_system_shock', 1 << 16),
+    ('H', 'berserk_vitality', 1 << 16),
     ('h', 'maximum_artifacts_carried'),
     ('2x', None),
     ('4s', 'initial_artifacts_projectile_group_tag'),
@@ -212,14 +295,14 @@ UnitTagFmt = ('UnitTag', [
 ObjeTagFmt = ('ObjeTag', [
     ('h', 'flags', ObjeFlags),
     ('h', 'gravity', 512),
-    ('h', 'elasticity', 256),
+    ('h', 'elasticity', 255),
     ('h', 'terminal_velocity', 512),
-    ('h', 'vitality_lower_bound', 256),
-    ('h', 'vitality_delta', 256),
-    ('h', 'scale_lower_bound', 256),
-    ('h', 'scale_delta', 256),
+    ('h', 'vitality_lower_bound', 255),
+    ('h', 'vitality_delta', 255),
+    ('h', 'scale_lower_bound', 255),
+    ('h', 'scale_delta', 255),
     ('32s', 'effect_modifiers', utils.codec(ObjeEffectFmt)),
-    ('h', 'minimum_damage', 256),
+    ('h', 'minimum_damage', 255),
     ('14x', None),
 ])
 
@@ -272,11 +355,6 @@ ArtifactFmt = ('Artifact', [
     ('h', 'special_ability_string_list_index'),
     ('8s', 'projectile_types', utils.list_pack('ArtifactProjTypes', MAX_ARTI_PROJ, '>h')),
 ])
-
-class Size(enum.Enum):
-    SMALL = 0
-    MAN = enum.auto()
-    GIANT = enum.auto()
 
 def sequence_name(idx):
     if idx < len(SequenceNames):

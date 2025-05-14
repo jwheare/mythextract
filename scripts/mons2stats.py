@@ -56,23 +56,42 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
         (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
         spellings = [utils.decode_string(s) for s in spelling_text.split(b'\r')]
 
-    attacks = process_attacks(mons, tags, data_map)
     can_block = mons.sequence_indexes[5] > -1
     heal_kills = mons.healing_fraction == 0
+
+    attacks = process_attacks(mons, tags, data_map)
 
     return {
         'spellings': spellings,
         'class': mons.monster_class,
         'cost': mons.cost,
         'speed': mons.base_movement_speed,
+        'movement_modifiers': mons.movement_modifiers._asdict(),
+        'turning_speed': mons.turning_speed,
+        'flavour_stli': mons.flavor_string_list_tag,
         'modifiers': obje_tag.effect_modifiers,
         'attacks': attacks,
         'can_block': can_block,
         'heal_kills': heal_kills,
+        'stone': mons_tag.MonsFlag.TURNS_TO_STONE_WHEN_KILLED in mons.flags,
         'min_vitality': obje_tag.vitality_lower_bound,
         'max_vitality': obje_tag.vitality_lower_bound + obje_tag.vitality_delta,
+        'healing_fraction': mons.healing_fraction,
+        'flinch_system_shock': mons.flinch_system_shock,
+        'absorbed_fraction': mons.absorbed_fraction,
+        'maximum_mana': mons.maximum_mana,
+        'mana_recharge_rate': mons.mana_recharge_rate,
+        'berserk_system_shock': mons.berserk_system_shock,
+        'berserk_vitality': mons.berserk_vitality,
     }
 
+def sequence(tags, data_map, collection_tag, sequence_index):
+    (_, coll_header, coll_data) = loadtags.get_tag_info(
+        tags, data_map, '.256', utils.decode_string(collection_tag)
+    )
+    coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
+    seqs = myth_collection.parse_sequences(coll_data, coll_head)
+    return seqs[sequence_index]
 
 def process_attacks(mons, tags, data_map):
     attacks = []
@@ -102,7 +121,17 @@ def process_attacks(mons, tags, data_map):
                     'special': False,
                     'melee': False,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
+                    'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in ex_proj.damage.flags,
+                    'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in ex_proj.damage.flags,
                     'range': 0,
+                    'recovery': 0,
+                    'mana_cost': 0,
+                    'min_velocity': 0,
+                    'max_velocity': 0,
+                    'velocity_error': 0,
+                    'vet_recovery': 0,
+                    'vet_velocity': 0,
+                    'primary': False,
                 })
     for attack in mons.attacks:
         if attack:
@@ -126,7 +155,17 @@ def process_attacks(mons, tags, data_map):
                         'special': False,
                         'melee': False,
                         'aoe': False,
+                        'paralysis': False,
+                        'unblockable': False,
                         'range': attack.maximum_range,
+                        'recovery': attack.recovery_time,
+                        'mana_cost': attack.mana_cost,
+                        'min_velocity': attack.initial_velocity_lower_bound,
+                        'max_velocity': attack.initial_velocity_lower_bound + attack.initial_velocity_delta,
+                        'velocity_error': attack.initial_velocity_error,
+                        'vet_recovery': attack.recovery_time_experience_delta,
+                        'vet_velocity': attack.velocity_improvement_with_experience,
+                        'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                     })
                 continue
 
@@ -135,66 +174,69 @@ def process_attacks(mons, tags, data_map):
                 continue
 
             dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
-            seq_ticks = []
+            seq_times = []
             recov_s = attack.recovery_time
             for attack_s in attack.sequences:
                 if not attack_s:
                     continue
 
-                (_, coll_header, coll_data) = loadtags.get_tag_info(
-                    tags, data_map, '.256', utils.decode_string(
-                        mons.collection_tag
-                    )
-                )
-                coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
-                seqs = myth_collection.parse_sequences(coll_data, coll_head)
-                seq = seqs[attack_s.sequence_index]
+                seq = sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
                 seq_meta = seq['metadata']
 
-                ticks = (seq_meta.frames_per_view * seq_meta.ticks_per_frame)
-                ticks += seq_meta.transfer_period
-                seq_ticks.append(ticks)
+                ticks = (
+                    seq_meta.frames_per_view * seq_meta.ticks_per_frame
+                )
 
                 tick_s = ticks / 30
-                time_s = tick_s + recov_s
+                transfer_s = seq_meta.transfer_period / 30
+                time_s = max(tick_s, tick_s + transfer_s + recov_s)
 
-                total_ticks = ticks + (recov_s * 30)
-                dmg_per_tick = dmg / max(1, total_ticks)
-                dps = max(dmg, dmg / max(1/30, time_s))
+                seq_times.append(time_s)
+                dps = dmg / max(1/30, time_s)
                 if DEBUG:
                     print(
                         f'{mons.collection_tag} [{seq['name']}] '
                         f'dmg={dmg} '
-                        f'ticks={ticks} transfer={seq_meta.transfer_period} '
+                        f'ticks={ticks} '
+                        f'transfer={seq_meta.transfer_period} '
                         f'tick_s={tick_s} '
                         f'recov={recov_s} '
                         f'time_s={time_s} '
-                        f'dpt={round(dmg_per_tick,2)} '
                         f'dps={round(dps,2)}'
                     )
 
-            if len(seq_ticks):
-                avg_tick_s = sum(seq_ticks) / len(seq_ticks) / 30
-                avg_time_s = avg_tick_s + recov_s
+            if len(seq_times):
+                avg_time_s = sum(seq_times) / len(seq_times)
 
-                avg_dps = max(dmg, dmg / max(1/30, avg_time_s))
+                avg_dps = dmg / avg_time_s
 
                 attacks.append({
                     'name': proj_header.name,
                     'throw': False,
                     'type': proj.damage.type,
                     'dmg': dmg,
+                    'attack_time': avg_time_s,
                     'dps': avg_dps,
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
+                    'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in proj.damage.flags,
+                    'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in proj.damage.flags,
                     'range': attack.maximum_range,
+                    'recovery': recov_s,
+                    'mana_cost': attack.mana_cost,
+                    'min_velocity': attack.initial_velocity_lower_bound,
+                    'max_velocity': attack.initial_velocity_lower_bound + attack.initial_velocity_delta,
+                    'velocity_error': attack.initial_velocity_error,
+                    'vet_recovery': attack.recovery_time_experience_delta,
+                    'vet_velocity': attack.velocity_improvement_with_experience,
+                    'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                 })
     return attacks
 
 def mons_stats(mons_dict):
     lines = []
-    lines.append(graph('   speed ', mons_dict['speed'], 15, 20, f" {mons_dict['speed']}"))
+    lines.append(graph('   speed ', round(mons_dict['speed'] * 512), 15, 20, f" {round(mons_dict['speed'], 3)}"))
     if mons_dict['max_vitality'] == mons_dict['min_vitality']:
         vit_range = f'{round(mons_dict['max_vitality'], 2)}'
     else:
@@ -203,10 +245,18 @@ def mons_stats(mons_dict):
     for attack in mons_dict['attacks']:
         special = " (special)" if attack['special'] else ""
         aoe = " (aoe)" if attack['aoe'] else ""
+        paralysis = " (paralyses)" if attack['paralysis'] else ""
         attack_type = "melee" if attack['melee'] else "ranged"
-        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}"
+        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{paralysis}"
         if attack['dps']:
-            lines.append(graph('     dps ', round(attack['dps']*2), 1, 5, f" {round(attack['dps'], 2)} (per hit: {round(attack['dmg'], 2)}){attack_details}"))
+            recov = ''
+            if attack['mana_cost'] > 0:
+                mana_recharge_time = (attack['mana_cost'] / (mons_dict['mana_recharge_rate'] * 30))
+                recov = f' (mana recovery: {round(mana_recharge_time, 1)}s)'
+            else:
+                recov = f' (recovery: {round(attack['recovery'], 2)}s time: {round(attack['attack_time'], 2)}s)'
+            lines.append(graph('     dmg ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
+            lines.append(graph('     dps ', round(attack['dps']*2), 1.2, 4, f" {round(attack['dps'], 2)}{recov}"))
             attack_details = ''
         throw = ' (throw)' if attack['throw'] else ''
         lines.append(graph('   range ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}{attack_details}"))
