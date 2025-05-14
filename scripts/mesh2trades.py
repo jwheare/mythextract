@@ -107,9 +107,9 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
         if team > -1 and len(netgame_info):
             tag_id = unit['tag']
             unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
-            unit = mons_tag.parse_unit(unit_data)
+            unit_tag = mons_tag.parse_unit(unit_data)
             (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
-                tags, data_map, 'mons', utils.decode_string(unit.mons)
+                tags, data_map, 'mons', utils.decode_string(unit_tag.mons)
             )
             mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)
             for netgame in netgame_info:
