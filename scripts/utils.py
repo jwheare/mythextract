@@ -125,7 +125,7 @@ class _ListPacker:
         return self.items[index]
 
     def __repr__(self):
-        return f'ListPacker({self.items})'
+        return f'{self.__class__.__name__}({self.items})'
 
     @property
     def value(self):
@@ -171,7 +171,7 @@ class _Codec:
         return getattr(self._item, name)
 
     def __repr__(self):
-        return f'{self._DefFmt[0]}({self._item})'
+        return f'{self._item}'
 
 def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListPacker,), {
