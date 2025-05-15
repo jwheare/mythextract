@@ -88,7 +88,7 @@ class MonsFlag(enum.Flag):
     AFFECTS_MORALE = enum.auto()
     ALWAYS_USES_ENTRANCE_PROJECTILE_GROU = enum.auto()
     CAN_EXTEND_CHARGE_DURRATION = enum.auto()
-    UNKNOWN = enum.auto()
+    IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY = enum.auto()
     LIMITED_CHARGE_DURRATION = enum.auto()
 
 class MonsClass(enum.Enum):
@@ -104,7 +104,7 @@ MonsMovementModsFmt = ('MonsMovementMods', [
     ('B', 'dwarf_depth_media', 255),
     ('B', 'human_depth_media', 255),
     ('B', 'giant_depth_media', 255),
-    ('B', 'really_deep_media', 255),
+    ('B', 'deep', 255),
     ('B', 'sloped', 255),
     ('B', 'steep', 255),
     ('B', 'grass', 255),
@@ -151,7 +151,7 @@ MonsTerrainCostsFmt = ('MonsTerrainCosts', [
     ('b', 'dwarf_depth_media'), # unused in extended flags?
     ('b', 'human_depth_media'), # unused in extended flags?
     ('b', 'giant_depth_media'), # unused in extended flags?
-    ('b', 'deep_cost'), # unused in extended flags?
+    ('b', 'deep'), # unused in extended flags?
     ('b', 'sloped'), # ExtendedFlagsSloped
     ('b', 'steep'), # block_delay_rate - Block delay modifier (between -29 and 127)
     ('b', 'grass'), # ExtendedFlagsGrass
@@ -177,6 +177,31 @@ def extended_flags(mons_tag):
         'charge_range': mons_tag.terrain_costs.snow,
     }
 
+def terrain_passability(mons_tag):
+    # Based on Myth code
+    gameplay_lte_170 = False
+    gameplay_gt_130 = True
+
+    # This flag is not on by default, and likely has never been turned on
+    ignore_costs = MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
+    # Given the above, this will likely be true, even though we're above 1.7.0
+    use_terrain_costs = gameplay_lte_170 or not ignore_costs
+    # This will also be true, we're above 1.3.0
+    use_movement_modifiers = gameplay_gt_130
+
+    passability = {}
+    for terrain_type, terrain_cost in mons_tag.terrain_costs._asdict().items():
+        movement_modifier = getattr(mons_tag.movement_modifiers, terrain_type)
+
+        if (
+            (use_terrain_costs and terrain_cost < 0) or
+            (use_movement_modifiers and movement_modifier == 0)
+        ):
+            passability[terrain_type] = False
+        else:
+            passability[terrain_type] = True
+    return passability
+
 class Size(enum.Enum):
     SMALL = 0
     MAN = enum.auto()
@@ -193,7 +218,7 @@ MonsTagFmt = ('MonsTag', [
     ('H', 'propelled_system_shock'),
     ('H', 'damage_to_propulsion'),
     ('16s', 'terrain_costs', utils.codec(MonsTerrainCostsFmt)),
-    ('H', 'terrain_impassability_flags'),
+    ('H', 'terrain_impassability_flags'), # set at runtime
     ('h', 'pathfinding_radius'),
     ('16s', 'movement_modifiers', utils.codec(MonsMovementModsFmt)),
     ('H', 'absorbed_fraction', 1 << 16),

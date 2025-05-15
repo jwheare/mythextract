@@ -6,6 +6,8 @@ import struct
 import sys
 
 import loadtags
+import mesh_tag
+import mons_tag
 import mons2stats
 import myth_headers
 import utils
@@ -40,7 +42,7 @@ def collect_flavours(tags, data_map, input_mons_id):
 
 def encode_flavour(tags, data_map, flavour_stli, flavour):
     (stli_loc, stli_header, stli_data) = loadtags.get_tag_info(
-        tags, data_map, 'stli', utils.decode_string(flavour_stli)
+        tags, data_map, 'stli', flavour_stli
     )
 
     flavour_data = utils.encode_string(flavour)
@@ -58,6 +60,20 @@ def generate_flavour(tags, data_map, input_mons_id):
         for mons_id, locations in tags['mons'].items():
             if not plugin_names or set(l[0] for l in locations) == set(plugin_names):
                 yield get_flavour(tags, data_map, mons_id)
+    elif input_mons_id.startswith('mesh='):
+        mesh_id = input_mons_id[5:]
+
+        (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
+            tags, data_map, 'mesh', mesh_id
+        )
+        mesh_header = mesh_tag.parse_header(mesh_tag_data)
+        (palette, _) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
+
+        for unit in palette[mesh_tag.MarkerType.UNIT]:
+            if unit['team_index'] == 0:
+                unit_data = loadtags.get_tag_data(tags, data_map, 'unit', unit['tag'])
+                unit_tag = mons_tag.parse_unit(unit_data)
+                yield get_flavour(tags, data_map, utils.decode_string(unit_tag.mons))
     else:
         yield get_flavour(tags, data_map, input_mons_id)
 
@@ -132,7 +148,7 @@ def mons_flavour(mons_dict):
     if main_attack:
         main_attack_parts = [
             # f"Main attack damage: {round(main_attack['dmg'], 1)} recovery time: {main_attack['recovery']}s."
-            f"Main attack recovery time: {main_attack['recovery']}s."
+            f"Main attack recovery time: {round(main_attack['recovery'], 2)}s."
         ]
         acc = main_attack['velocity_error']
         if acc > 0:

@@ -219,7 +219,7 @@ def encode_data(data_format, nt):
     return struct.pack(fmt_string, *processed)
 
 def decode_string_none(s):
-    if all(f == b'' for f in s.split(b'\xff')):
+    if all_on(s):
         return None
     else:
         return decode_string(s)

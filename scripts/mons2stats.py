@@ -10,7 +10,7 @@ import myth_projectile
 import myth_collection
 import utils
 
-DEBUG = (os.environ.get('DEBUG') == '1')
+DEBUG_STATS = (os.environ.get('DEBUG_STATS') == '1')
 
 def main(game_directory, mons_id, plugin_names):
     """
@@ -68,7 +68,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
         'speed': mons.base_movement_speed,
         'movement_modifiers': mons.movement_modifiers._asdict(),
         'turning_speed': mons.turning_speed,
-        'flavour_stli': mons.flavor_string_list_tag,
+        'flavour_stli': utils.decode_string_none(mons.flavor_string_list_tag),
         'modifiers': obje_tag.effect_modifiers,
         'attacks': attacks,
         'can_block': can_block,
@@ -133,16 +133,14 @@ def process_attacks(mons, tags, data_map):
                     'vet_velocity': 0,
                     'primary': False,
                 })
-    for attack in mons.attacks:
+    for attack_i in range(mons.number_of_attacks):
+        attack = mons.attacks[attack_i]
         if attack:
             (_, proj_header, proj_data) = loadtags.get_tag_info(
                 tags, data_map, 'proj', utils.decode_string(
                     attack.projectile_tag
                 )
             )
-
-            if mons_tag.AttackFlag.IS_REFLEXIVE in attack.flags:
-                continue
 
             if not proj_data:
                 if mons_tag.AttackFlag.USES_CARRIED_PROJECTLE in attack.flags:
@@ -173,41 +171,55 @@ def process_attacks(mons, tags, data_map):
             if proj.damage.type == myth_projectile.DamageType.HEALING:
                 continue
 
+            if (
+                mons_tag.AttackFlag.IS_REFLEXIVE in attack.flags and
+                myth_projectile.DamageFlags.CANNOT_HURT_OWNER not in proj.damage.flags
+            ):
+                continue
+
             dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
-            seq_times = []
-            recov_s = attack.recovery_time
-            for attack_s in attack.sequences:
-                if not attack_s:
-                    continue
 
-                seq = sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
-                seq_meta = seq['metadata']
+            avg_time_s = None
+            if myth_projectile.ProjFlags.CONTINUALLY_DETONATES in proj.flags:
+                avg_time_s = 1/30
+                attack_range = proj.damage.radius_lower_bound + proj.damage.radius_delta
+            else:
+                attack_range = attack.maximum_range
+                seq_times = []
+                recov_s = attack.recovery_time + 0.2
+                for attack_si, attack_s in enumerate(attack.sequences):
+                    if not attack_s:
+                        continue
 
-                ticks = (
-                    seq_meta.frames_per_view * seq_meta.ticks_per_frame
-                )
+                    seq = sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
+                    seq_meta = seq['metadata']
 
-                tick_s = ticks / 30
-                transfer_s = seq_meta.transfer_period / 30
-                time_s = max(tick_s, tick_s + transfer_s + recov_s)
-
-                seq_times.append(time_s)
-                dps = dmg / max(1/30, time_s)
-                if DEBUG:
-                    print(
-                        f'{mons.collection_tag} [{seq['name']}] '
-                        f'dmg={dmg} '
-                        f'ticks={ticks} '
-                        f'transfer={seq_meta.transfer_period} '
-                        f'tick_s={tick_s} '
-                        f'recov={recov_s} '
-                        f'time_s={time_s} '
-                        f'dps={round(dps,2)}'
+                    ticks = (
+                        seq_meta.frames_per_view * seq_meta.ticks_per_frame
                     )
 
-            if len(seq_times):
-                avg_time_s = sum(seq_times) / len(seq_times)
+                    tick_s = ticks / 30
+                    transfer_s = seq_meta.transfer_period / 30
+                    time_s = max(tick_s, tick_s + recov_s)
 
+                    seq_times.append(time_s)
+                    dps = dmg / max(1/30, time_s)
+                    if DEBUG_STATS:
+                        print(
+                            f'{mons.collection_tag} [{proj_header.name}] [{attack_i} {attack_si} {seq['name']}] '
+                            f'dmg={dmg} '
+                            f'ticks={ticks} '
+                            f'transfer={seq_meta.transfer_period} '
+                            f'tick_s={tick_s} '
+                            f'recov={recov_s} '
+                            f'time_s={time_s} '
+                            f'dps={round(dps,2)}'
+                        )
+
+                if len(seq_times):
+                    avg_time_s = sum(seq_times) / len(seq_times)
+
+            if avg_time_s:
                 avg_dps = dmg / avg_time_s
 
                 attacks.append({
@@ -222,7 +234,7 @@ def process_attacks(mons, tags, data_map):
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in proj.damage.flags,
-                    'range': attack.maximum_range,
+                    'range': attack_range,
                     'recovery': recov_s,
                     'mana_cost': attack.mana_cost,
                     'min_velocity': attack.initial_velocity_lower_bound,
@@ -254,7 +266,7 @@ def mons_stats(mons_dict):
                 mana_recharge_time = (attack['mana_cost'] / (mons_dict['mana_recharge_rate'] * 30))
                 recov = f' (mana recovery: {round(mana_recharge_time, 1)}s)'
             else:
-                recov = f' (recovery: {round(attack['recovery'], 2)}s time: {round(attack['attack_time'], 2)}s)'
+                recov = f' (recovery: {round(attack['recovery'], 2)}s total_time: {round(attack['attack_time'], 2)}s)'
             lines.append(graph('     dmg ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
             lines.append(graph('     dps ', round(attack['dps']*2), 1.2, 4, f" {round(attack['dps'], 2)}{recov}"))
             attack_details = ''

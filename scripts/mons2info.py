@@ -68,6 +68,20 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                                 print(f'{f:<42} [{attack_i}]: {a_f}[{seq_i}]: {seq}')
                         else:
                             print(f'{f:<42} [{attack_i}]: {a_f}: {a_v}')
+        elif f == 'terrain_costs':
+            passability = mons_tag.terrain_passability(mons)
+            print(f'{"terrain":<42} | terrain_costs | movement_modifiers | real_passability' )
+            for terrain_type, terrain_cost in mons.terrain_costs._asdict().items():
+                movement_modifier = getattr(mons.movement_modifiers, terrain_type)
+                real_passability = passability[terrain_type]
+                print(
+                    f'{terrain_type:>42} | '
+                    f'{terrain_cost:<13} | '
+                    f'{movement_modifier:<18} | '
+                    f'{real_passability:<16}'
+                )
+        elif f == 'movement_modifiers':
+            pass
         else:
             if type(val) is bytes and utils.all_off(val):
                 val = f'[00 x {len(val.split(b'\x00'))-1}]'
