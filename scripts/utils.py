@@ -120,6 +120,9 @@ class _ListPacker:
     def __iter__(self):
         return iter(self.items)
 
+    def __len__(self):
+        return len(self.items)
+
     def __getitem__(self, index):
         # Return the item at the specified index
         return self.items[index]
@@ -151,9 +154,6 @@ class _ListCodec(_ListPacker):
         (name, fmt_string, decoders, encoders, fields) = _data_format(self.DefFmt)
         return fmt_string
 
-    def __repr__(self):
-        return f'ListCodec({self.items})'
-
 class _Codec:
     # Required attributes Populated dynamically by codec
     _DefFmt = None
@@ -161,7 +161,9 @@ class _Codec:
 
     def __init__(self, item_data):
         self._original_data = item_data
-        self._item = decode_data(self._DefFmt, self._original_data, self._OFFSET)
+        (name, fmt_string, decoders, encoders, fields) = _data_format(self._DefFmt)
+        self._item_def_size = struct.calcsize(fmt_string)
+        self._item = decode_data(self._DefFmt, self._original_data, offset=self._OFFSET)
 
     @property
     def value(self):
