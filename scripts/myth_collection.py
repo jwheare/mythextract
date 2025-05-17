@@ -19,7 +19,7 @@ ColorFmt = ('Color', [
 ])
 
 CollectionRefFmt = ('CollectionRef', [
-    ('4s', 'collection_tag', utils.decode_string),
+    ('4s', 'collection_tag', utils.StringCodec),
     ('H', 'number_of_permutations'),
     ('H', 'tint_fraction'),
     ('320s', 'colors', lambda colors: [utils.list_codec('PermutationHue', 8, ColorFmt)(colors) for i in range(5)]),
@@ -49,7 +49,7 @@ class D256RefFlags(enum.Flag):
     UNMIRROR = enum.auto()
 
 D256RefFmt = ('D256Ref', [
-    ('64s', 'name', utils.decode_string),
+    ('64s', 'name', utils.StringCodec),
     ('L', 'offset'),
     ('L', 'size'),
     ('8x', None),
@@ -68,7 +68,7 @@ D256RefFmt = ('D256Ref', [
 ])
 
 HueChangeFmt = ('HueChange', [
-    ('64s', 'name', utils.decode_string),
+    ('64s', 'name', utils.StringCodec),
     ('H', 'hue0', ANGLE_SF),
     ('H', 'hue1', ANGLE_SF),
     ('32s', 'colors_effected', utils.list_pack('HueChangeColors', 32, '>B')),
@@ -258,7 +258,7 @@ SequenceDataFmt = ('SequenceData', [
 ])
 
 SequenceRefFmt = ('SequenceRef', [
-    ('64s', 'name', utils.decode_string),
+    ('64s', 'name', utils.StringCodec),
     ('I', 'offset'),
     ('I', 'size'),
     ('56x', None),
@@ -312,7 +312,7 @@ def parse_sequences(data, coll_header):
     return sequences
 
 BitmapReferenceFmt = ('BitmapReference', [
-    ('64s', 'name', utils.decode_string),
+    ('64s', 'name', utils.StringCodec),
     ('I', 'offset'),
     ('I', 'size'),
     ('H', 'data_1'),

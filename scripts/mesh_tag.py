@@ -389,7 +389,7 @@ MarkerHeadFmt = ('MarkerHead', [
 MarkerPaletteEntryFmt = ('MarkerPaletteEntry', [
     ('H', 'type', MarkerType),
     ('H', 'flags', MarkerPaletteFlag),
-    ('4s', 'marker_tag', utils.decode_string),
+    ('4s', 'marker_tag', utils.StringCodec),
     ('h', 'team_index'),
     ('2x', None),
     ('L', 'netgame_flags', NetgameFlag),

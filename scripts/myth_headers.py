@@ -68,29 +68,19 @@ ArchivePriority = {
 # 4: myth 2 tag format signature
 #  
 # list of tags starts here
-SBMonoHeaderFmt = """>
-    h H
-    32s
-    64s
-    H H
-    4s
-    L
-    L
-    4s
-    4x
-    4s
-"""
-SBMonoHeader = namedtuple('SBMonoHeader', [
-    'type', 'version',
-    'name',
-    'description',
-    'entry_tag_count',
-    'tag_list_count',
-    'checksum',
-    'flags',
-    'size',
-    'header_checksum',
-    'signature'
+SBMonoHeaderFmt = ('SBMonoHeader', [
+    ('h', 'type', ArchiveType),
+    ('H', 'version'),
+    ('32s', 'name', utils.StringCodec),
+    ('64s', 'description', utils.StringCodec),
+    ('H', 'entry_tag_count'),
+    ('H', 'tag_list_count'),
+    ('4s', 'checksum'),
+    ('L', 'flags'),
+    ('L', 'size'),
+    ('4s', 'header_checksum'),
+    ('4x', None),
+    ('4s', 'signature', utils.StringCodec),
 ])
 
 #
@@ -104,37 +94,18 @@ SBMonoHeader = namedtuple('SBMonoHeader', [
 # 0040      <- header size
 # 0001
 # 00000000 00000000 00000000 0000
-GORHeaderFmt = """>
-    H H
-    32s
-    L
-    L
-    H
-    H
-    H
-    2x
-    L
-    8x
-"""
-GORHeader = namedtuple('GORHeader', [
-    # 0001 0001
-    'type', 'version',
-    # 7075626C69632E676F7200000000000000000000000000000000000000000000
-    'name',
-    # A91A76C1
-    'checksum',
-    # 131A9884
-    'tag_list_offset',
-    # 02FE
-    'tag_list_count',
-    # 0040
-    'header_size',
-    # 0001
-    'flags',
-    # 0000 pad ignored
-    # 00000000
-    'mod_time'
-    # 0000000000000000 unused
+GORHeaderFmt = ('GORHeader', [
+    ('H', 'type'),
+    ('H', 'version'),
+    ('32s', 'name', utils.StringCodec),
+    ('L', 'checksum'),
+    ('L', 'tag_list_offset'),
+    ('H', 'tag_list_count'),
+    ('H', 'header_size'),
+    ('H', 'flags'),
+    ('2x', None),
+    ('L', 'mod_time'),
+    ('8x', None),
 ])
 
 UnifiedHeader = namedtuple('UnifiedHeader', [
@@ -155,49 +126,34 @@ UnifiedHeader = namedtuple('UnifiedHeader', [
     'checksum',
 ])
 
-TFLHeaderFmt = """>
-    32s 4s 4s
-    L H H
-    i l
-    L
-    4s
-"""
-TFLHeader = namedtuple('TFLHeader', [
-    # 3033206E6172726174696F6E0000000000000000000000000000000000000000
-    'name',
-    # 736F756E   30336E61
-    'tag_type', 'tag_id',
-    # 00000001  0005           0002
-    'version', 'tag_version', 'flags',
-    # 00000040          000B0D8A
-    'tag_data_offset', 'tag_data_size',
-    # 00000000
-    'user_data',
-    # 6D797468
-    'signature'
+TFLHeaderFmt = ('TFLHeader', [
+    ('32s', 'name', utils.StringCodec),
+    ('4s', 'tag_type', utils.StringCodec),
+    ('4s', 'tag_id', utils.StringCodec),
+    ('L', 'version'),
+    ('H', 'tag_version'),
+    ('H', 'flags'),
+    ('i', 'tag_data_offset'),
+    ('l', 'tag_data_size'),
+    ('L', 'user_data'),
+    ('4s', 'signature', utils.StringCodec),
 ])
 
-SBHeaderFmt = """>
-    x b b b
-    32s 4s 4s
-    i l
-    L h b b
-    4s
-"""
-SBHeader = namedtuple('SBHeader', [
-    # FF unused
-    # FF            00       00
-    'identifier', 'flags', 'type',
-    # 6E61722030320000000000000000000000000000000000000000000000000000
-    'name',
-    # 736F756E   6E613032
-    'tag_type', 'tag_id',
-    # 00000040          001A5CB4
-    'tag_data_offset', 'tag_data_size',
-    # 00000000    0001       FF             FF
-    'user_data', 'version', 'destination', 'owner_index',
-    # 6D746832
-    'signature'
+SBHeaderFmt = ('SBHeader', [
+    ('x', None),
+    ('b', 'identifier'),
+    ('b', 'flags'),
+    ('b', 'type'),
+    ('32s', 'name', utils.StringCodec),
+    ('4s', 'tag_type', utils.StringCodec),
+    ('4s', 'tag_id', utils.StringCodec),
+    ('i', 'tag_data_offset'),
+    ('l', 'tag_data_size'),
+    ('L', 'user_data'),
+    ('h', 'version'),
+    ('b', 'destination'),
+    ('b', 'owner_index'),
+    ('4s', 'signature', utils.StringCodec),
 ])
 
 def tfl2sb(tfl_header, tag_content):
@@ -222,31 +178,17 @@ def parse_gor_header(header):
     header_data = header[:GOR_HEADER_SIZE]
     if len(header_data) < GOR_HEADER_SIZE:
         raise ValueError("Invalid header")
-    gor = GORHeader._make(struct.unpack(GORHeaderFmt, header_data))
-    return gor._replace(
-        name=utils.decode_string(gor.name),
-    )
+    return utils.codec(GORHeaderFmt)(header_data)
 
 def parse_sb_mono_header(header):
     header_data = header[:SB_MONO_HEADER_SIZE]
     if len(header_data) < SB_MONO_HEADER_SIZE:
         raise ValueError("Invalid header")
 
-    mono = SBMonoHeader._make(struct.unpack(SBMonoHeaderFmt, header_data))
-    return mono._replace(
-        name=utils.decode_string(mono.name),
-        description=utils.decode_string(mono.description),
-        type=ArchiveType(mono.type),
-        signature=utils.decode_string(mono.signature),
-    )
+    return utils.codec(SBMonoHeaderFmt)(header_data)
 
 def encode_sb_mono_header(mono):
-    return struct.pack(SBMonoHeaderFmt, *mono._replace(
-        name=utils.encode_string(mono.name),
-        description=utils.encode_string(mono.description),
-        type=mono.type.value,
-        signature=utils.encode_string(mono.signature),
-    ))
+    return mono.value
 
 def mono_header_size(header):
     if type(header).__name__ == 'GORHeader':
@@ -329,10 +271,10 @@ def parse_header(data):
         return parse_sb_header(data[:TAG_HEADER_SIZE])
 
 def parse_tfl_header(header):
-    return decode_header(TFLHeader._make(struct.unpack(TFLHeaderFmt, header)))
+    return utils.codec(TFLHeaderFmt)(header)
 
 def parse_sb_header(header):
-    return decode_header(SBHeader._make(struct.unpack(SBHeaderFmt, header)))
+    return utils.codec(SBHeaderFmt)(header)
 
 def parse_text_tag(data):
     header = parse_header(data)
@@ -341,14 +283,14 @@ def parse_text_tag(data):
 
     return (header, text)
 
-def game_version(header_tuple):
-    if header_tuple.signature == 'myth':
+def game_version(header):
+    if header.signature == 'myth':
         return 1
-    elif header_tuple.signature == 'mth2':
+    elif header.signature == 'mth2':
         return 2
 
-def normalise_tag_header(header_tuple):
-    return header_tuple._replace(
+def normalise_tag_header(header):
+    return header._replace(
         tag_data_offset=TAG_HEADER_SIZE,
         identifier=-1,
         type=0,
@@ -356,26 +298,5 @@ def normalise_tag_header(header_tuple):
         owner_index=-1,
     )
 
-def tag_header_fmt(header_tuple):
-    version = game_version(header_tuple)
-    if version == 1:
-        return TFLHeaderFmt
-    elif version == 2:
-        return SBHeaderFmt
-
 def encode_header(header):
-    encoded = normalise_tag_header(header)._replace(
-        name=utils.encode_string(header.name),
-        tag_type=utils.encode_string(header.tag_type),
-        tag_id=utils.encode_string(header.tag_id),
-        signature=utils.encode_string(header.signature)
-    )
-    return struct.pack(tag_header_fmt(header), *encoded)
-
-def decode_header(header):
-    return header._replace(
-        name=utils.decode_string(header.name),
-        tag_type=utils.decode_string(header.tag_type),
-        tag_id=utils.decode_string(header.tag_id),
-        signature=utils.decode_string(header.signature)
-    )
+    return header.value

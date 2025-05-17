@@ -174,9 +174,71 @@ class _Codec:
 
     def __getattr__(self, name):
         return getattr(self._item, name)
-
     def __repr__(self):
         return f'{self._item}'
+
+class StringCodec:
+    def __init__(self, encoded):
+        self._encoded = encoded
+        if all_on(self._encoded):
+            self._decoded = None
+        else:
+            self._decoded = decode_string(self._encoded)
+
+    @property
+    def value(self):
+        return self._encoded
+
+    def __str__(self):
+        return str(self._decoded)
+
+    def __bytes__(self):
+        return self._encoded
+
+    def __hash__(self):
+        return hash(self._decoded)
+
+    def __bool__(self):
+        return bool(self._decoded)
+
+    def __eq__(self, x):
+        return self._decoded == x or self._encoded == x
+
+    def __len__(self):
+        if self._decoded:
+            return 0
+        else:
+            return len(self._decoded)
+
+    def __getitem__(self, index):
+        if self._decoded:
+            return self._decoded[index]
+        else:
+            return None
+
+    def __iter__(self):
+        if self._decoded:
+            return iter(self._decoded)
+        else:
+            return iter('')
+
+    def __contains__(self, x):
+        if self._decoded:
+            return x in self._decoded
+        else:
+            return False
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}({self._encoded})'
+
+    def encode(self, *args, **kwargs):
+        if self._decoded:
+            return self._decoded.encode(*args, **kwargs)
+        else:
+            return self._encoded
+
+    def decode(self, *args, **kwargs):
+        return self._encoded.decode(*args, **kwargs)
 
 def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListPacker,), {

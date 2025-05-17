@@ -45,7 +45,7 @@ DmapEntryFmt = ('DmapEntry', [
     ('B', 'g'), 
     ('B', 'b'),
     ('24x', None),
-    ('32s', 'name', utils.decode_string),
+    ('32s', 'name', utils.StringCodec),
 ])
 
 def main(dmap_tag):
