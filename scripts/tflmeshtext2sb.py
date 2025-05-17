@@ -116,8 +116,8 @@ def convert_level(game_version, tags, data_map, mesh_id):
 
                 # Replace with TFL port tag ids
                 tag_header = tag_header._replace(
-                    tag_id=tag_values[0],
-                    name=tag_values[1]
+                    tag_id=utils.StringCodec(utils.encode_string(tag_values[0])),
+                    name=utils.StringCodec(utils.encode_string(tag_values[1]))
                 )
 
                 sb_tag_data = myth_headers.tfl2sb(tag_header, tag_content)

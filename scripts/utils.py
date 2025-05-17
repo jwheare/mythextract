@@ -80,13 +80,10 @@ def _decode_data_values(name, values, decoders, fields):
     nt = namedtuple(name, fields)
     return nt._make(processed)
 
-def make_nt(data_format, values=None):
+def make_nt(data_format):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
     nt = namedtuple(name, fields)
-    if values:
-        return nt._make(values)
-    else:
-        return nt
+    return nt
 
 class _ListPacker:
     # Required attributes Populated dynamically by list_pack
@@ -162,18 +159,26 @@ class _Codec:
     _DefFmt = None
     _OFFSET = 0
 
-    def __init__(self, item_data):
+    def __init__(self, item_data=None, values=None):
         self._original_data = item_data
         (name, fmt_string, decoders, encoders, fields) = _data_format(self._DefFmt)
         self._item_def_size = struct.calcsize(fmt_string)
-        self._item = decode_data(self._DefFmt, self._original_data, offset=self._OFFSET)
+        if self._original_data:
+            self._item = decode_data(self._DefFmt, self._original_data, offset=self._OFFSET)
+        elif values:
+            self._item = _decode_data_values(name, values, decoders, fields)
 
     @property
     def value(self):
         return encode_data(self._DefFmt, self._item)
 
+    def _replace(self, *args, **kwargs):
+        self._item = self._item._replace(*args, **kwargs)
+        return self
+
     def __getattr__(self, name):
         return getattr(self._item, name)
+
     def __repr__(self):
         return f'{self._item}'
 
@@ -239,6 +244,9 @@ class StringCodec:
 
     def decode(self, *args, **kwargs):
         return self._encoded.decode(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._decoded, name)
 
 def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListPacker,), {

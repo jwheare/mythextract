@@ -139,8 +139,7 @@ TFLHeaderFmt = ('TFLHeader', [
 ])
 
 SBHeaderFmt = ('SBHeader', [
-    ('x', None),
-    ('b', 'identifier'),
+    ('h', 'identifier'),
     ('b', 'flags'),
     ('b', 'type'),
     ('32s', 'name', utils.StringCodec),
@@ -156,22 +155,24 @@ SBHeaderFmt = ('SBHeader', [
 ])
 
 def tfl2sb(tfl_header, tag_content):
-    sb_header = SBHeader(
+    SBHeader = utils.make_nt(SBHeaderFmt)
+    sb_header_values = SBHeader(
         identifier=-1,
         flags=0,
-        type=ArchiveType.TAG,
-        name=tfl_header.name,
-        tag_type=tfl_header.tag_type,
-        tag_id=tfl_header.tag_id,
+        type=ArchiveType.TAG.value,
+        name=tfl_header.name.value,
+        tag_type=tfl_header.tag_type.value,
+        tag_id=tfl_header.tag_id.value,
         tag_data_offset=tfl_header.tag_data_offset,
         tag_data_size=len(tag_content),
         user_data=tfl_header.user_data,
         version=tfl_header.version,
         destination=-1,
         owner_index=-1,
-        signature='mth2'
+        signature=b'mth2'
     )
-    return encode_header(sb_header) + tag_content
+    sb_header = utils.codec(SBHeaderFmt)(values=sb_header_values)
+    return normalise_tag_header(sb_header).value + tag_content
 
 def parse_gor_header(header):
     header_data = header[:GOR_HEADER_SIZE]
