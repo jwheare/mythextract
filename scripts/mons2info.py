@@ -46,7 +46,7 @@ def coll_sequences(tags, data_map, coll_tag):
     collection = utils.decode_string(coll_tag)
     (location, header, data) = loadtags.get_tag_info(tags, data_map, '.256', collection)
     coll_header = myth_collection.parse_collection_header(data, header)
-    return (location, f'{header.tag_id} [{header.name}]', myth_collection.parse_sequences(data, coll_header))
+    return myth_collection.parse_sequences(data, coll_header)
 
 def print_tag(mons, mons_id, locations, tags, data_map):
     (location, tag_header) = locations[-1]
@@ -82,6 +82,22 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                 )
         elif f == 'movement_modifiers':
             pass
+        elif f == 'sound_tags':
+            for i, sound_tag in enumerate(val):
+                sound_type = mons_tag.SoundTypes(mons.sound_types[i])
+                print(f'{f:<42} [{i}]: tag={sound_tag} type={sound_type.name}')
+        elif f == 'sound_types':
+            pass
+        elif f == 'sequence_indexes':
+            sequences = coll_sequences(tags, data_map, mons.collection_tag)
+            for seq, idx in enumerate(val):
+                print(f'{f:<42} [{seq:>2}]: {mons_tag.sequence_name(seq):<16} {idx:>3} ', end='')
+                sequence = None
+                if idx > -1:
+                    sequence = sequences[idx]
+                    print(f'{sequences[idx]['name']}')
+                else:
+                    print()
         else:
             if type(val) is bytes and utils.all_off(val):
                 val = f'[00 x {len(val.split(b'\x00'))-1}]'
@@ -89,8 +105,6 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                 val = f'[FF x {len(val.split(b'\xff'))-1}]'
             print(f'{f:<42} {val}')
             # print(f'[{mons_id}] {f} {val} {locations}')
-        if f == 'collection_tag':
-            coll_sequences(tags, data_map, val)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

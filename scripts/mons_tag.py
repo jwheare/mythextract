@@ -207,6 +207,26 @@ class Size(enum.Enum):
     MAN = enum.auto()
     GIANT = enum.auto()
 
+class SoundTypes(enum.Enum):
+    NONE = -1
+    ATTACK_ORDER = enum.auto()
+    MULTIPLE_ATTACK_ORDER = enum.auto()
+    ATTACK_ORDER_VS_UNDEAD = enum.auto()
+    MOVE_ORDER = enum.auto()
+    MULTIPLE_MOVE_ORDER = enum.auto()
+    SELECTION = enum.auto()
+    MULTIPLE_SELECTION = enum.auto()
+    HIT_FRIENDLY_UNIT = enum.auto()
+    HIT_BY_FRIENDLY_UNIT = enum.auto()
+    ATTACK_OBSTRUCTED_BY_FRIENDLY_UNIT = enum.auto()
+    ATTACK_ENEMY_UNIT = enum.auto()
+    ATTACK_ENEMY_WITH_FRIENDLY_UNITS_NEARBY = enum.auto()
+    SPRAYED_BY_GORE = enum.auto()
+    CAUSED_ENEMY_DEATH = enum.auto()
+    CAUSED_FRIENDLY_DEATH = enum.auto()
+    CAUSED_DEATH_OF_ENEMY_UNDEAD = enum.auto()
+    # CAUSED_MULTIPLE_ENEMY_DEATHS = 16 # commented in oak
+
 MonsTagFmt = ('MonsTag', [
     ('L', 'flags', MonsFlag),
     ('4s', 'collection_tag'),
@@ -385,7 +405,7 @@ def sequence_name(idx):
     if idx < len(SequenceNames):
         return SequenceNames[idx]
     else:
-        return str(idx)
+        return ''
 
 def parse_artifact(data):
     start = myth_headers.TAG_HEADER_SIZE
