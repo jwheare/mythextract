@@ -251,7 +251,7 @@ MonsTagFmt = ('MonsTag', [
     ('2x', None),
 
     ('H', 'turning_speed', (0xffff / 360) / 30),
-    ('h', 'base_movement_speed', 512),
+    ('h', 'base_movement_speed'),
     ('H', 'left_handed_fraction'),
     ('h', 'size', Size),
     ('4s', 'object_tag'),

@@ -120,6 +120,9 @@ class _ListPacker:
     def __iter__(self):
         return iter(self.items)
 
+    def __contains__(self, x):
+        return x in self.items
+
     def __len__(self):
         return len(self.items)
 

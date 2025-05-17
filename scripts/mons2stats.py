@@ -112,6 +112,7 @@ def process_attacks(mons, tags, data_map):
             ex_proj = myth_projectile.parse_proj(ex_proj_data)
             ex_dmg = ex_proj.damage.damage_lower_bound + ex_proj.damage.damage_delta
             if ex_dmg > 2:
+                ex_radius = ex_proj.damage.radius_lower_bound + ex_proj.damage.radius_delta
                 attacks.append({
                     'name': f'{ex_proj_header.name} (explosion)',
                     'throw': False,
@@ -121,6 +122,7 @@ def process_attacks(mons, tags, data_map):
                     'special': False,
                     'melee': False,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
+                    'radius': ex_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in ex_proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in ex_proj.damage.flags,
                     'range': 0,
@@ -153,6 +155,7 @@ def process_attacks(mons, tags, data_map):
                         'special': False,
                         'melee': False,
                         'aoe': False,
+                        'radius': 0,
                         'paralysis': False,
                         'unblockable': False,
                         'range': attack.maximum_range,
@@ -180,11 +183,11 @@ def process_attacks(mons, tags, data_map):
             dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
 
             avg_time_s = None
+            attack_radius = proj.damage.radius_lower_bound + proj.damage.radius_delta
+            attack_range = attack.maximum_range
             if myth_projectile.ProjFlags.CONTINUALLY_DETONATES in proj.flags:
                 avg_time_s = 1/30
-                attack_range = proj.damage.radius_lower_bound + proj.damage.radius_delta
             else:
-                attack_range = attack.maximum_range
                 seq_times = []
                 recov_s = attack.recovery_time + 0.2
                 for attack_si, attack_s in enumerate(attack.sequences):
@@ -221,7 +224,6 @@ def process_attacks(mons, tags, data_map):
 
             if avg_time_s:
                 avg_dps = dmg / avg_time_s
-
                 attacks.append({
                     'name': proj_header.name,
                     'throw': False,
@@ -232,6 +234,7 @@ def process_attacks(mons, tags, data_map):
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
+                    'radius': attack_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in proj.damage.flags,
                     'range': attack_range,
@@ -248,7 +251,7 @@ def process_attacks(mons, tags, data_map):
 
 def mons_stats(mons_dict):
     lines = []
-    lines.append(graph('   speed ', round(mons_dict['speed'] * 512), 15, 20, f" {round(mons_dict['speed'], 3)}"))
+    lines.append(graph('   speed ', round(mons_dict['speed']), 15, 20, f" {round(mons_dict['speed'], 3)}"))
     if mons_dict['max_vitality'] == mons_dict['min_vitality']:
         vit_range = f'{round(mons_dict['max_vitality'], 2)}'
     else:
@@ -265,13 +268,16 @@ def mons_stats(mons_dict):
             if attack['mana_cost'] > 0:
                 mana_recharge_time = (attack['mana_cost'] / (mons_dict['mana_recharge_rate'] * 30))
                 recov = f' (mana recovery: {round(mana_recharge_time, 1)}s)'
-            else:
+            elif 'attack_time' in attack:
                 recov = f' (recovery: {round(attack['recovery'], 2)}s total_time: {round(attack['attack_time'], 2)}s)'
             lines.append(graph('     dmg ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
             lines.append(graph('     dps ', round(attack['dps']*2), 1.2, 4, f" {round(attack['dps'], 2)}{recov}"))
             attack_details = ''
         throw = ' (throw)' if attack['throw'] else ''
-        lines.append(graph('   range ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}{attack_details}"))
+        if attack['range']:
+            lines.append(graph('   range ', round(attack['range']*2), 5, 21, f" {round(attack['range'], 2)}{throw}{attack_details}"))
+        if attack['radius']:
+            lines.append(graph('  radius ', round(attack['radius']*2), 5, 21, f" {round(attack['radius'], 2)}"))
 
     indent = '         '
 
