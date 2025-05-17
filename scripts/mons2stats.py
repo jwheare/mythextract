@@ -202,7 +202,6 @@ def process_attacks(mons, tags, data_map):
                     )
 
                     tick_s = ticks / 30
-                    transfer_s = seq_meta.transfer_period / 30
                     time_s = max(tick_s, tick_s + recov_s)
 
                     seq_times.append(time_s)

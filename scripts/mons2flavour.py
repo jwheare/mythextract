@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import os
 import pathlib
-import re
 import struct
 import sys
 
@@ -58,7 +57,7 @@ def encode_flavour(tags, data_map, flavour_stli, flavour):
 def generate_flavour(tags, data_map, input_mons_id):
     if input_mons_id == 'all':
         for mons_id, locations in tags['mons'].items():
-            if not plugin_names or set(l[0] for l in locations) == set(plugin_names):
+            if not plugin_names or set(loc[0] for loc in locations) == set(plugin_names):
                 yield get_flavour(tags, data_map, mons_id)
     elif input_mons_id.startswith('mesh='):
         mesh_id = input_mons_id[5:]
@@ -87,7 +86,7 @@ def get_flavour(tags, data_map, mons_id):
 def write_flavours(tags, data_map, input_mons_id):
     flavours = collect_flavours(tags, data_map, input_mons_id)
 
-    output_dir = f'../output/mons2flavour/local'
+    output_dir = '../output/mons2flavour/local'
     output_path = pathlib.Path(sys.path[0], output_dir).resolve()
 
     if prompt(output_path):
@@ -123,7 +122,7 @@ def mons_flavour(mons_dict):
 
     stone = ''
     if mons_dict['stone']:
-        stone = f"[Turns to Stone at 25% of health] "
+        stone = '[Turns to Stone at 25% of health] '
 
     absorbtion = ''
     if mons_dict['absorbed_fraction'] > 0:
@@ -170,7 +169,7 @@ def mons_flavour(mons_dict):
     puss_dur = mods['paralysis_duration']
     puss_effect = ''
     if puss_dur == 0:
-        puss_effect = f"Immune to Paralysis. "
+        puss_effect = "Immune to Paralysis. "
     elif puss_dur != 1:
         puss_effect = f"Effect duration {pct(puss_dur)}% from Paralysis. "
 

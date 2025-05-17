@@ -78,7 +78,6 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
                         f'bm_index={bitmap_instance.bitmap_index}'
                     )
         print('---')
-            
 
     # Selection Box Size (sequence meta)
     # Key Point Locations (sequence instance)

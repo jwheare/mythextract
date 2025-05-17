@@ -60,7 +60,6 @@ def extract_tags(tag_type, input_tag_id, tags, data_map, plugin_names):
                     (dead_tag_location, dead_tag_header) = dead_tag_locations[-1]
                     print(f'Dead tag {dead_tag_type.upper()}.{dead_tag_id} {dead_tag_header.name}')
 
-
     else:
         (location, header) = loadtags.lookup_tag_header(
             tags, tag_type, input_tag_id
