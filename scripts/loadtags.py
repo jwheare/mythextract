@@ -119,9 +119,10 @@ def locate_tag_data(tags, data_map, tag_type, tag_id, location):
             if (tag_location == location):
                 tag_start = tag_header.tag_data_offset
                 tag_end = tag_start + tag_header.tag_data_size
+                tag_header_norm = myth_headers.normalise_tag_header(tag_header)
                 return (
-                    myth_headers.normalise_tag_header(tag_header),
-                    myth_headers.encode_header(tag_header) + data_map[location][tag_start:tag_end]
+                    tag_header_norm,
+                    tag_header_norm.value + data_map[location][tag_start:tag_end]
                 )
     return (None, None)
 
@@ -166,7 +167,8 @@ def build_tag_map(files):
     return (game_version, tags, entrypoint_map, data_map)
 
 def apppend_tags_from_archive(tags, data, mono_header, name):
-    for (i, tag_header) in mono2tag.get_tags(data, mono_header):
+    mono_tags = mono2tag.get_tags(data, mono_header)
+    for (i, tag_header) in mono_tags:
         tag_type_tags = tags.get(tag_header.tag_type, {})
 
         if tag_header.tag_id in tag_type_tags:

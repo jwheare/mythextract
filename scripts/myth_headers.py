@@ -81,6 +81,7 @@ SBMonoHeaderFmt = ('SBMonoHeader', [
     ('4x', None),
     ('4s', 'signature', utils.StringCodec),
 ])
+SBMonoHeader = utils.codec(SBMonoHeaderFmt)
 
 #
 # artsound.gor header
@@ -106,6 +107,7 @@ GORHeaderFmt = ('GORHeader', [
     ('L', 'mod_time'),
     ('8x', None),
 ])
+GORHeader = utils.codec(GORHeaderFmt)
 
 UnifiedHeader = namedtuple('UnifiedHeader', [
     'filename',
@@ -137,6 +139,7 @@ TFLHeaderFmt = ('TFLHeader', [
     ('L', 'user_data'),
     ('4s', 'signature', utils.StringCodec),
 ])
+TFLHeader = utils.codec(TFLHeaderFmt)
 
 SBHeaderFmt = ('SBHeader', [
     ('h', 'identifier'),
@@ -153,10 +156,11 @@ SBHeaderFmt = ('SBHeader', [
     ('b', 'owner_index'),
     ('4s', 'signature', utils.StringCodec),
 ])
+SBHeader = utils.codec(SBHeaderFmt)
 
 def tfl2sb(tfl_header, tag_content):
-    SBHeader = utils.make_nt(SBHeaderFmt)
-    sb_header_values = SBHeader(
+    SBHeaderT = utils.make_nt(SBHeaderFmt)
+    sb_header_values = SBHeaderT(
         identifier=-1,
         flags=0,
         type=ArchiveType.TAG.value,
@@ -171,21 +175,21 @@ def tfl2sb(tfl_header, tag_content):
         owner_index=-1,
         signature=b'mth2'
     )
-    sb_header = utils.codec(SBHeaderFmt)(values=sb_header_values)
+    sb_header = SBHeader(values=sb_header_values)
     return normalise_tag_header(sb_header).value + tag_content
 
 def parse_gor_header(header):
     header_data = header[:GOR_HEADER_SIZE]
     if len(header_data) < GOR_HEADER_SIZE:
         raise ValueError("Invalid header")
-    return utils.codec(GORHeaderFmt)(header_data)
+    return GORHeader(header_data)
 
 def parse_sb_mono_header(header):
     header_data = header[:SB_MONO_HEADER_SIZE]
     if len(header_data) < SB_MONO_HEADER_SIZE:
         raise ValueError("Invalid header")
 
-    return utils.codec(SBMonoHeaderFmt)(header_data)
+    return SBMonoHeader(header_data)
 
 def encode_sb_mono_header(mono):
     return mono.value
@@ -271,10 +275,11 @@ def parse_header(data):
         return parse_sb_header(data[:TAG_HEADER_SIZE])
 
 def parse_tfl_header(header):
-    return utils.codec(TFLHeaderFmt)(header)
+    return TFLHeader(header)
+
 
 def parse_sb_header(header):
-    return utils.codec(SBHeaderFmt)(header)
+    return SBHeader(header)
 
 def parse_text_tag(data):
     header = parse_header(data)
@@ -289,14 +294,15 @@ def game_version(header):
     elif header.signature == 'mth2':
         return 2
 
-def normalise_tag_header(header):
+def normalise_tag_header(header, **kwargs):
     return header._replace(
         tag_data_offset=TAG_HEADER_SIZE,
         identifier=-1,
         type=0,
         destination=-1,
         owner_index=-1,
+        **kwargs
     )
 
 def encode_header(header):
-    return header.value
+    return normalise_tag_header(header).value

@@ -100,7 +100,7 @@ class ExtraFlags(enum.Flag):
     SECRET_LEVEL = enum.auto()
 
 MeshHeaderFmt = ('MeshHeader', [
-    ('4s', 'landscape_collection_tag'),
+    ('4s', 'landscape_collection_tag', utils.StringCodec),
     ('4s', 'media_tag'),
     ('H', 'submesh_width'),
     ('H', 'submesh_height'),
@@ -466,9 +466,6 @@ def cutscenes(game_version, header):
         utils.decode_string(header.cutscene_file_success)
     )
 
-def encode_header(header):
-    return utils.encode_data(MeshHeaderFmt, header)
-
 def get_offset(offset):
     return myth_headers.TAG_HEADER_SIZE + MESH_HEADER_SIZE + offset
 
@@ -682,15 +679,13 @@ def rewrite_action_data(map_action_count, map_action_data, current_mesh_tag_data
         mesh_LOD_data_offset=mesh_LOD_data_offset,
         connectors_offset=connectors_offset,
     )
-    new_mesh_header_data = encode_header(new_mesh_header)
+    new_mesh_header_data = new_mesh_header.value
     new_mesh_header_size = len(new_mesh_header_data)
     new_tag_data_size = new_mesh_header_size + mesh_data_size
 
     # Adjust tag header size
-    new_tag_header = tag_header._replace(
-        destination=-1,
-        identifier=-1,
-        type=0,
+    new_tag_header = myth_headers.normalise_tag_header(
+        tag_header,
         tag_data_size=new_tag_data_size
     )
 
@@ -706,7 +701,7 @@ mesh_header.media_coverage_region_offset = {mesh_header.media_coverage_region_of
         )
 
     return (
-        myth_headers.encode_header(new_tag_header)
+        new_tag_header.value
         + new_mesh_header_data
         + new_mesh_data
     )

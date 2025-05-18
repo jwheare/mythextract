@@ -1,4 +1,5 @@
 from collections import namedtuple
+import copy
 import re
 import struct
 import sys
@@ -42,14 +43,19 @@ def ansi_format(text):
     plain = re.sub(r'[\|]p', '\x1b[0m', bold)
     return f'{plain}\x1b[0m'
 
-def _data_format(data_format):
+def _data_format(data_format, offset=0):
     decoders = []
     encoders = []
     fields = []
     fmt_string = '>'
     (name, field_format) = data_format
+    start = offset
+    value_i = 0
     for field in field_format:
-        fmt_string += field[0]
+        fmt = field[0]
+        field_size = struct.calcsize(f'>{fmt}')
+        end = start + field_size
+        fmt_string += f' {fmt}'
         if field[1]:
             fields.append(field[1])
             if len(field) > 2 and field[2]:
@@ -57,26 +63,67 @@ def _data_format(data_format):
             else:
                 decoders.append(None)
             if len(field) > 3 and field[3]:
-                encoders.append(field[3])
+                encoders.append(value_encoder(fmt, value_index=value_i, encoder=field[3]))
+            elif len(field) > 2 and field[2]:
+                encoders.append(value_encoder(fmt, value_index=value_i, decoder=field[2]))
             else:
-                encoders.append(None)
+                encoders.append(value_encoder(fmt, value_index=value_i))
+            value_i += 1
+        else:
+            encoders.append(value_encoder(fmt, data_start=start, data_end=end))
+        start = end
     return (name, fmt_string, decoders, encoders, fields)
 
+def value_pack(fmt, value):
+    if fmt.endswith('x'):
+        fmt = f'{fmt[:-1]}s'
+    if value is not None:
+        return struct.pack(f'>{fmt}', value)
+    return b''
+
+def value_encoder(
+    fmt, value_index=None, encoder=None, decoder=None,
+    data_start=None, data_end=None
+):
+    if value_index is not None:
+        if encoder:
+            return lambda values, data: value_pack(fmt, encoder(values[value_index]))
+        elif decoder in [int, float]:
+            return lambda values, data: value_pack(fmt, round(values[value_index] * decoder))
+        elif decoder:
+            return lambda values, data: value_pack(fmt, conditional_value(values[value_index]))
+        else:
+            return lambda values, data: value_pack(fmt, values[value_index])
+    elif data_start is not None and data_end is not None:
+        return lambda values, data: value_pack(fmt, data[data_start:data_end] if data else None)
+    else:
+        print('invalid encoder', value_index, encoder, decoder, data_start, data_end)
+        sys.exit(1)
+
+
+def conditional_value(item):
+    if hasattr(item, 'value'):
+        return item.value
+    return None
+
 def iter_decode(start, count, data_format, data):
-    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
+    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=start)
     end = start + (count * struct.calcsize(fmt_string))
     for values in struct.iter_unpack(fmt_string, data[start:end]):
         yield _decode_data_values(name, values, decoders, fields)
 
+def _decode_data_value(decoder, value):
+    if callable(decoder):
+        return decoder(value)
+    elif type(decoder) in [int, float]:
+        return value / decoder
+    else:
+        return value
+
 def _decode_data_values(name, values, decoders, fields):
     processed = []
     for i, value in enumerate(values):
-        if callable(decoders[i]):
-            processed.append(decoders[i](value))
-        elif type(decoders[i]) in [int, float]:
-            processed.append(value / decoders[i])
-        else:
-            processed.append(value)
+        processed.append(_decode_data_value(decoders[i], value))
     nt = namedtuple(name, fields)
     return nt._make(processed)
 
@@ -97,7 +144,7 @@ class _ListPacker:
         for (item,) in iter_unpack(*args):
             yield item
 
-    def item_encode(self, *args):
+    def item_encode(self, *args, offset=0):
         return struct.pack(*args)
 
     def item_def_fmt(self):
@@ -132,26 +179,26 @@ class _ListPacker:
 
     @property
     def value(self):
-        item_data = b''
+        item_data = bytearray()
         for item in self.items:
             if item is not None:
-                item_data += self.item_encode(self.DefFmt, item)
+                item_data += self.item_encode(self.DefFmt, item, offset=self.OFFSET)
             else:
                 if self.EMPTY_VALUE:
                     item_data += self.EMPTY_VALUE
                 else:
                     item_data += self.item_def_size * b'\x00'
-        return item_data
+        return bytes(item_data)
 
 class _ListCodec(_ListPacker):
-    def iter_decode(self, *args):
-        yield from iter_decode(*args)
+    def iter_decode(self, *args, **kwargs):
+        yield from iter_decode(*args, **kwargs)
 
-    def item_encode(self, *args):
-        return encode_data(*args)
+    def item_encode(self, *args, **kwargs):
+        return encode_data(*args, **kwargs)
 
     def item_def_fmt(self):
-        (name, fmt_string, decoders, encoders, fields) = _data_format(self.DefFmt)
+        (name, fmt_string, decoders, encoders, fields) = _data_format(self.DefFmt, offset=self.OFFSET)
         return fmt_string
 
 class _Codec:
@@ -159,25 +206,47 @@ class _Codec:
     _DefFmt = None
     _OFFSET = 0
 
+    _fmt_string = None
+    _name = None
+    _decoders = []
+    _encoders = []
+    _fields = []
+
+    _item_def_size = 0
+
+    # Instance variables
+    # _original_data
+    # _item
+
     def __init__(self, item_data=None, values=None):
         self._original_data = item_data
-        (name, fmt_string, decoders, encoders, fields) = _data_format(self._DefFmt)
-        self._item_def_size = struct.calcsize(fmt_string)
         if self._original_data:
-            self._item = decode_data(self._DefFmt, self._original_data, offset=self._OFFSET)
-        elif values:
-            self._item = _decode_data_values(name, values, decoders, fields)
+            values = struct.unpack_from(self._fmt_string, self._original_data, self._OFFSET)
+        if values:
+            self._item = _decode_data_values(self._name, values, self._decoders, self._fields)
 
     @property
     def value(self):
-        return encode_data(self._DefFmt, self._item)
+        return _encode_data(self._item, self._original_data, self._encoders)
 
-    def _replace(self, *args, **kwargs):
-        self._item = self._item._replace(*args, **kwargs)
-        return self
+    def _replace(self, **kwargs):
+
+        processed = {}
+        for i, field in enumerate(self._fields):
+            if field in kwargs:
+                processed[field] = _decode_data_value(self._decoders[i], kwargs[field])
+
+        new_item = self._item._replace(**processed)
+        new_obj = copy.copy(self)
+        new_obj._item = new_item
+        return new_obj
+
+    def __iter__(self):
+        return iter(self._item)
 
     def __getattr__(self, name):
-        return getattr(self._item, name)
+        _item = object.__getattribute__(self, '_item')
+        return getattr(_item, name)
 
     def __repr__(self):
         return f'{self._item}'
@@ -185,10 +254,16 @@ class _Codec:
 class StringCodec:
     def __init__(self, encoded):
         self._encoded = encoded
-        if all_on(self._encoded):
-            self._decoded = None
-        else:
-            self._decoded = decode_string(self._encoded)
+        self._decoded_value = None
+        self._is_decoded = False
+
+    @property
+    def _decoded(self):
+        if not self._is_decoded:
+            if not all_on(self._encoded):
+                self._decoded_value = decode_string(self._encoded)
+            self._is_decoded = True
+        return self._decoded_value
 
     @property
     def value(self):
@@ -196,6 +271,9 @@ class StringCodec:
 
     def __str__(self):
         return str(self._decoded)
+
+    def __format__(self, format_spec):
+        return format(str(self._decoded), format_spec)
 
     def __bytes__(self):
         return self._encoded
@@ -207,40 +285,40 @@ class StringCodec:
         return bool(self._decoded)
 
     def __eq__(self, x):
-        return self._decoded == x or self._encoded == x
+        return self._decoded == x
 
     def __len__(self):
-        if self._decoded:
+        if self._decoded is None:
             return 0
         else:
             return len(self._decoded)
 
     def __getitem__(self, index):
-        if self._decoded:
-            return self._decoded[index]
-        else:
+        if self._decoded is None:
             return None
+        else:
+            return self._decoded[index]
 
     def __iter__(self):
-        if self._decoded:
-            return iter(self._decoded)
-        else:
+        if self._decoded is None:
             return iter('')
+        else:
+            return iter(self._decoded)
 
     def __contains__(self, x):
-        if self._decoded:
-            return x in self._decoded
-        else:
+        if self._decoded is None:
             return False
+        else:
+            return x in self._decoded
 
     def __repr__(self):
-        return f'{self.__class__.__name__}({self._encoded})'
+        return f'{self.__class__.__name__}("{self._decoded}")'
 
     def encode(self, *args, **kwargs):
-        if self._decoded:
-            return self._decoded.encode(*args, **kwargs)
-        else:
+        if self._decoded is None:
             return self._encoded
+        else:
+            return self._decoded.encode(*args, **kwargs)
 
     def decode(self, *args, **kwargs):
         return self._encoded.decode(*args, **kwargs)
@@ -267,31 +345,40 @@ def list_codec(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0
     })
 
 def codec(fmt, offset=0):
+    (name, fmt_string, decoders, encoders, fields) = _data_format(
+        fmt, offset=offset
+    )
+
     return type(fmt[0], (_Codec,), {
         '_DefFmt': fmt,
         '_OFFSET': offset,
+
+        '_fmt_string': fmt_string,
+        '_name': name,
+        '_decoders': decoders,
+        '_encoders': encoders,
+        '_fields': fields,
+
+        '_item_def_size': struct.calcsize(fmt_string),
     })
 
 def decode_data(data_format, data, offset=0):
-    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
+    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=offset)
     values = struct.unpack_from(fmt_string, data, offset)
     return _decode_data_values(name, values, decoders, fields)
 
-def encode_data(data_format, nt):
-    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
+def _encode_data(values, original_data, encoders):
+    output = bytearray()
+    for encoder in encoders:
+        encoded = encoder(values, original_data)
+        if encoded is not None:
+            output += encoded
+    return bytes(output)
 
-    processed = []
-    for i, value in enumerate(nt):
-        if callable(encoders[i]):
-            processed.append(encoders[i](value))
-        elif type(decoders[i]) in [int, float]:
-            processed.append(round(value * decoders[i]))
-        elif decoders[i] and hasattr(value, 'value'):
-            processed.append(value.value)
-        else:
-            processed.append(value)
+def encode_data(data_format, values, data=None, offset=0):
+    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=offset)
 
-    return struct.pack(fmt_string, *processed)
+    return _encode_data(values, data, encoders)
 
 def decode_string_none(s):
     if all_on(s):

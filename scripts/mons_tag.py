@@ -429,13 +429,11 @@ def encode_tag(tag_header, mons_tag):
     tag_data_size = len(tag_data)
 
     # Adjust tag header size
-    new_tag_header = tag_header._replace(
-        destination=-1,
-        identifier=-1,
-        type=0,
+    new_tag_header = myth_headers.normalise_tag_header(
+        tag_header,
         tag_data_size=tag_data_size
     )
     return (
-        myth_headers.encode_header(new_tag_header)
+        new_tag_header.value
         + tag_data
     )
