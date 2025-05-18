@@ -108,9 +108,12 @@ def conditional_value(item):
 
 def iter_decode(start, count, data_format, data):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=start)
+    nt = namedtuple(name, fields)
+    
     end = start + (count * struct.calcsize(fmt_string))
     for values in struct.iter_unpack(fmt_string, data[start:end]):
-        yield _decode_data_values(name, values, decoders, fields)
+        processed = _process_data_values(values, decoders)
+        yield nt._make(processed)
 
 def _decode_data_value(decoder, value):
     if callable(decoder):
@@ -120,12 +123,11 @@ def _decode_data_value(decoder, value):
     else:
         return value
 
-def _decode_data_values(name, values, decoders, fields):
+def _process_data_values(values, decoders):
     processed = []
     for i, value in enumerate(values):
         processed.append(_decode_data_value(decoders[i], value))
-    nt = namedtuple(name, fields)
-    return nt._make(processed)
+    return processed
 
 def make_nt(data_format):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
@@ -211,6 +213,7 @@ class _Codec:
     _decoders = []
     _encoders = []
     _fields = []
+    _nt = None
 
     _item_def_size = 0
 
@@ -223,7 +226,8 @@ class _Codec:
         if self._original_data:
             values = struct.unpack_from(self._fmt_string, self._original_data, self._OFFSET)
         if values:
-            self._item = _decode_data_values(self._name, values, self._decoders, self._fields)
+            processed = _process_data_values(values, self._decoders)
+            self._item = self._nt._make(processed)
 
     @property
     def value(self):
@@ -348,6 +352,7 @@ def codec(fmt, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(
         fmt, offset=offset
     )
+    nt = namedtuple(name, fields)
 
     return type(fmt[0], (_Codec,), {
         '_DefFmt': fmt,
@@ -358,14 +363,18 @@ def codec(fmt, offset=0):
         '_decoders': decoders,
         '_encoders': encoders,
         '_fields': fields,
+        '_nt': nt,
 
         '_item_def_size': struct.calcsize(fmt_string),
     })
 
 def decode_data(data_format, data, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=offset)
+    nt = namedtuple(name, fields)
+
     values = struct.unpack_from(fmt_string, data, offset)
-    return _decode_data_values(name, values, decoders, fields)
+    processed = _process_data_values(values, decoders)
+    return nt._make(processed)
 
 def _encode_data(values, original_data, encoders):
     output = bytearray()
