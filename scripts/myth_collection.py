@@ -22,7 +22,7 @@ CollectionRefFmt = ('CollectionRef', [
     ('4s', 'collection_tag', utils.StringCodec),
     ('H', 'number_of_permutations'),
     ('H', 'tint_fraction'),
-    ('320s', 'colors', lambda colors: [utils.list_codec('PermutationHue', 8, ColorFmt)(colors) for i in range(5)]),
+    ('320s', 'colors', lambda colors: [utils.list_codec(8, ColorFmt)(colors) for i in range(5)]),
     ('8s', 'tint', ColorFmt),
     ('36x', None),
     ('2x', None),
@@ -220,7 +220,6 @@ BitmapInstanceFmt = ('BitmapInstance', [
 def parse_bitmap_instance(data, coll_header):
     bitmap_instance_start = coll_header.data_offset + coll_header.bitmap_instances_offset
     return utils.list_codec(
-        'BitmapInstances',
         coll_header.bitmap_instance_count,
         BitmapInstanceFmt,
         offset=bitmap_instance_start,
@@ -277,7 +276,6 @@ def parse_sequences(data, coll_header):
     if coll_header.sequence_reference_count:
         sequence_reference_start = coll_header.data_offset + coll_header.sequence_references_offset
         for i, seq_ref in enumerate(utils.list_codec(
-            'SequenceRefs',
             coll_header.sequence_reference_count,
             SequenceRefFmt,
             offset=sequence_reference_start
@@ -378,7 +376,6 @@ ShadowMapFmt = ('ShadowMap', [
 def parse_shadow_maps(data, coll_header):
     shadow_map_start = coll_header.data_offset + coll_header.shadow_maps_offset
     return utils.list_codec(
-        'ShadowMaps',
         coll_header.shadow_map_count,
         ShadowMapFmt,
         offset=shadow_map_start,

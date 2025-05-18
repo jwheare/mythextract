@@ -115,14 +115,14 @@ def convert_level(game_version, tags, data_map, mesh_id):
                 tag_content = convert_formatting(tag_data[myth_headers.TAG_HEADER_SIZE:])
 
                 # Replace with TFL port tag ids
-                tag_header = tag_header._replace(
-                    tag_id=utils.StringCodec(utils.encode_string(tag_values[0])),
-                    name=utils.StringCodec(utils.encode_string(tag_values[1]))
+                new_tag_header = tag_header._replace(
+                    tag_id=utils.encode_string(tag_values[0]),
+                    name=utils.encode_string(tag_values[1])
                 )
 
-                sb_tag_data = myth_headers.tfl2sb(tag_header, tag_content)
+                sb_tag_data = myth_headers.tfl2sb(new_tag_header, tag_content)
 
-                file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
+                file_path = (output_path / f'{utils.local_folder(new_tag_header)}/{new_tag_header.name}')
                 pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
                 with open(file_path, 'wb') as tag_file:

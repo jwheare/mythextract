@@ -41,7 +41,7 @@ AttackDefFmt = ('AttackDef', [
     ('h', 'minimum_range', 512),
     ('h', 'maximum_range', 512),
     ('32s', 'sequences', utils.list_codec(
-       'AttackSequences', MAX_ATTACK_SEQS, AttackSequenceFmt,
+       MAX_ATTACK_SEQS, AttackSequenceFmt,
        filter_fun=lambda _self, seq: seq.sequence_index > -1,
        empty_value=utils.encode_data(AttackSequenceFmt, (1, -1, 0)),
     )),
@@ -258,7 +258,7 @@ MonsTagFmt = ('MonsTag', [
     ('h', 'number_of_attacks'),
     ('h', 'desired_projectile_volume'),
     ('256s', 'attacks', utils.list_codec(
-        'Attacks', MAX_ATTACKS, AttackDefFmt,
+        MAX_ATTACKS, AttackDefFmt,
         filter_fun=lambda self, attack: not utils.all_off(attack.projectile_tag)
     )),
     ('4s', 'map_action_tag'),

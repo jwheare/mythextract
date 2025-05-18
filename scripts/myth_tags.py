@@ -90,7 +90,7 @@ AnimFmt = ('Anim', [
     ('L', 'flags'),
     ('h', 'number_of_frames'),
     ('h', 'ticks_per_frame'),
-    ('496s', 'frames', utils.list_codec('AnimFrames', MAX_ANIM_FRAMES, AnimFrameFmt)),
+    ('496s', 'frames', utils.list_codec(MAX_ANIM_FRAMES, AnimFrameFmt)),
     ('444x', None),
     ('h', 'shadow_map_width'),
     ('h', 'shadow_map_height'),

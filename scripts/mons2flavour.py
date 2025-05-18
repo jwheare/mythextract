@@ -46,10 +46,8 @@ def encode_flavour(tags, data_map, flavour_stli, flavour):
 
     flavour_data = utils.encode_string(flavour)
     # Adjust tag header size
-    new_tag_header = stli_header._replace(
-        destination=-1,
-        identifier=-1,
-        type=0,
+    new_tag_header = myth_headers.normalise_tag_header(
+        stli_header, 
         tag_data_size=len(flavour_data)
     )
     return (new_tag_header, flavour_data)

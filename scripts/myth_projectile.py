@@ -243,7 +243,7 @@ def parse_prgr(data):
     prgr_head = utils.codec(PrgrHeadFmt)(data[start:end])
     proj_start = end
 
-    proj_list_codec = utils.list_codec('PrgrProjList', prgr_head.number_of_parts, PrgrProjFmt)
+    proj_list_codec = utils.list_codec(prgr_head.number_of_parts, PrgrProjFmt)
     proj_list = proj_list_codec(data[proj_start:])
 
     return (prgr_head, proj_list)

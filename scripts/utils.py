@@ -109,7 +109,7 @@ def conditional_value(item):
 def iter_decode(start, count, data_format, data):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=start)
     nt = namedtuple(name, fields)
-    
+
     end = start + (count * struct.calcsize(fmt_string))
     for values in struct.iter_unpack(fmt_string, data[start:end]):
         processed = _process_data_values(values, decoders)
@@ -141,21 +141,19 @@ class _ListPacker:
     FILTER = None
     EMPTY_VALUE = None
     OFFSET = 0
+    fmt_string = None
+    item_def_size = 0
 
-    def iter_decode(self, *args):
-        for (item,) in iter_unpack(*args):
+    def iter_decode(self, start, count, fmt, data):
+        end = start + (count * self.item_def_size)
+        for (item,) in struct.iter_unpack(fmt, data[start:end]):
             yield item
 
-    def item_encode(self, *args, offset=0):
-        return struct.pack(*args)
-
-    def item_def_fmt(self):
-        return self.DefFmt
+    def item_encode(self, item):
+        return struct.pack(self.fmt_string, item)
 
     def __init__(self, item_data):
         self.items = []
-        self.fmt_string = self.item_def_fmt()
-        self.item_def_size = struct.calcsize(self.fmt_string)
         self.original_data = item_data
         for item in self.iter_decode(self.OFFSET, self.MAX_ITEMS, self.DefFmt, self.original_data):
             if not self.FILTER or self.FILTER(item):
@@ -184,7 +182,7 @@ class _ListPacker:
         item_data = bytearray()
         for item in self.items:
             if item is not None:
-                item_data += self.item_encode(self.DefFmt, item, offset=self.OFFSET)
+                item_data += self.item_encode(item)
             else:
                 if self.EMPTY_VALUE:
                     item_data += self.EMPTY_VALUE
@@ -193,15 +191,21 @@ class _ListPacker:
         return bytes(item_data)
 
 class _ListCodec(_ListPacker):
-    def iter_decode(self, *args, **kwargs):
-        yield from iter_decode(*args, **kwargs)
+    # Required attributes Populated dynamically by list_codec
+    name = None
+    decoders = []
+    encoders = []
+    fields = []
+    nt = None
 
-    def item_encode(self, *args, **kwargs):
-        return encode_data(*args, **kwargs)
+    def iter_decode(self, start, count, data_format, data):
+        end = start + (count * self.item_def_size)
+        for values in struct.iter_unpack(self.fmt_string, data[start:end]):
+            processed = _process_data_values(values, self.decoders)
+            yield self.nt._make(processed)
 
-    def item_def_fmt(self):
-        (name, fmt_string, decoders, encoders, fields) = _data_format(self.DefFmt, offset=self.OFFSET)
-        return fmt_string
+    def item_encode(self, values):
+        return _encode_data(self.encoders, values)
 
 class _Codec:
     # Required attributes Populated dynamically by codec
@@ -231,7 +235,7 @@ class _Codec:
 
     @property
     def value(self):
-        return _encode_data(self._item, self._original_data, self._encoders)
+        return _encode_data(self._encoders, self._item, self._original_data)
 
     def _replace(self, **kwargs):
 
@@ -337,15 +341,29 @@ def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0)
         'FILTER': filter_fun,
         'EMPTY_VALUE': empty_value,
         'OFFSET': offset,
+        'fmt_string': fmt,
+        'item_def_size': struct.calcsize(fmt),
     })
 
-def list_codec(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
+def list_codec(max_items, fmt, filter_fun=None, empty_value=None, offset=0):
+    (name, fmt_string, decoders, encoders, fields) = _data_format(
+        fmt, offset=offset
+    )
+    nt = namedtuple(name, fields)
+
     return type(name, (_ListCodec,), {
         'MAX_ITEMS': max_items,
         'DefFmt': fmt,
         'FILTER': filter_fun,
         'EMPTY_VALUE': empty_value,
         'OFFSET': offset,
+        'fmt_string': fmt_string,
+        'item_def_size': struct.calcsize(fmt_string),
+
+        'decoders': decoders,
+        'encoders': encoders,
+        'fields': fields,
+        'nt': nt,
     })
 
 def codec(fmt, offset=0):
@@ -376,7 +394,7 @@ def decode_data(data_format, data, offset=0):
     processed = _process_data_values(values, decoders)
     return nt._make(processed)
 
-def _encode_data(values, original_data, encoders):
+def _encode_data(encoders, values, original_data=None):
     output = bytearray()
     for encoder in encoders:
         encoded = encoder(values, original_data)
@@ -387,7 +405,7 @@ def _encode_data(values, original_data, encoders):
 def encode_data(data_format, values, data=None, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format, offset=offset)
 
-    return _encode_data(values, data, encoders)
+    return _encode_data(encoders, values, data)
 
 def decode_string_none(s):
     if all_on(s):

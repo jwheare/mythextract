@@ -93,7 +93,7 @@ def parse_dmap_tag(data):
         print(header, area)
 
         entries = utils.list_codec(
-            'DmapEntries', MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
+            MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
             filter_fun=lambda _self, e: not utils.all_on(e.dtex_id) and not utils.all_off(e.dtex_id),
             offset=header.entries_offset
         )(data)
