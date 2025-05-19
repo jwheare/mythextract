@@ -100,7 +100,7 @@ class ExtraFlags(enum.Flag):
     SECRET_LEVEL = enum.auto()
 
 MeshHeaderFmt = ('MeshHeader', [
-    ('4s', 'landscape_collection_tag', utils.StringCodec),
+    ('4s', 'landscape_collection_tag'),
     ('4s', 'media_tag'),
     ('H', 'submesh_width'),
     ('H', 'submesh_height'),
@@ -389,7 +389,7 @@ MarkerHeadFmt = ('MarkerHead', [
 MarkerPaletteEntryFmt = ('MarkerPaletteEntry', [
     ('H', 'type', MarkerType),
     ('H', 'flags', MarkerPaletteFlag),
-    ('4s', 'marker_tag', utils.StringCodec),
+    ('4s', 'marker_tag'),
     ('h', 'team_index'),
     ('2x', None),
     ('L', 'netgame_flags', NetgameFlag),
@@ -435,7 +435,7 @@ def align(align_bytes, value):
     return (value + (align_bytes-1)) & (align_bytes * -1)
 
 def parse_header(data):
-    return utils.codec(MeshHeaderFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
+    return myth_headers.parse_tag(MeshHeaderFmt, data)
 
 def required_plugin(mesh_header):
     if MeshFlags.REQUIRES_PLUGIN in mesh_header.flags and mesh_header.plugin_name:
@@ -473,7 +473,7 @@ def parse_palette_entry(entry):
     return {
         'flags': entry.flags,
         'type': entry.type,
-        'tag': entry.marker_tag,
+        'tag': utils.StringCodec(entry.marker_tag),
         'team_index': entry.team_index,
         'netgame_flags': entry.netgame_flags,
         'markers': {},

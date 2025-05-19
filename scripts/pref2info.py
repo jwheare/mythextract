@@ -49,7 +49,6 @@ def parse_pref_color(color_data):
     vals = ((r, g, b), (ra, ga, ba), flags)
     return f'\x1b[48;2;{r};{g};{b}m \x1b[0m {vals}'
 
-NET_PREF_SIZE = 1612
 NetPrefsFmt = ('NetPrefs', [
     ('32s', 'game_name', utils.StringCodec),
     ('64s', 'mesh_name', utils.StringCodec),
@@ -110,7 +109,7 @@ def parse_pref_plugins(plugin_data, count1):
 
 
 def parse_net_pref(pref_data):
-    net_prefs = utils.codec(NetPrefsFmt)(pref_data[:NET_PREF_SIZE])
+    net_prefs = utils.codec(NetPrefsFmt)(pref_data)
     return net_prefs._replace(
         plugins=parse_pref_plugins(net_prefs.plugins, net_prefs.plugin_count1),
         pluginsa=parse_pref_plugins(net_prefs.pluginsa, net_prefs.plugin_count1a),

@@ -162,13 +162,12 @@ def build_tag_map(files):
 
                 entrypoint_map[entry_id] = (entry_name, entry_long_name, current_archive_list + archive_list)
 
-        apppend_tags_from_archive(tags, data, mono_header, filename)
+        append_tags_from_archive(tags, data, mono_header, filename)
 
     return (game_version, tags, entrypoint_map, data_map)
 
-def apppend_tags_from_archive(tags, data, mono_header, name):
-    mono_tags = mono2tag.get_tags(data, mono_header)
-    for (i, tag_header) in mono_tags:
+def append_tags_from_archive(tags, data, mono_header, name):
+    for tag_header in myth_headers.get_mono_tags(data, mono_header):
         tag_type_tags = tags.get(tag_header.tag_type, {})
 
         if tag_header.tag_id in tag_type_tags:

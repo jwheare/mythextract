@@ -58,7 +58,7 @@ Mismatching entries that need fixing are marked with an x
  fix? | current printable level name                                     | printable level name from mesh description
 ------+------------------------------------------------------------------+------------------------------------------------------------------+"""
     )
-    tags = mono2tag.get_tags(data, mono_header)
+    tags = myth_headers.get_mono_tags(data, mono_header)
     fixed = False
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
         mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data, mono_header)

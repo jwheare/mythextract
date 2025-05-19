@@ -59,22 +59,21 @@ def main(dmap_tag):
         raise ValueError(f"Error processing binary data: {e}")
 
 def parse_dmap_header1(data):
-    return utils.codec(DmapHeader1Fmt)(data[:DMAP_HEADER1_SIZE])
+    return myth_headers.parse_tag(DmapHeader1Fmt, data)
 
 def parse_dmap_header2(data):
-    return utils.codec(DmapHeader2Fmt)(data[:DMAP_HEADER2_SIZE])
+    return myth_headers.parse_tag(DmapHeader2Fmt, data)
 
 def parse_dmap_tag(data):
     tag_header = myth_headers.parse_header(data)
     print(tag_header)
-    tag_data = data[myth_headers.TAG_HEADER_SIZE:]
     if tag_header.version == 1:
-        header = parse_dmap_header1(tag_data)
+        header = parse_dmap_header1(data)
         area = header.width * header.height
         print(header, area)
-        v_indices_start = DMAP_HEADER1_SIZE
+        v_indices_start = DMAP_HEADER1_SIZE + myth_headers.TAG_HEADER_SIZE
         v_indices_end = v_indices_start + area
-        v_indices = tag_data[v_indices_start:v_indices_end]
+        v_indices = data[v_indices_start:v_indices_end]
         entries = []
         for i, scale in enumerate(header.scales):
             if scale:
@@ -88,15 +87,14 @@ def parse_dmap_tag(data):
 
         print('v_indices', v_indices[:32].hex())
     elif tag_header.version == 2:
-        header = parse_dmap_header2(tag_data)
+        header = parse_dmap_header2(data)
         area = header.width * header.height
         print(header, area)
 
         entries = utils.list_codec(
             MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
-            filter_fun=lambda _self, e: not utils.all_on(e.dtex_id) and not utils.all_off(e.dtex_id),
-            offset=header.entries_offset
-        )(data)
+            filter_fun=lambda _self, e: not utils.all_on(e.dtex_id) and not utils.all_off(e.dtex_id)
+        )(data, offset=header.entries_offset)
         for entry in entries:
             if entry:
                 print(
@@ -106,14 +104,14 @@ def parse_dmap_tag(data):
                     f'desc={entry.name}'
                 )
 
-        v_indices_start = header.v_indices_offset
+        v_indices_start = header.v_indices_offset + myth_headers.TAG_HEADER_SIZE
         v_indices_end = v_indices_start + area
-        v_indices = tag_data[v_indices_start:v_indices_end]
+        v_indices = data[v_indices_start:v_indices_end]
         print('v_indices', v_indices[:32].hex())
 
-        t_indices_start = header.t_indices_offset
+        t_indices_start = header.t_indices_offset + myth_headers.TAG_HEADER_SIZE
         t_indices_end = t_indices_start + (area * 2)
-        t_indices = tag_data[t_indices_start:t_indices_end]
+        t_indices = data[t_indices_start:t_indices_end]
         print('t_indices', t_indices[:32].hex())
     else:
         print('Invalid detail map version', tag_header.version)

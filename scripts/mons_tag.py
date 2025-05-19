@@ -373,7 +373,6 @@ SequenceNames = [
     "propelled",
 ]
 
-ARTIFACT_SIZE = 168
 MAX_ARTI_PROJ = 4
 MAX_ARTI_EFFECT_MODS = 16
 ArtifactFmt = ('Artifact', [
@@ -408,20 +407,16 @@ def sequence_name(idx):
         return ''
 
 def parse_artifact(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + ARTIFACT_SIZE
-    return utils.codec(ArtifactFmt)(data[start:end])
+    return myth_headers.parse_tag(ArtifactFmt, data)
 
 def parse_unit(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + 8
-    return utils.codec(UnitTagFmt)(data[myth_headers.TAG_HEADER_SIZE:end])
+    return myth_headers.parse_tag(UnitTagFmt, data)
 
 def parse_obje(data):
-    return utils.codec(ObjeTagFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
+    return myth_headers.parse_tag(ObjeTagFmt, data)
 
 def parse_tag(data):
-    return utils.codec(MonsTagFmt, offset=myth_headers.TAG_HEADER_SIZE)(data)
+    return myth_headers.parse_tag(MonsTagFmt, data)
 
 def encode_tag(tag_header, mons_tag):
     tag_data = mons_tag.value

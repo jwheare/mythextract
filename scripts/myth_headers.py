@@ -233,9 +233,6 @@ def parse_mono_header(filename, data):
 
         tag_list_start = entry_tag_list_start + (entry_tag_count * ENTRY_TAG_HEADER_SIZE)
 
-    # print(header.name)
-    # print(description)
-
     tag_list_size = tag_count * TAG_HEADER_SIZE
 
     return UnifiedHeader(
@@ -270,16 +267,27 @@ def parse_header(data):
         raise ValueError(f"Incompatible game version: {version}")
 
     if is_tfl:
-        return parse_tfl_header(data[:TAG_HEADER_SIZE])
+        return parse_tfl_header(data)
     elif is_sb:
-        return parse_sb_header(data[:TAG_HEADER_SIZE])
+        return parse_sb_header(data)
 
 def parse_tfl_header(header):
     return TFLHeader(header)
 
-
 def parse_sb_header(header):
     return SBHeader(header)
+
+def get_mono_tags(data, mono_header):
+    if mono_header.game_version == 1:
+        codec = TFLHeader
+    elif mono_header.game_version == 2:
+        codec = SBHeader
+    else:
+        raise ValueError(f"Incompatible game version: {mono_header.game_version}")
+    return utils.list_codec(mono_header.tag_count, codec)(data, offset=mono_header.tag_list_start)
+
+def parse_tag(fmt, data):
+    return utils.codec(fmt)(data, offset=TAG_HEADER_SIZE)
 
 def parse_text_tag(data):
     header = parse_header(data)

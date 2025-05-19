@@ -19,7 +19,7 @@ ColorFmt = ('Color', [
 ])
 
 CollectionRefFmt = ('CollectionRef', [
-    ('4s', 'collection_tag', utils.StringCodec),
+    ('4s', 'collection_tag'),
     ('H', 'number_of_permutations'),
     ('H', 'tint_fraction'),
     ('320s', 'colors', lambda colors: [utils.list_codec(8, ColorFmt)(colors) for i in range(5)]),
@@ -164,7 +164,7 @@ BitmapMetaFmt = ('BitmapMeta', [
 ])
 
 def parse_collection_ref(data):
-    return utils.codec(CollectionRefFmt, offset=64)(data)
+    return myth_headers.parse_tag(CollectionRefFmt, data)
 
 def word_align(value):
     return value + (value & 1)
@@ -221,9 +221,8 @@ def parse_bitmap_instance(data, coll_header):
     bitmap_instance_start = coll_header.data_offset + coll_header.bitmap_instances_offset
     return utils.list_codec(
         coll_header.bitmap_instance_count,
-        BitmapInstanceFmt,
-        offset=bitmap_instance_start,
-    )(data)
+        BitmapInstanceFmt
+    )(data, offset=bitmap_instance_start)
 
 SEQ_DATA_SIZE = 64
 class SequenceFlags(enum.Flag):
@@ -277,19 +276,18 @@ def parse_sequences(data, coll_header):
         sequence_reference_start = coll_header.data_offset + coll_header.sequence_references_offset
         for i, seq_ref in enumerate(utils.list_codec(
             coll_header.sequence_reference_count,
-            SequenceRefFmt,
-            offset=sequence_reference_start
-        )(data)):
+            SequenceRefFmt
+        )(data, offset=sequence_reference_start)):
             seq_start = coll_header.data_offset + seq_ref.offset
             seq_end = seq_start + SEQ_DATA_SIZE
-            seq_data = utils.codec(SequenceDataFmt, offset=seq_start)(data)
+            seq_data = utils.codec(SequenceDataFmt)(data, offset=seq_start)
 
             view_length = seq_data.number_of_views * 2
             frames = []
 
             frame_start = seq_end
             for frame_i in range(seq_data.frames_per_view):
-                frame = utils.codec(SequenceFrameFmt, offset=frame_start)(data)
+                frame = utils.codec(SequenceFrameFmt)(data, offset=frame_start)
                 view_start = frame_start + frame._item_def_size
                 views = utils.list_pack('SequenceView', seq_data.number_of_views, '>h', offset=view_start)(data)
 
@@ -377,9 +375,8 @@ def parse_shadow_maps(data, coll_header):
     shadow_map_start = coll_header.data_offset + coll_header.shadow_maps_offset
     return utils.list_codec(
         coll_header.shadow_map_count,
-        ShadowMapFmt,
-        offset=shadow_map_start,
-    )(data)
+        ShadowMapFmt
+    )(data, offset=shadow_map_start)
 
 def render_terminal(rows):
     for pixels in rows[:20]:
@@ -419,7 +416,8 @@ def sequences_to_bitmaps(bitmaps, bitmap_instances, sequences):
     return bms
 
 def parse_collection_header(data, header):
-    coll_header = utils.codec(Header256Fmt, offset=header.tag_data_offset)(data)
+    coll_header = myth_headers.parse_tag(Header256Fmt, data)
+    # TODO move this logic to accessors to avoid re-encode issues
     return coll_header._replace(
         data_offset=header.tag_data_offset + coll_header.data_offset
     )
@@ -428,7 +426,7 @@ def parse_bitmap_data(total_size, start, data):
     meta_end = start + BITMAP_META_SIZE
     bitmap_data_end = start + total_size
 
-    bitmap_meta = utils.codec(BitmapMetaFmt, offset=start)(data)
+    bitmap_meta = utils.codec(BitmapMetaFmt)(data, offset=start)
 
     if BitmapFlags.NO_ROW_ADDRESS_TABLE in bitmap_meta.flags:
         bitmap_data = data[meta_end:bitmap_data_end]
@@ -658,7 +656,7 @@ def decode_bitmap_64(bitmap_data, width, height):
     return rows
 
 def parse_d256_header(data, tag_header):
-    return utils.codec(D256HeadFmt, offset=tag_header.tag_data_offset)(data)
+    return myth_headers.parse_tag(D256HeadFmt, data)
 
 def parse_d256_bitmaps(data, head):
     head_end = myth_headers.TAG_HEADER_SIZE + D256HeadSize

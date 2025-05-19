@@ -176,7 +176,7 @@ class TagDataGenerator:
 
             elif tag_header.tag_type == 'core':
                 core = myth_collection.parse_collection_ref(tag_data)
-                yield from self.get_tag_data('.256', utils.encode_string(core.collection_tag), tree)
+                yield from self.get_tag_data('.256', core.collection_tag, tree)
 
             elif tag_header.tag_type == 'unit':
                 unit = mons_tag.parse_unit(tag_data)

@@ -2,7 +2,6 @@
 import myth_headers
 import utils
 
-CONNECTOR_SIZE = 128
 ConnectorFmt = ('Connector', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
@@ -13,7 +12,6 @@ ConnectorFmt = ('Connector', [
     ('16x', None),
 ])
 
-PARTICLE_SYS_SIZE = 132
 ParticleSysFmt = ('ParticleSys', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
@@ -41,7 +39,6 @@ ParticleSysFmt = ('ParticleSys', [
     ('30x', None),
 ])
 
-MEDIA_SIZE = 256
 MAX_MEDIA_PRGR = 16
 MediaFmt = ('Media', [
     ('L', 'flags'),
@@ -64,19 +61,16 @@ MediaFmt = ('Media', [
     ('134x', None),
 ])
 
-MODEL_SIZE = 8
 ModelFmt = ('Model', [
     ('L', 'flags'),
     ('4s', 'geometry_tag'),
 ])
 
-GEOM_SIZE = 8
 GeomFmt = ('Geom', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
 ])
 
-ANIM_SIZE = 1024
 ANIM_FRAME_SIZE = 16
 MAX_ANIM_FRAMES = 31
 AnimFrameFmt = ('AnimFrame', [
@@ -108,7 +102,6 @@ AnimFmt = ('Anim', [
     ('L', 'shadow_maps'),
 ])
 
-SCENERY_SIZE = 128
 MAX_SCENERY_PRGR = 4
 MAX_SCENERY_SEQ = 6
 SceneryFmt = ('Scenery', [
@@ -135,29 +128,24 @@ SceneryFmt = ('Scenery', [
     ('h', 'object_type'),
     ('h', 'projectile_type'),
 ])
-    
-def parse_tag(data, size, fmt):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + size
-    return utils.codec(fmt)(data[start:end])
 
 def parse_connector(data):
-    return parse_tag(data, CONNECTOR_SIZE, ConnectorFmt)
+    return myth_headers.parse_tag(ConnectorFmt, data)
 
 def parse_particle_sys(data):
-    return parse_tag(data, PARTICLE_SYS_SIZE, ParticleSysFmt)
+    return myth_headers.parse_tag(ParticleSysFmt, data)
 
 def parse_media(data):
-    return parse_tag(data, MEDIA_SIZE, MediaFmt)
+    return myth_headers.parse_tag(MediaFmt, data)
 
 def parse_model(data):
-    return parse_tag(data, MODEL_SIZE, ModelFmt)
+    return myth_headers.parse_tag(ModelFmt, data)
 
 def parse_geom(data):
-    return parse_tag(data, GEOM_SIZE, GeomFmt)
+    return myth_headers.parse_tag(GeomFmt, data)
 
 def parse_anim(data):
-    return parse_tag(data, ANIM_SIZE, AnimFmt)
+    return myth_headers.parse_tag(AnimFmt, data)
 
 def parse_scenery(data):
-    return parse_tag(data, SCENERY_SIZE, SceneryFmt)
+    return myth_headers.parse_tag(SceneryFmt, data)

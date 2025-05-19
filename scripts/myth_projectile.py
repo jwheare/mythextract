@@ -7,7 +7,6 @@ import utils
 
 DEBUG_PROJ = (os.environ.get('DEBUG_PROJ') == '1')
 
-LPGR_SIZE = 128
 LpgrFmt = ('Lpgr', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
@@ -43,7 +42,6 @@ LpgrFmt = ('Lpgr', [
     ('12x', None),
 ])
 
-PRGR_HEAD_SIZE = 32
 PrgrHeadFmt = ('PrgrHead', [
     ('L', 'flags'),
     ('h', 'number_of_parts'),
@@ -72,7 +70,6 @@ PrgrProjFmt = ('PrgrProj', [
     ('h', 'projectile_type'),
 ])
 
-PROJ_SIZE = 320
 PROJ_DMG_SIZE = 16
 MAX_PROJ_SOUNDS = 4
 
@@ -208,7 +205,6 @@ ProjFmt = ('Proj', [
     ('32x', None),
 ])
 
-LIGHTNING_SIZE = 128
 LightningFmt = ('Lightning', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
@@ -233,27 +229,19 @@ LightningFmt = ('Lightning', [
 ])
 
 def parse_lpgr(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + LPGR_SIZE
-    return utils.codec(LpgrFmt)(data[start:end])
+    return myth_headers.parse_tag(LpgrFmt, data)
 
 def parse_prgr(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + PRGR_HEAD_SIZE
-    prgr_head = utils.codec(PrgrHeadFmt)(data[start:end])
-    proj_start = end
+    prgr_head = myth_headers.parse_tag(PrgrHeadFmt, data)
 
+    proj_list_start = myth_headers.TAG_HEADER_SIZE + prgr_head.data_size()
     proj_list_codec = utils.list_codec(prgr_head.number_of_parts, PrgrProjFmt)
-    proj_list = proj_list_codec(data[proj_start:])
+    proj_list = proj_list_codec(data, offset=proj_list_start)
 
     return (prgr_head, proj_list)
 
 def parse_proj(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + PROJ_SIZE
-    return utils.codec(ProjFmt)(data[start:end])
+    return myth_headers.parse_tag(ProjFmt, data)
 
 def parse_lightning(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + LIGHTNING_SIZE
-    return utils.codec(LightningFmt)(data[start:end])
+    return myth_headers.parse_tag(LightningFmt, data)

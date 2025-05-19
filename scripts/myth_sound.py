@@ -60,7 +60,6 @@ PermMetaFmt = ('PermMeta', [
     ('H', 'm10'),
 ])
 
-AMSO_SIZE = 64
 MAX_AMSO_SOUN = 6
 AmsoFmt = ('Amso', [
     ('L', 'flags'),
@@ -77,9 +76,7 @@ AmsoFmt = ('Amso', [
 ])
 
 def parse_soun_header(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + SOUN_HEADER_SIZE
-    return utils.codec(SoundHeaderFmt)(data[start:end])
+    return myth_headers.parse_tag(SoundHeaderFmt, data)
 
 def parse_soun_tag(data):
     header = myth_headers.parse_header(data)
@@ -209,9 +206,7 @@ samp_frame: {p['num_sample_frames']}
     print("----- ")
 
 def parse_amso(data):
-    start = myth_headers.TAG_HEADER_SIZE
-    end = start + AMSO_SIZE
-    return utils.codec(AmsoFmt)(data[start:end])
+    return myth_headers.parse_tag(AmsoFmt, data)
 
 def generate_aifc(perm):
     offset = 0

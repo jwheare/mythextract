@@ -35,7 +35,7 @@ Tags
  idx | game | type | id   | name 
 -----+------+------+------+-------"""
         )
-        for (i, tag_header) in get_tags(data, mono_header):
+        for i, tag_header in enumerate(myth_headers.get_mono_tags(data, mono_header)):
             if (
                 (not tag_id and not tag_type)
                 or (tag_type == tag_header.tag_type and tag_id == tag_header.tag_id)
@@ -67,15 +67,6 @@ def debug_mono_header(mono_header, data):
         print('   tag list start', mono_header.tag_list_start)
         print('        tag count', mono_header.tag_count)
         print('    tag list size', mono_header.tag_list_size)
-
-def get_tags(data, mono_header):
-    tags = []
-    for i in range(mono_header.tag_count):
-        start = mono_header.tag_list_start + (i * myth_headers.TAG_HEADER_SIZE)
-        end = start + myth_headers.TAG_HEADER_SIZE
-        tag_header_data = data[start:end]
-        tags.append((i, myth_headers.parse_header(tag_header_data)))
-    return tags
 
 def encode_entrypoints(data, sb_mono_header, entrypoints):
     current_size = sb_mono_header.entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE
@@ -157,7 +148,7 @@ def entrypoint_entry(entry_id, entrypoint):
     )
 
 def seek_tag(tags, tag_type, tag_id, data, mono_header):
-    for (i, tag_header) in tags:
+    for tag_header in tags:
         if (
             tag_header.tag_type == tag_type and
             tag_header.tag_id == tag_id
