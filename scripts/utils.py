@@ -4,6 +4,11 @@ import re
 import struct
 import sys
 
+import cProfile
+import pstats
+
+PROFILER = cProfile.Profile()
+
 def print_bytes(byte_sequence, group_size):
     group_i = 0
     for i, b in enumerate(byte_sequence):
@@ -536,3 +541,10 @@ def load_file(path, length=None):
         sys.exit(1)
 
     return data
+
+def profileStart():
+    PROFILER.enable()
+
+def profileEnd():
+    PROFILER.disable()
+    pstats.Stats(PROFILER).sort_stats(pstats.SortKey.CUMULATIVE).print_stats(100)
