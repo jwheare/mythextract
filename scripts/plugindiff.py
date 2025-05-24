@@ -5,6 +5,7 @@ import struct
 import pathlib
 import hashlib
 
+import codec
 import myth_headers
 import mono2tag
 import loadtags
@@ -79,11 +80,11 @@ def diff_tag_harder(tag_header_1, tag_data_1, tag_header_2, tag_data_2):
         if len(stli_diff_r) > 0:
             print("Items removed:")
             for i, s in enumerate(stli_diff_r):
-                print(f"{i:>3} {utils.decode_string(s)}")
+                print(f"{i:>3} {codec.decode_string(s)}")
         if len(stli_diff_a) > 0:
             print("Items added:")
             for i, s in enumerate(stli_diff_a):
-                print(f"{i:>3} {utils.decode_string(s)}")
+                print(f"{i:>3} {codec.decode_string(s)}")
     else:
         return
 

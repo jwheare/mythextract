@@ -3,6 +3,7 @@ import os
 import struct
 import sys
 
+import codec
 import loadtags
 import mons_tag
 import myth_headers
@@ -41,20 +42,20 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
     mons = mons_tag.parse_tag(mons_data)
 
     obje_data = loadtags.get_tag_data(
-        tags, data_map, 'obje', utils.decode_string(mons.object_tag)
+        tags, data_map, 'obje', codec.decode_string(mons.object_tag)
     )
     obje_tag = mons_tag.parse_obje(obje_data)
 
-    if utils.all_on(mons.spelling_string_list_tag) or utils.all_off(mons.spelling_string_list_tag):
+    if codec.all_on(mons.spelling_string_list_tag) or codec.all_off(mons.spelling_string_list_tag):
         spellings = [mons_header.name, mons_header.name]
     else:
         spelling_data = loadtags.get_tag_data(
-            tags, data_map, 'stli', utils.decode_string(
+            tags, data_map, 'stli', codec.decode_string(
                 mons.spelling_string_list_tag
             )
         )
         (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-        spellings = [utils.decode_string(s) for s in spelling_text.split(b'\r')]
+        spellings = [codec.decode_string(s) for s in spelling_text.split(b'\r')]
 
     can_block = mons.sequence_indexes[5] > -1
     heal_kills = mons.healing_fraction == 0
@@ -68,14 +69,14 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
         'speed': mons.base_movement_speed,
         'movement_modifiers': mons.movement_modifiers._asdict(),
         'turning_speed': mons.turning_speed,
-        'flavour_stli': utils.decode_string_none(mons.flavor_string_list_tag),
+        'flavour_stli': codec.decode_string_none(mons.flavor_string_list_tag),
         'modifiers': obje_tag.effect_modifiers,
         'attacks': attacks,
         'can_block': can_block,
         'heal_kills': heal_kills,
         'stone': mons_tag.MonsFlag.TURNS_TO_STONE_WHEN_KILLED in mons.flags,
         'min_vitality': obje_tag.vitality_lower_bound,
-        'max_vitality': obje_tag.vitality_lower_bound + obje_tag.vitality_delta,
+        'max_vitality': obje_tag.vitality_delta.upper_bound(obje_tag),
         'healing_fraction': mons.healing_fraction,
         'flinch_system_shock': mons.flinch_system_shock,
         'absorbed_fraction': mons.absorbed_fraction,
@@ -87,7 +88,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
 
 def sequence(tags, data_map, collection_tag, sequence_index):
     (_, coll_header, coll_data) = loadtags.get_tag_info(
-        tags, data_map, '.256', utils.decode_string(collection_tag)
+        tags, data_map, '.256', codec.decode_string(collection_tag)
     )
     coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
     seqs = myth_collection.parse_sequences(coll_data, coll_head)
@@ -97,7 +98,7 @@ def process_attacks(mons, tags, data_map):
     attacks = []
 
     (_, ex_prgr_header, ex_prgr_data) = loadtags.get_tag_info(
-        tags, data_map, 'prgr', utils.decode_string(
+        tags, data_map, 'prgr', codec.decode_string(
             mons.exploding_projectile_group_tag
         )
     )
@@ -105,14 +106,14 @@ def process_attacks(mons, tags, data_map):
         (ex_prgr_head, ex_prgr_projlist) = myth_projectile.parse_prgr(ex_prgr_data)
         for ex_prgr_proj in ex_prgr_projlist:
             (_, ex_proj_header, ex_proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', utils.decode_string(
+                tags, data_map, 'proj', codec.decode_string(
                     ex_prgr_proj.projectile_tag
                 )
             )
             ex_proj = myth_projectile.parse_proj(ex_proj_data)
-            ex_dmg = ex_proj.damage.damage_lower_bound + ex_proj.damage.damage_delta
+            ex_dmg = ex_proj.damage.damage_delta.upper_bound(ex_proj.damage)
             if ex_dmg > 2:
-                ex_radius = ex_proj.damage.radius_lower_bound + ex_proj.damage.radius_delta
+                ex_radius = ex_proj.damage.radius_delta.upper_bound(ex_proj.damage)
                 attacks.append({
                     'name': f'{ex_proj_header.name} (explosion)',
                     'throw': False,
@@ -139,7 +140,7 @@ def process_attacks(mons, tags, data_map):
         attack = mons.attacks[attack_i]
         if attack:
             (_, proj_header, proj_data) = loadtags.get_tag_info(
-                tags, data_map, 'proj', utils.decode_string(
+                tags, data_map, 'proj', codec.decode_string(
                     attack.projectile_tag
                 )
             )
@@ -162,7 +163,7 @@ def process_attacks(mons, tags, data_map):
                         'recovery': attack.recovery_time,
                         'mana_cost': attack.mana_cost,
                         'min_velocity': attack.initial_velocity_lower_bound,
-                        'max_velocity': attack.initial_velocity_lower_bound + attack.initial_velocity_delta,
+                        'max_velocity': attack.initial_velocity_delta.upper_bound(attack),
                         'velocity_error': attack.initial_velocity_error,
                         'vet_recovery': attack.recovery_time_experience_delta,
                         'vet_velocity': attack.velocity_improvement_with_experience,
@@ -180,16 +181,16 @@ def process_attacks(mons, tags, data_map):
             ):
                 continue
 
-            dmg = proj.damage.damage_lower_bound + proj.damage.damage_delta
+            dmg = proj.damage.damage_delta.upper_bound(proj.damage)
 
             avg_time_s = None
-            attack_radius = proj.damage.radius_lower_bound + proj.damage.radius_delta
+            attack_radius = proj.damage.radius_delta.upper_bound(proj.damage)
             attack_range = attack.maximum_range
             if myth_projectile.ProjFlags.CONTINUALLY_DETONATES in proj.flags:
                 avg_time_s = 1/30
             else:
                 seq_times = []
-                recov_s = attack.recovery_time + 0.2
+                recov_s = attack.recovery_time.decode() + 0.2
                 for attack_si, attack_s in enumerate(attack.sequences):
                     if not attack_s:
                         continue
@@ -240,7 +241,7 @@ def process_attacks(mons, tags, data_map):
                     'recovery': recov_s,
                     'mana_cost': attack.mana_cost,
                     'min_velocity': attack.initial_velocity_lower_bound,
-                    'max_velocity': attack.initial_velocity_lower_bound + attack.initial_velocity_delta,
+                    'max_velocity': attack.initial_velocity_delta.upper_bound(attack),
                     'velocity_error': attack.initial_velocity_error,
                     'vet_recovery': attack.recovery_time_experience_delta,
                     'vet_velocity': attack.velocity_improvement_with_experience,

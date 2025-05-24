@@ -4,7 +4,7 @@ import os
 import struct
 
 import myth_headers
-import utils
+import codec
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 class AttackFlag(enum.Flag):
@@ -36,23 +36,23 @@ AttackSequenceFmt = ('AttackSequence', [
 
 AttackDefFmt = ('AttackDef', [
     ('H', 'flags', AttackFlag),
-    ('H', 'miss_fraction', (1 << 16)),
+    ('H', 'miss_fraction', codec.Fixed),
     ('4s', 'projectile_tag'),
-    ('h', 'minimum_range', 512),
-    ('h', 'maximum_range', 512),
-    ('32s', 'sequences', utils.list_codec(
+    ('h', 'minimum_range', codec.World),
+    ('h', 'maximum_range', codec.World),
+    ('32s', 'sequences', codec.list_codec(
        MAX_ATTACK_SEQS, AttackSequenceFmt,
        filter_fun=lambda _self, seq: seq.sequence_index > -1,
-       empty_value=utils.encode_data(AttackSequenceFmt, (1, -1, 0)),
+       empty_value=codec.encode_data(AttackSequenceFmt, (1, -1, 0)),
     )),
     ('h', 'repetitions'),
-    ('h', 'initial_velocity_lower_bound', 512),
-    ('h', 'initial_velocity_delta', 512),
-    ('h', 'initial_velocity_error', 512),
-    ('h', 'recovery_time', 30),
-    ('h', 'recovery_time_experience_delta', 30),
-    ('h', 'velocity_improvement_with_experience', 512),
-    ('h', 'mana_cost', 255),
+    ('h', 'initial_velocity_lower_bound', codec.World),
+    ('h', 'initial_velocity_delta', codec.world_delta('initial_velocity_lower_bound')),
+    ('h', 'initial_velocity_error', codec.World),
+    ('h', 'recovery_time', codec.Time),
+    ('h', 'recovery_time_experience_delta', codec.Time),
+    ('h', 'velocity_improvement_with_experience', codec.World),
+    ('h', 'mana_cost', codec.ShortFixed),
     ('H', 'extra_flags'),
     ('2x', None),
 ])
@@ -91,6 +91,10 @@ class MonsFlag(enum.Flag):
     IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY = enum.auto()
     LIMITED_CHARGE_DURRATION = enum.auto()
 
+class MonsExtraFlag(enum.Flag):
+    HIDE_OWNER_NAME = enum.auto()
+    DONT_AUTOEQUIP_INITIAL_ARTIFACTS = enum.auto()
+
 class MonsClass(enum.Enum):
     MELEE = 0
     MISSILE = enum.auto()
@@ -101,22 +105,22 @@ class MonsClass(enum.Enum):
     INVISIBLE_OBSERVER = enum.auto()
 
 MonsMovementModsFmt = ('MonsMovementMods', [
-    ('B', 'dwarf_depth_media', 255),
-    ('B', 'human_depth_media', 255),
-    ('B', 'giant_depth_media', 255),
-    ('B', 'deep', 255),
-    ('B', 'sloped', 255),
-    ('B', 'steep', 255),
-    ('B', 'grass', 255),
-    ('B', 'desert', 255),
-    ('B', 'rocky', 255),
-    ('B', 'marsh', 255),
-    ('B', 'snow', 255),
-    ('B', 'unused_0', 255),
-    ('B', 'unused_1', 255),
-    ('B', 'unused_2', 255),
-    ('B', 'walking_impassable', 255),
-    ('B', 'flying_impassable', 255),
+    ('B', 'dwarf_depth_media', codec.ShortPercent),
+    ('B', 'human_depth_media', codec.ShortPercent),
+    ('B', 'giant_depth_media', codec.ShortPercent),
+    ('B', 'deep', codec.ShortPercent),
+    ('B', 'sloped', codec.ShortPercent),
+    ('B', 'steep', codec.ShortPercent),
+    ('B', 'grass', codec.ShortPercent),
+    ('B', 'desert', codec.ShortPercent),
+    ('B', 'rocky', codec.ShortPercent),
+    ('B', 'marsh', codec.ShortPercent),
+    ('B', 'snow', codec.ShortPercent),
+    ('B', 'unused_0', codec.ShortPercent),
+    ('B', 'unused_1', codec.ShortPercent),
+    ('B', 'unused_2', codec.ShortPercent),
+    ('B', 'walking_impassable', codec.ShortPercent),
+    ('B', 'flying_impassable', codec.ShortPercent),
 ])
 
 class ExtendedFlagsSloped(enum.Flag, boundary=enum.CONFORM):
@@ -153,10 +157,10 @@ MonsTerrainCostsFmt = ('MonsTerrainCosts', [
     ('b', 'giant_depth_media'), # unused in extended flags?
     ('b', 'deep'), # unused in extended flags?
     ('b', 'sloped'), # ExtendedFlagsSloped
-    ('b', 'steep'), # block_delay_rate - Block delay modifier (between -29 and 127)
+    ('b', 'steep'), # block_timer_cost - Block delay modifier (between -29 and 127)
     ('b', 'grass'), # ExtendedFlagsGrass
     ('b', 'desert'), # ExtendedFlagsDesert
-    ('b', 'rocky'), # run_speed - Speed modifier
+    ('b', 'rocky'), # run_speed_modifier - Speed modifier
     ('b', 'marsh'), # maximum_experience_points - Max. Experience
     ('b', 'snow'), # charge_range - Charge Range (WU)
     ('b', 'unused_0'), # unused in extended flags?
@@ -167,15 +171,74 @@ MonsTerrainCostsFmt = ('MonsTerrainCosts', [
 ])
 
 def extended_flags(mons_tag):
+    rocky_unsigned = codec.unsigned8(mons_tag.terrain_costs.rocky)
+    marsh_unsigned = codec.unsigned8(mons_tag.terrain_costs.marsh)
     return {
         'flags1': ExtendedFlagsSloped(mons_tag.terrain_costs.sloped),
-        'block_delay_rate': mons_tag.terrain_costs.steep,
+        # Default block_timer_cost is 30 ticks, this lets you modify it
+        # We need to reinterpret this as a signed int
+        # down to 1 ticks (30-29)
+        # up to 157 ticks (30+127)
+        # Range of a signed byte is -128 to 127 so we clamp at -29
+        # We add the default 30 ticks, then divide by 30 for a value in seconds
+        # example:  60 -> ( 60+30)/30 = 3.000
+        # example: -29 -> (-29+30)/30 = 0.033
+        # example: 127 -> (127+30)/30 = 5.233
+        'block_timer_cost': (max(-29, mons_tag.terrain_costs.steep) + 30) / 30,
         'flags2': ExtendedFlagsGrass(mons_tag.terrain_costs.grass),
         'flags3': ExtendedFlagsDesert(mons_tag.terrain_costs.desert),
-        'run_speed': mons_tag.terrain_costs.rocky,
-        'maximum_experience_points': mons_tag.terrain_costs.marsh,
-        'charge_range': mons_tag.terrain_costs.snow,
+        # For running units, by default their distance travelled per tick is doubled (100% increase)
+        # This value lets you modify the distance (therefore speed)
+        # The value is a percentage from 1-255         (distance += distance * (value / 100))
+        # If the value is 0 the modifier is set to 20% (distance += distance / 5)
+        # example:     0 -> 1.200 ( 20%)
+        # example:     1 -> 1.010 (  1%)
+        # example:    10 -> 1.100 ( 10%)
+        # example:    20 -> 1.200 ( 20%)
+        # example:    50 -> 1.500 ( 50%)
+        # example:   100 -> 2.000 (100%)
+        # example:   127 -> 2.270 (127%)
+        # example:   255 -> 3.550 (255%)
+        'run_speed_modifier': 1 + (rocky_unsigned / 100.0 if rocky_unsigned > 0 else 0.2),
+        # Default max experience benefit is from 5 kills
+        # This value lets you change that, unsigned up to 255, 0 = default (5)
+        'maximum_experience_points': marsh_unsigned if marsh_unsigned != 0 else 5,
+        # Values below 1 have no further effect
+        'charge_range': min(1, mons_tag.terrain_costs.snow),
     }
+
+# int val = terrain_costs[_terrain_steep];
+# if (val < -29) val = -29;
+# val += 30;
+
+# SetEditTextAsFloat(theDialog, iBlockChance, (float)val / 30.0f, 3);
+
+# // Blocking values are only valid between -29 (0.033) and 127 (5.233) of normal
+# if (theDialog->FindPaneByID(iIncreasedChanceToBlock)->GetValue()) 
+# {
+#     int iVal = ((int)(GetEditTextAsFloat(theDialog, iBlockChance) * 30.0) - 30);
+#     terrain_costs[_terrain_steep] = PIN(iVal, -29, 127);
+# }
+
+# ---
+
+# SetEditTextAsFloat(theDialog, iChargeSpeed, ((float)terrain_costs[_terrain_rocky] / 100.0f) + 1.0f, 3);
+# // Non-positive speeds are set to 1.2 times.
+# iVal = ((int)(GetEditTextAsFloat(theDialog, iChargeSpeed) * 100.0f) - 100);
+# terrain_costs[_terrain_rocky] = PIN(iVal, 20, 127);
+
+# ---
+
+# SetEditTextAsShort(theDialog, iChargeRange, (terrain_costs[_terrain_snow] < 0) ? 0 : terrain_costs[_terrain_snow]);
+# // Negative charge ranges have no effect
+# int iVal = GetEditTextAsShort(theDialog, iChargeRange);
+# terrain_costs[_terrain_snow] = PIN(iVal, 1, 127);
+
+# ---
+
+# SetEditTextAsShort(theDialog, iExperienceLimit, (unsigned char)terrain_costs[_terrain_marsh]);
+# // Build 337 - HAR - Added vetting convenience field
+# terrain_costs[_terrain_marsh] = (theDialog->FindPaneByID(iCanHasMoreExperience)->GetValue()) ? GetEditTextAsShort(theDialog, iExperienceLimit) : 0;
 
 def terrain_passability(mons_tag):
     # Based on Myth code
@@ -230,45 +293,45 @@ class SoundTypes(enum.Enum):
 MonsTagFmt = ('MonsTag', [
     ('L', 'flags', MonsFlag),
     ('4s', 'collection_tag'),
-    ('52s', 'sequence_indexes', utils.list_pack('MonsSeqIndexes', 26, '>h')),
+    ('52s', 'sequence_indexes', codec.list_pack('MonsSeqIndexes', 26, '>h')),
     ('4s', 'burning_death_projectile_group_tag'),
     ('h', 'burning_death_projectile_group_type'),
     ('B', 'experience_kill_bonus'),
     ('B', 'experience_bonus_radius'),
     ('H', 'propelled_system_shock'),
     ('H', 'damage_to_propulsion'),
-    ('16s', 'terrain_costs', utils.codec(MonsTerrainCostsFmt)),
+    ('16s', 'terrain_costs', codec.codec(MonsTerrainCostsFmt)),
     ('H', 'terrain_impassability_flags'), # set at runtime
     ('h', 'pathfinding_radius'),
-    ('16s', 'movement_modifiers', utils.codec(MonsMovementModsFmt)),
-    ('H', 'absorbed_fraction', 1 << 16),
+    ('16s', 'movement_modifiers', codec.codec(MonsMovementModsFmt)),
+    ('H', 'absorbed_fraction', codec.Fixed),
     ('h', 'warning_distance'),
     ('h', 'critical_distance'),
-    ('h', 'healing_fraction', 255),
+    ('h', 'healing_fraction', codec.ShortPercent),
     ('h', 'initial_ammunition_lower_bound'),
     ('h', 'initial_ammunition_delta'),
     ('h', 'activation_distance'),
     ('2x', None),
 
-    ('H', 'turning_speed', (0xffff / 360) / 30),
+    ('H', 'turning_speed', codec.AngularVelocity),
     ('h', 'base_movement_speed'),
     ('H', 'left_handed_fraction'),
     ('h', 'size', Size),
     ('4s', 'object_tag'),
     ('h', 'number_of_attacks'),
     ('h', 'desired_projectile_volume'),
-    ('256s', 'attacks', utils.list_codec(
+    ('256s', 'attacks', codec.list_codec(
         MAX_ATTACKS, AttackDefFmt,
-        filter_fun=lambda self, attack: not utils.all_off(attack.projectile_tag)
+        filter_fun=lambda self, attack: not codec.all_off(attack.projectile_tag)
     )),
     ('4s', 'map_action_tag'),
-    ('h', 'attack_frequency_lower_bound'),
-    ('h', 'attack_frequency_delta'),
+    ('h', 'attack_frequency_lower_bound', codec.Simple),
+    ('h', 'attack_frequency_delta', codec.delta('attack_frequency_lower_bound')),
     ('4s', 'exploding_projectile_group_tag'),
     ('h', 'hack_flags'),
     ('h', 'maximum_ammunition_count'),
     ('H', 'hard_death_system_shock'),
-    ('H', 'flinch_system_shock', 1 << 16),
+    ('H', 'flinch_system_shock', codec.Fixed),
     ('4s', 'melee_impact_projectile_group_tag'),
     ('4s', 'dying_projectile_group_tag'),
     ('4s', 'spelling_string_list_tag'),
@@ -279,9 +342,9 @@ MonsTagFmt = ('MonsTag', [
     ('h', 'monster_class', MonsClass),
     ('h', 'monster_allegiance'),
     ('h', 'experience_point_value'),
-    ('40s', 'sound_tags', utils.list_pack(
+    ('40s', 'sound_tags', codec.list_pack(
         'MonsSoundTags', 10, '>4s',
-        filter_fun=lambda self, tag: not utils.all_on(tag),
+        filter_fun=lambda self, tag: not codec.all_on(tag),
         empty_value=struct.pack('>l', -1)
     )),
     ('4s', 'blocked_impact_projectile_group_tag'),
@@ -289,22 +352,22 @@ MonsTagFmt = ('MonsTag', [
     ('4s', 'ammunition_projectile_tag'),
     ('h', 'visibility_type'),
     ('h', 'combined_power'),
-    ('h', 'longest_range', 512),
+    ('h', 'longest_range', codec.World),
     ('h', 'cost'),
-    ('10s', 'sound_types', utils.list_pack('MonsSoundTypes', 10, '>b')),
+    ('10s', 'sound_types', codec.list_pack('MonsSoundTypes', 10, '>b')),
     ('h', 'enemy_experience_kill_bonus'),
     ('4s', 'entrance_projectile_group_tag'),
     ('4s', 'local_projectile_group_tag'),
     ('4s', 'special_ability_string_list_tag'),
     ('4s', 'exit_projectile_group_tag'),
-    ('h', 'maximum_mana', 256),
-    ('h', 'mana_recharge_rate', 256),
-    ('H', 'berserk_system_shock', 1 << 16),
-    ('H', 'berserk_vitality', 1 << 16),
+    ('h', 'maximum_mana', codec.ShortFixed),
+    ('h', 'mana_recharge_rate', codec.ShortFixed),
+    ('H', 'berserk_system_shock', codec.Fixed),
+    ('H', 'berserk_vitality', codec.Fixed),
     ('h', 'maximum_artifacts_carried'),
     ('2x', None),
     ('4s', 'initial_artifacts_projectile_group_tag'),
-    ('L', 'extra_flags'),
+    ('L', 'extra_flags', MonsExtraFlag),
     ('208x', None),
     ('264x', None),
 ])
@@ -320,15 +383,15 @@ class ObjeFlags(enum.Flag):
     OBJECT_NOT_ACCELERATED_BY_DAMAGE = enum.auto()
 
 ObjeEffectFmt = ('ObjeEffect', [
-    ('h', 'slashing_damage', 256),
-    ('h', 'kinetic_damage', 256),
-    ('h', 'explosive_damage', 256),
-    ('h', 'electric_damage', 256),
-    ('h', 'fire_damage', 256),
-    ('h', 'paralysis_duration', 256),
-    ('h', 'stone', 256),
-    ('h', 'gas_damage', 256),
-    ('h', 'confusion', 256),
+    ('h', 'slashing_damage', codec.ShortFixed),
+    ('h', 'kinetic_damage', codec.ShortFixed),
+    ('h', 'explosive_damage', codec.ShortFixed),
+    ('h', 'electric_damage', codec.ShortFixed),
+    ('h', 'fire_damage', codec.ShortFixed),
+    ('h', 'paralysis_duration', codec.ShortFixed),
+    ('h', 'stone', codec.ShortFixed),
+    ('h', 'gas_damage', codec.ShortFixed),
+    ('h', 'confusion', codec.ShortFixed),
     ('14x', None),
 ])
 
@@ -339,15 +402,15 @@ UnitTagFmt = ('UnitTag', [
 
 ObjeTagFmt = ('ObjeTag', [
     ('h', 'flags', ObjeFlags),
-    ('h', 'gravity', 512),
-    ('h', 'elasticity', 255),
-    ('h', 'terminal_velocity', 512),
-    ('h', 'vitality_lower_bound', 255),
-    ('h', 'vitality_delta', 255),
-    ('h', 'scale_lower_bound', 255),
-    ('h', 'scale_delta', 255),
-    ('32s', 'effect_modifiers', utils.codec(ObjeEffectFmt)),
-    ('h', 'minimum_damage', 255),
+    ('h', 'gravity', codec.World),
+    ('h', 'elasticity', codec.ShortFixed),
+    ('h', 'terminal_velocity', codec.World),
+    ('h', 'vitality_lower_bound', codec.ShortFixed),
+    ('h', 'vitality_delta', codec.short_fixed_delta('vitality_lower_bound')),
+    ('h', 'scale_lower_bound', codec.ShortFixed),
+    ('h', 'scale_delta', codec.short_fixed_delta('scale_lower_bound')),
+    ('32s', 'effect_modifiers', codec.codec(ObjeEffectFmt)),
+    ('h', 'minimum_damage', codec.ShortFixed),
     ('14x', None),
 ])
 
@@ -387,17 +450,17 @@ ArtifactFmt = ('Artifact', [
     ('h', 'sequence_2'),
     ('h', 'sequence_3'),
     ('h', 'sequence_4'),
-    ('16s', 'projectile_tags', utils.list_pack('ArtifactProjTags', MAX_ARTI_PROJ, '>4s')),
+    ('16s', 'projectile_tags', codec.list_pack('ArtifactProjTags', MAX_ARTI_PROJ, '>4s')),
     ('L', 'bonus_monster_flags'),
     ('h', 'monster_override_type'),
     ('h', 'expiry_timer'),
-    ('32s', 'bonus_effect_modifiers', utils.list_pack('ArtifactEffectMods', MAX_ARTI_EFFECT_MODS, '>h')),
-    ('64s', 'override_attack', utils.codec(AttackDefFmt)),
+    ('32s', 'bonus_effect_modifiers', codec.list_pack('ArtifactEffectMods', MAX_ARTI_EFFECT_MODS, '>h')),
+    ('64s', 'override_attack', codec.codec(AttackDefFmt)),
     ('4s', 'special_ability_string_list_tag'),
     ('4s', 'monster_override_tag'),
     ('h', 'collection_index'),
     ('h', 'special_ability_string_list_index'),
-    ('8s', 'projectile_types', utils.list_pack('ArtifactProjTypes', MAX_ARTI_PROJ, '>h')),
+    ('8s', 'projectile_types', codec.list_pack('ArtifactProjTypes', MAX_ARTI_PROJ, '>h')),
 ])
 
 def sequence_name(idx):

@@ -3,13 +3,13 @@ import sys
 import os
 import struct
 
+import codec
 import myth_collection
 import mesh_tag
 import mesh2info
 import mono2tag
 import mons_tag
 import loadtags
-import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -41,19 +41,19 @@ def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
 
         if unit_data:
             unit = mons_tag.parse_unit(unit_data)
-            mons_tag_id = utils.decode_string(unit.mons)
+            mons_tag_id = codec.decode_string(unit.mons)
             (mons_location, mons_header, mons_data) = loadtags.get_tag_info(tags, data_map, 'mons', mons_tag_id)
             mons_coll = None
             if mons_data:
                 mons = mons_tag.parse_tag(mons_data)
-                mons_coll = utils.decode_string(mons.collection_tag)
+                mons_coll = codec.decode_string(mons.collection_tag)
 
-            core_tag_id = utils.decode_string(unit.core)
+            core_tag_id = codec.decode_string(unit.core)
             (core_location, core_header, core_data) = loadtags.get_tag_info(tags, data_map, 'core', core_tag_id)
             core_coll = None
             if core_data:
                 core_tag = myth_collection.parse_collection_ref(core_data)
-                core_coll = utils.decode_string(core_tag.collection_tag)
+                core_coll = codec.decode_string(core_tag.collection_tag)
 
             if mons_coll and core_coll and mons_coll != core_coll:
                 (mons_coll_location, mons_coll_header) = loadtags.lookup_tag_header(tags, '.256', mons_coll)

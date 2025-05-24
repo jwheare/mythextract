@@ -2,8 +2,8 @@
 import enum
 import os
 
+import codec
 import myth_headers
-import utils
 
 DEBUG_PROJ = (os.environ.get('DEBUG_PROJ') == '1')
 
@@ -19,8 +19,8 @@ LpgrFmt = ('Lpgr', [
     ('h', 'animation_rate_delta'),
     ('h', 'target_number_lower_bound'),
     ('h', 'target_number_delta'),
-    ('l', 'radius_lower_bound'),
-    ('l', 'radius_delta'),
+    ('l', 'radius_lower_bound', codec.World),
+    ('l', 'radius_delta', codec.world_delta('radius_lower_bound')),
     ('i', 'expiration_time_lower_bound'),
     ('i', 'expiration_time_delta'),
     ('h', 'transfer_mode'),
@@ -50,9 +50,9 @@ PrgrHeadFmt = ('PrgrHead', [
     ('4s', 'sound'),
     ('4s', 'local_projectile_group'),
     ('6x', None),
-    ('h', 'local_projectile_group_type'),
-    ('h', 'mesh_effect_type'),
-    ('h', 'sound_index'),
+    ('2x', None), # runtime: local_projectile_group_type
+    ('2x', None), # runtime: mesh_effect_type
+    ('2x', None), # runtime: sound_index
 ])
 
 PrgrProjFmt = ('PrgrProj', [
@@ -66,8 +66,8 @@ PrgrProjFmt = ('PrgrProj', [
     ('h', 'appearing_faction'),
     ('2x', None),
     ('4s', 'fail_projectile_tag'),
-    ('h', 'fail_projectile_type'),
-    ('h', 'projectile_type'),
+    ('2x', None), # runtime: fail_projectile_type
+    ('2x', None), # runtime: projectile_type
 ])
 
 PROJ_DMG_SIZE = 16
@@ -107,12 +107,12 @@ class DamageFlags(enum.Flag):
 ProjDmgFmt = ('ProjDmg', [
     ('h', 'type', DamageType),
     ('H', 'flags', DamageFlags),
-    ('h', 'damage_lower_bound', 255),
-    ('h', 'damage_delta', 255),
-    ('h', 'radius_lower_bound', 512),
-    ('h', 'radius_delta', 512),
-    ('h', 'rate_of_expansion', 512),
-    ('h', 'damage_to_velocity', 255),
+    ('h', 'damage_lower_bound', codec.Fixed),
+    ('h', 'damage_delta', codec.fixed_delta('damage_lower_bound')),
+    ('h', 'radius_lower_bound', codec.World),
+    ('h', 'radius_delta', codec.world_delta('radius_lower_bound')),
+    ('h', 'rate_of_expansion', codec.World),
+    ('h', 'damage_to_velocity', codec.World),
 ])
 
 class ProjFlags(enum.Flag):
@@ -161,15 +161,15 @@ ProjFmt = ('Proj', [
     ('h', 'ticks_between_contrails'),
     ('h', 'maximum_contrail_count'),
     ('4s', 'object_tag'),
-    ('h', 'inertia_lower_bound'),
-    ('h', 'inertia_delta'),
-    ('h', 'random_initial_velocity'),
+    ('h', 'inertia_lower_bound', codec.ShortFixed),
+    ('h', 'inertia_delta', codec.short_fixed_delta('inertia_lower_bound')),
+    ('h', 'random_initial_velocity', codec.World),
     ('h', 'volume'),
     ('H', 'tracking_priority'),
-    ('H', 'promotion_on_detonation_fraction'),
-    ('H', 'detonation_frequency'),
-    ('H', 'media_detonation_frequency'),
-    ('H', 'detonation_velocity'),
+    ('H', 'promotion_on_detonation_fraction', codec.Fixed),
+    ('H', 'detonation_frequency', codec.Percent),
+    ('H', 'media_detonation_frequency', codec.Percent),
+    ('H', 'detonation_velocity', codec.World),
     ('H', 'projectile_class'),
     ('4s', 'lightning_tag'),
     ('4x', None),
@@ -177,55 +177,62 @@ ProjFmt = ('Proj', [
     ('4s', 'rebound_sound_tag'),
     ('4s', 'sound_tag_3'),
     ('4s', 'sound_tag_4'),
-    ('h', 'animation_rate_lower_bound'),
-    ('h', 'animation_rate_delta'),
-    ('h', 'lifespan_lower_bound'),
-    ('h', 'lifespan_delta'),
-    ('H', 'initial_contrail_frequency'),
-    ('H', 'final_contrail_frequency'),
-    ('H', 'contrail_frequency_delta'),
-    ('H', 'guided_turning_speed'),
+    ('h', 'animation_rate_lower_bound', codec.ShortFixed),
+    ('h', 'animation_rate_delta', codec.short_fixed_delta('animation_rate_lower_bound')),
+    ('h', 'lifespan_lower_bound', codec.Time),
+    ('h', 'lifespan_delta', codec.time_delta('lifespan_lower_bound')),
+    ('H', 'initial_contrail_frequency', codec.Percent),
+    ('H', 'final_contrail_frequency', codec.Percent),
+    ('H', 'contrail_frequency_delta', codec.Percent),
+    ('H', 'guided_turning_speed', codec.AngularVelocity),
     ('4s', 'promoted_projectile_tag'),
     ('4s', 'promotion_projectile_group_tag'),
-    ('H', 'maximum_safe_acceleration'),
-    ('H', 'acceleration_detonation_fraction'),
-    ('16s', 'damage', utils.codec(ProjDmgFmt)),
+    ('H', 'maximum_safe_acceleration', codec.World),
+    ('H', 'acceleration_detonation_fraction', codec.Percent),
+    ('16s', 'damage', codec.codec(ProjDmgFmt)),
     ('4s', 'artifact_tag'),
     ('4s', 'target_detonation_projectile_group_tag'),
     ('4s', 'geometry_tag'),
-    ('h', 'delay_lower_bound'),
-    ('h', 'delay_delta'),
+    ('h', 'delay_lower_bound', codec.Time),
+    ('h', 'delay_delta', codec.time_delta('delay_lower_bound')),
     ('4s', 'local_projectile_group_tag'),
     ('h', 'nearby_target_radius'),
     ('h', 'exclude_nearby_target_radius'),
     ('4s', 'promotion_unit_tag'),
     ('4s', 'script_tag'),
     ('71x', None),
-    ('c', 'use_accel'),
+    ('?', 'use_accel'),
     ('32x', None),
 ])
 
+class LightningFlags(enum.Flag):
+    DURATION_BASED_ON_LENGTH = enum.auto()
+    SCARS_GROUND = enum.auto()
+    MOVES_OBJECTS = enum.auto()
+    IGNORES_COLLISIONS_WITH_MODELS = enum.auto()
+    HAS_TFL_COLLISION_RADIUS = enum.auto()
+
 LightningFmt = ('Lightning', [
-    ('L', 'flags'),
+    ('L', 'flags', LightningFlags),
     ('4s', 'collection_reference_tag'),
-    ('l', 'shock_duration'),
-    ('l', 'fade_duration'),
-    ('l', 'bolt_length'),
+    ('l', 'shock_duration', codec.Time),
+    ('l', 'fade_duration', codec.Time),
+    ('L', 'bolt_length', codec.World),
     ('h', 'sequence_fork'),
     ('h', 'sequence_bolt'),
     ('h', 'sequence_stain'),
-    ('h', 'velocity'),
-    ('h', 'scale'),
-    ('h', 'fork_segment_minimum'),
-    ('h', 'fork_segment_delta'),
-    ('h', 'fork_overlap_amount'),
-    ('h', 'main_bolt_overlap_amount'),
-    ('H', 'angular_limit'),
-    ('16s', 'damage', utils.codec(ProjDmgFmt)),
-    ('h', 'apparent_number_of_bolts'),
-    ('h', 'collection_reference_index'),
-    ('h', 'collection_index'),
-    ('h', 'color_table_index'),
+    ('H', 'velocity', codec.World),
+    ('H', 'scale', codec.ShortFixed),
+    ('H', 'fork_segment_minimum', codec.Simple),
+    ('H', 'fork_segment_delta', codec.delta('fork_segment_minimum')),
+    ('H', 'fork_overlap_amount'),
+    ('H', 'main_bolt_overlap_amount'),
+    ('H', 'angular_limit', codec.Angle),
+    ('16s', 'damage', codec.codec(ProjDmgFmt)),
+    ('H', 'apparent_number_of_bolts'),
+    ('H', 'collection_reference_index'),
+    ('H', 'collection_index'),
+    ('H', 'color_table_index'),
 ])
 
 def parse_lpgr(data):
@@ -235,7 +242,7 @@ def parse_prgr(data):
     prgr_head = myth_headers.parse_tag(PrgrHeadFmt, data)
 
     proj_list_start = myth_headers.TAG_HEADER_SIZE + prgr_head.data_size()
-    proj_list_codec = utils.list_codec(prgr_head.number_of_parts, PrgrProjFmt)
+    proj_list_codec = codec.list_codec(prgr_head.number_of_parts, PrgrProjFmt)
     proj_list = proj_list_codec(data, offset=proj_list_start)
 
     return (prgr_head, proj_list)

@@ -4,6 +4,7 @@ import os
 import pathlib
 import struct
 
+import codec
 import tag2local
 import mesh2info
 import mono2tag
@@ -36,7 +37,7 @@ def extract_mesh_tags(mesh_id, tags, data_map, plugin_names):
     )
     tdg = tag2local.TagDataGenerator(tags, data_map, plugin_names)
     all_tag_data = []
-    for td in tdg.get_tag_data('mesh', utils.encode_string(mesh_id)):
+    for td in tdg.get_tag_data('mesh', codec.encode_string(mesh_id)):
         all_tag_data.append(td)
 
     output_dir = f'../output/mesh2tags/{mesh_tag_header.name}/local'

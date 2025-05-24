@@ -5,6 +5,7 @@ import re
 import struct
 import sys
 
+import codec
 import mesh_tag
 import mesh2info
 import mons2stats
@@ -78,12 +79,12 @@ def parse_mesh_trades(game_version, tags, data_map, mesh_id):
 
 def get_level_name(mesh_header, tags, data_map):
     level_name_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', utils.decode_string(
+        tags, data_map, 'stli', codec.decode_string(
             mesh_header.map_description_string_list_tag
         )
     )
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    return utils.ansi_format(utils.decode_string(level_name_text.split(b'\r')[0]))
+    return utils.ansi_format(codec.decode_string(level_name_text.split(b'\r')[0]))
 
 def sort_units(units):
     return sorted(units, key=lambda k: (not k['tradeable'], k['spellings']))
@@ -109,7 +110,7 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
             unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
             unit_tag = mons_tag.parse_unit(unit_data)
             (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
-                tags, data_map, 'mons', utils.decode_string(unit_tag.mons)
+                tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
             )
             mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)
             for netgame in netgame_info:

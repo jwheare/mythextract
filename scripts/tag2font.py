@@ -5,6 +5,7 @@ import pathlib
 import struct
 from collections import OrderedDict
 
+import codec
 import myth_headers
 import tag2png
 import utils
@@ -15,7 +16,7 @@ def main(tag_path):
     """
     Parse a Myth II font tag file and output the bitmaps
     """
-    data = myth_headers.utils(tag_path)
+    data = utils.load_file(tag_path)
 
     header = myth_headers.parse_header(data)
     (width, height, pixel_rows) = parse_font_tag(data)
@@ -68,10 +69,10 @@ def parse_font_tag(data):
             f'asc_h={ascending_height} desc_h={descending_height} total_h={total_height} '
             f'lead_h={leading_height} lead_w={leading_width} '
             f'flags={flags.hex()} '
-            f'italic={utils.decode_string(italic_font)} '
-            f'bold={utils.decode_string(bold_font)} '
-            f'condensed={utils.decode_string(condensed_font)} '
-            f'underline={utils.decode_string(underlined_font)} '
+            f'italic={codec.decode_string(italic_font)} '
+            f'bold={codec.decode_string(bold_font)} '
+            f'condensed={codec.decode_string(condensed_font)} '
+            f'underline={codec.decode_string(underlined_font)} '
         )
 
         glyph_head_start = font_header_end

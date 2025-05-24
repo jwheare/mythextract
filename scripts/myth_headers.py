@@ -2,7 +2,7 @@
 import enum
 from collections import namedtuple
 
-import utils
+import codec
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
@@ -70,8 +70,8 @@ ArchivePriority = {
 SBMonoHeaderFmt = ('SBMonoHeader', [
     ('h', 'type', ArchiveType),
     ('H', 'version'),
-    ('32s', 'name', utils.StringCodec),
-    ('64s', 'description', utils.StringCodec),
+    ('32s', 'name', codec.String),
+    ('64s', 'description', codec.String),
     ('H', 'entry_tag_count'),
     ('H', 'tag_list_count'),
     ('4s', 'checksum'),
@@ -79,9 +79,9 @@ SBMonoHeaderFmt = ('SBMonoHeader', [
     ('L', 'size'),
     ('4s', 'header_checksum'),
     ('4x', None),
-    ('4s', 'signature', utils.StringCodec),
+    ('4s', 'signature', codec.String),
 ])
-SBMonoHeader = utils.codec(SBMonoHeaderFmt)
+SBMonoHeader = codec.codec(SBMonoHeaderFmt)
 
 #
 # artsound.gor header
@@ -97,7 +97,7 @@ SBMonoHeader = utils.codec(SBMonoHeaderFmt)
 GORHeaderFmt = ('GORHeader', [
     ('H', 'type'),
     ('H', 'version'),
-    ('32s', 'name', utils.StringCodec),
+    ('32s', 'name', codec.String),
     ('L', 'checksum'),
     ('L', 'tag_list_offset'),
     ('H', 'tag_list_count'),
@@ -107,7 +107,7 @@ GORHeaderFmt = ('GORHeader', [
     ('L', 'mod_time'),
     ('8x', None),
 ])
-GORHeader = utils.codec(GORHeaderFmt)
+GORHeader = codec.codec(GORHeaderFmt)
 
 UnifiedHeader = namedtuple('UnifiedHeader', [
     'filename',
@@ -128,38 +128,38 @@ UnifiedHeader = namedtuple('UnifiedHeader', [
 ])
 
 TFLHeaderFmt = ('TFLHeader', [
-    ('32s', 'name', utils.StringCodec),
-    ('4s', 'tag_type', utils.StringCodec),
-    ('4s', 'tag_id', utils.StringCodec),
+    ('32s', 'name', codec.String),
+    ('4s', 'tag_type', codec.String),
+    ('4s', 'tag_id', codec.String),
     ('L', 'version'),
     ('H', 'tag_version'),
     ('H', 'flags'),
     ('i', 'tag_data_offset'),
     ('l', 'tag_data_size'),
     ('L', 'user_data'),
-    ('4s', 'signature', utils.StringCodec),
+    ('4s', 'signature', codec.String),
 ])
-TFLHeader = utils.codec(TFLHeaderFmt)
+TFLHeader = codec.codec(TFLHeaderFmt)
 
 SBHeaderFmt = ('SBHeader', [
     ('h', 'identifier'),
     ('b', 'flags'),
     ('b', 'type'),
-    ('32s', 'name', utils.StringCodec),
-    ('4s', 'tag_type', utils.StringCodec),
-    ('4s', 'tag_id', utils.StringCodec),
+    ('32s', 'name', codec.String),
+    ('4s', 'tag_type', codec.String),
+    ('4s', 'tag_id', codec.String),
     ('i', 'tag_data_offset'),
     ('l', 'tag_data_size'),
     ('L', 'user_data'),
     ('h', 'version'),
     ('b', 'destination'),
     ('b', 'owner_index'),
-    ('4s', 'signature', utils.StringCodec),
+    ('4s', 'signature', codec.String),
 ])
-SBHeader = utils.codec(SBHeaderFmt)
+SBHeader = codec.codec(SBHeaderFmt)
 
 def tfl2sb(tfl_header, tag_content):
-    SBHeaderT = utils.make_nt(SBHeaderFmt)
+    SBHeaderT = codec.make_nt(SBHeaderFmt)
     sb_header_values = SBHeaderT(
         identifier=-1,
         flags=0,
@@ -279,15 +279,15 @@ def parse_sb_header(header):
 
 def get_mono_tags(data, mono_header):
     if mono_header.game_version == 1:
-        codec = TFLHeader
+        head_codec = TFLHeader
     elif mono_header.game_version == 2:
-        codec = SBHeader
+        head_codec = SBHeader
     else:
         raise ValueError(f"Incompatible game version: {mono_header.game_version}")
-    return utils.list_codec(mono_header.tag_count, codec)(data, offset=mono_header.tag_list_start)
+    return codec.list_codec(mono_header.tag_count, head_codec)(data, offset=mono_header.tag_list_start)
 
 def parse_tag(fmt, data):
-    return utils.codec(fmt)(data, offset=TAG_HEADER_SIZE)
+    return codec.codec(fmt)(data, offset=TAG_HEADER_SIZE)
 
 def parse_text_tag(data):
     header = parse_header(data)

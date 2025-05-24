@@ -5,6 +5,7 @@ import struct
 import sys
 import time
 
+import codec
 import myth_headers
 import mesh_tag
 import mesh2info
@@ -86,17 +87,17 @@ def convert_level(game_version, tags, data_map, mesh_id):
 
     # Extract narration text
     storyline_data = loadtags.get_tag_data(
-        tags, data_map, 'text', utils.decode_string(mesh_header.pregame_storyline_tag)
+        tags, data_map, 'text', codec.decode_string(mesh_header.pregame_storyline_tag)
     )
 
     # Extract description stli
     desc_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', utils.decode_string(mesh_header.map_description_string_list_tag)
+        tags, data_map, 'stli', codec.decode_string(mesh_header.map_description_string_list_tag)
     )
 
     # Extract caption stli
     caption_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', utils.decode_string(mesh_header.picture_caption_string_list_tag)
+        tags, data_map, 'stli', codec.decode_string(mesh_header.picture_caption_string_list_tag)
     )
 
     (text_tag, desc_tag, caption_tag) = TFLTagMap[level]
@@ -116,8 +117,8 @@ def convert_level(game_version, tags, data_map, mesh_id):
 
                 # Replace with TFL port tag ids
                 new_tag_header = tag_header._replace(
-                    tag_id=utils.encode_string(tag_values[0]),
-                    name=utils.encode_string(tag_values[1])
+                    tag_id=codec.encode_string(tag_values[0]),
+                    name=codec.encode_string(tag_values[1])
                 )
 
                 sb_tag_data = myth_headers.tfl2sb(new_tag_header, tag_content)

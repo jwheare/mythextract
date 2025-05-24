@@ -37,7 +37,7 @@ def dist(val):
     return round(val/512, 2)
 
 def angle(val):
-    return round(val / (0xffff / 360), 2)
+    return round(val / ((1 << 16) / 360), 2)
 
 UNIT = '\x1b[93m◉\x1b[0m'
 

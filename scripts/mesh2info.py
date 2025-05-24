@@ -73,16 +73,8 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id):
     print_header(mesh_header, mesh_id, locations)
 
 def print_header(mesh_header, mesh_id, locations):
-    mhd = mesh_header._asdict()
-    for f in mesh_header._fields:
-        val = mhd[f]
-        if type(val) is bytes and utils.all_off(val):
-            val = f'[00 x {len(val.split(b'\x00'))-1}]'
-        elif type(val) is bytes and utils.all_on(val):
-            val = f'[FF x {len(val.split(b'\xff'))-1}]'
-        elif f.startswith('cutscene_file'):
-            val = val.rstrip(b'\x00')
-        print(f'{f:<42} {val}')
+    for i, (f, val) in enumerate(mesh_header._asdict().items()):
+        print(f'{f:<42} {utils.val_repr(val)}')
         # print(f'[{mesh_id}] {f} {val} {locations}')
 
 if __name__ == "__main__":

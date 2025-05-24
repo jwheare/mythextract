@@ -3,6 +3,7 @@ import sys
 import os
 import struct
 
+import codec
 import myth_headers
 import mesh_tag
 import utils
@@ -50,15 +51,15 @@ def parse_pref_color(color_data):
     return f'\x1b[48;2;{r};{g};{b}m \x1b[0m {vals}'
 
 NetPrefsFmt = ('NetPrefs', [
-    ('32s', 'game_name', utils.StringCodec),
-    ('64s', 'mesh_name', utils.StringCodec),
-    ('32s', 'game_password', utils.StringCodec),
+    ('32s', 'game_name', codec.String),
+    ('64s', 'mesh_name', codec.String),
+    ('32s', 'game_password', codec.String),
     ('H', 'unknown'),
     ('H', 'flag1'),
     ('H', 'flag2'),
     ('H', 'flag3'),
     ('l', 'time_limit'),
-    ('4s', 'mesh_tag', utils.StringCodec),
+    ('4s', 'mesh_tag', codec.String),
     ('H', 'difficulty', mesh_tag.difficulty),
     ('H', 'player_limit'),
     ('H', 'load_var1'),
@@ -75,11 +76,11 @@ NetPrefsFmt = ('NetPrefs', [
     ('68s', 'unknown4'),
     ('H', 'player_icon'),
     ('2x', None),
-    ('32s', 'player_name', utils.StringCodec),
-    ('32s', 'team_name', utils.StringCodec),
+    ('32s', 'player_name', codec.String),
+    ('32s', 'team_name', codec.String),
     ('8s', 'color1', parse_pref_color),
     ('8s', 'color2', parse_pref_color),
-    ('4s', 'net', utils.StringCodec),
+    ('4s', 'net', codec.String),
     ('2x', None),
     ('H', 'plugin_count1a'),
     ('H', 'plugin_count2a'),
@@ -109,7 +110,7 @@ def parse_pref_plugins(plugin_data, count1):
 
 
 def parse_net_pref(pref_data):
-    net_prefs = utils.codec(NetPrefsFmt)(pref_data)
+    net_prefs = codec.codec(NetPrefsFmt)(pref_data)
     return net_prefs._replace(
         plugins=parse_pref_plugins(net_prefs.plugins, net_prefs.plugin_count1),
         pluginsa=parse_pref_plugins(net_prefs.pluginsa, net_prefs.plugin_count1a),
@@ -124,7 +125,12 @@ def parse_pref_file(data):
     print(pref_size)
     if header.tag_id == 'netw':
         net_prefs = parse_net_pref(pref_data)
-        utils.print_named_tuple(net_prefs, 16)
+        for i, (f, val) in enumerate(net_prefs._asdict().items()):
+            if type(val) is list and len(val):
+                for v in val:
+                    print(f'{f:<16} {v}')
+            else:
+                print(f'{f:>16} {utils.val_repr(val)}')
     else:
         seqs_4 = struct.unpack(f">{pref_size//4}L", pref_data)
         seqs_2 = struct.unpack(f">{pref_size//2}H", pref_data)

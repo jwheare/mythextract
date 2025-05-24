@@ -4,8 +4,8 @@ import enum
 import os
 import struct
 
+import codec
 import myth_headers
-import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
@@ -14,8 +14,8 @@ DEBUG_MARKERS = (os.environ.get('DEBUG_MARKERS') == '1')
 MESH_HEADER_SIZE = 1024
 ACTION_HEAD_SIZE = 64
 WORLD_POINT_SF = 512
-ANGLE_SF = (0xffff / 360)
 FIXED_SF = 1 << 16
+ANGLE_SF = FIXED_SF / 360
 TIME_SF = 30
 
 # 887E <- action_id
@@ -48,7 +48,7 @@ class ActionFlag(enum.Flag):
 ActionHeadFmt = ('ActionHead', [
     ('H', 'id'),
     ('H', 'expiration_mode', ActionExpiration),
-    ('4s', 'type', utils.decode_string_none, utils.encode_string_none),
+    ('4s', 'type', codec.decode_string_none, codec.encode_string_none),
     ('L', 'flags', ActionFlag),
     ('L', 'trigger_time_lower_bound', TIME_SF),
     ('L', 'trigger_time_delta', TIME_SF),
@@ -106,18 +106,18 @@ MeshHeaderFmt = ('MeshHeader', [
     ('H', 'submesh_height'),
     ('L', 'mesh_offset'),
     ('L', 'mesh_size'),
-    ('L', 'mesh_ptr'),
+    ('4x', None), # runtime: mesh_ptr
     ('L', 'data_offset'),
     ('L', 'data_size'),
-    ('L', 'data_ptr'),
+    ('4x', None), # runtime: data_ptr
     ('L', 'marker_palette_entries'),
     ('L', 'marker_palette_offset'),
     ('L', 'marker_palette_size'),
-    ('L', 'marker_palette_ptr'),
+    ('4x', None), # runtime: marker_palette_ptr
     ('L', 'marker_count'),
     ('L', 'markers_offset'),
     ('L', 'markers_size'),
-    ('L', 'markers_ptr'),
+    ('4x', None), # runtime: markers_ptr
     ('4s', 'mesh_lighting_tag'),
     ('4s', 'connector_tag'),
     ('L', 'flags', MeshFlags),
@@ -151,10 +151,10 @@ MeshHeaderFmt = ('MeshHeader', [
     ('4s', 'storyline_string_tags_4'),
     ('L', 'media_coverage_region_offset'),
     ('L', 'media_coverage_region_size'),
-    ('L', 'media_coverage_region_ptr'),
+    ('4x', None), # runtime: media_coverage_region_ptr
     ('L', 'mesh_LOD_data_offset'),
     ('L', 'mesh_LOD_data_size'),
-    ('L', 'mesh_LOD_data_ptr'),
+    ('4x', None), # runtime: mesh_LOD_data_ptr
     ('8s', 'global_tint_color'),
     ('h', 'global_tint_fraction'),
     ('H', 'pad'),
@@ -174,10 +174,10 @@ MeshHeaderFmt = ('MeshHeader', [
     ('L', 'connector_count'),
     ('L', 'connectors_offset'),
     ('L', 'connectors_size'),
-    ('L', 'connectors_ptr'),
-    ('64s', 'cutscene_file_pregame'),
-    ('64s', 'cutscene_file_success'),
-    ('64s', 'cutscene_file_failure'),
+    ('4x', None), # runtime: connectors_ptr
+    ('64s', 'cutscene_file_pregame', codec.String),
+    ('64s', 'cutscene_file_success', codec.String),
+    ('64s', 'cutscene_file_failure', codec.String),
     ('4s', 'hints_string_list_tag'),
     ('8s', 'fog_color'),
     ('f', 'fog_density'),
@@ -450,7 +450,7 @@ def has_single_player_story(game_version, data):
         return True
     if not is_single_player(mesh_header):
         return False
-    if utils.all_on(mesh_header.pregame_storyline_tag):
+    if codec.all_on(mesh_header.pregame_storyline_tag):
         return False
     return True
 
@@ -462,8 +462,8 @@ def is_vtfl(header):
 
 def cutscenes(game_version, header):
     return (
-        utils.decode_string(header.cutscene_file_pregame),
-        utils.decode_string(header.cutscene_file_success)
+        codec.decode_string(header.cutscene_file_pregame),
+        codec.decode_string(header.cutscene_file_success)
     )
 
 def get_offset(offset):
@@ -473,7 +473,7 @@ def parse_palette_entry(entry):
     return {
         'flags': entry.flags,
         'type': entry.type,
-        'tag': utils.StringCodec(entry.marker_tag),
+        'tag': codec.String(entry.marker_tag),
         'team_index': entry.team_index,
         'netgame_flags': entry.netgame_flags,
         'markers': {},
@@ -498,7 +498,7 @@ def parse_markers(mesh_header, data):
         'markers': {},
         'count': 0,
     }
-    for entry in utils.iter_decode(
+    for entry in codec.iter_decode(
         0, mesh_header.marker_palette_entries,
         MarkerPaletteEntryFmt, marker_palette_data
     ):
@@ -518,7 +518,7 @@ def parse_markers(mesh_header, data):
     marker_end = marker_start + mesh_header.markers_size
     marker_data = data[marker_start:marker_end]
 
-    for mhead in utils.iter_decode(
+    for mhead in codec.iter_decode(
         0, mesh_header.marker_count,
         MarkerHeadFmt, marker_data
     ):
@@ -556,15 +556,15 @@ def encode_map_action_param(game_version, param):
     num_elems = len(param_elems)
 
     if param_type == ParamType.STRING:
-        string_enc = utils.encode_string(param_elems[0])
+        string_enc = codec.encode_string(param_elems[0])
         elem_count = len(string_enc) + 1
         align_string_len = align(4, elem_count)
         elem_struct = f'{align_string_len}s'
-        elem_values = [utils.encode_string(param_elems[0])]
+        elem_values = [codec.encode_string(param_elems[0])]
     elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
         elem_count = num_elems
         elem_struct = num_elems * '4s'
-        elem_values = [utils.encode_string(elem) for elem in param_elems]
+        elem_values = [codec.encode_string(elem) for elem in param_elems]
     elif param_type == ParamType.WORLD_POINT_2D:
         elem_count = num_elems
         elem_struct = f'{num_elems * 2}L'
@@ -603,7 +603,7 @@ def encode_map_action_param(game_version, param):
 
     return struct.pack(
         f'>H H 4s {elem_struct}',
-        param_type.value, elem_count, utils.encode_string(param['name']),
+        param_type.value, elem_count, codec.encode_string(param['name']),
         *elem_values
     )
 
@@ -624,12 +624,9 @@ def encode_map_action_data(game_version, actions):
         for param in action['parameters']:
             param_data += encode_map_action_param(game_version, param)
 
-        if action['type']:
-            action_type = utils.encode_string(action['type'])
-        else:
-            action_type = b'\xff\xff\xff\xff'
+        action_type = codec.encode_string_none(action['type'])
 
-        action_data += utils.encode_data(
+        action_data += codec.encode_data(
             ActionHeadFmt,
             (
                 action_id,
@@ -724,7 +721,7 @@ def parse_map_actions(mesh_header, data):
     action_data_end = 0
     ends = [0]
     actions = OrderedDict()
-    for action_head in utils.iter_decode(
+    for action_head in codec.iter_decode(
         0, num_actions,
         ActionHeadFmt, map_action_data
     ):
@@ -742,7 +739,7 @@ def parse_map_actions(mesh_header, data):
             
             (param_type, num_elems, param_name) = struct.unpack(">H H 4s", param_head_data)
 
-            param_name = utils.decode_string(param_name)
+            param_name = codec.decode_string(param_name)
 
             if DEBUG_ACTIONS:
                 print(action_head.id, action_head.type, param_head_data.hex(), param_name, param_type, end=' ')
@@ -810,10 +807,10 @@ def parse_map_actions(mesh_header, data):
             remainder = None
             if param_type == ParamType.STRING:
                 remainder = param_elems[0][num_elems:]
-                param_elems = utils.decode_string(param_elems[0][:num_elems])
+                param_elems = codec.decode_string(param_elems[0][:num_elems])
             elif param_type in [ParamType.SOUND, ParamType.FIELD_NAME, ParamType.PROJECTILE]:
                 remainder = param_elems[num_elems:]
-                param_elems = [utils.decode_string(elem) for elem in param_elems[:num_elems]]
+                param_elems = [codec.decode_string(elem) for elem in param_elems[:num_elems]]
             elif param_type == ParamType.FLAG:
                 # Only look at the first byte
                 remainder = param_elems[1:]

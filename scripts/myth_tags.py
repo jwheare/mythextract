@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+import struct
+
+import codec
 import myth_headers
-import utils
 
 ConnectorFmt = ('Connector', [
     ('L', 'flags'),
@@ -15,28 +17,43 @@ ConnectorFmt = ('Connector', [
 ParticleSysFmt = ('ParticleSys', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
-    ('l', 'minimum_view_distance'),
-    ('l', 'transparency_rolloff_point'),
-    ('l', 'transparency_cutoff_point'),
+    ('L', 'minimum_view_distance', codec.World),
+    ('L', 'transparency_rolloff_point', codec.World),
+    ('L', 'transparency_cutoff_point', codec.World),
     ('h', 'sequence_index'),
-    ('h', 'number_of_particles'),
-    ('h', 'maximum_particle_number_delta'),
-    ('h', 'scale'),
-    ('12s', 'velocity_lower_bound'),
-    ('12s', 'velocity_delta'),
-    ('h', 'x0_particle_number'),
-    ('h', 'x1_particle_number'),
-    ('h', 'y0_particle_number'),
-    ('h', 'y1_particle_number'),
-    ('24s', 'state_variables'),
+    ('H', 'number_of_particles'),
+    ('H', 'maximum_particle_number_delta'), # unused
+    ('H', 'scale', codec.Fixed),
+    ('L', 'velocity_lower_bound_i', codec.Fixed),
+    ('L', 'velocity_lower_bound_j', codec.Fixed),
+    ('L', 'velocity_lower_bound_k', codec.Fixed),
+    ('L', 'velocity_delta_i', codec.fixed_delta('velocity_lower_bound_i')),
+    ('L', 'velocity_delta_j', codec.fixed_delta('velocity_lower_bound_j')),
+    ('L', 'velocity_delta_k', codec.fixed_delta('velocity_lower_bound_j')),
+    ('H', 'x0_particle_number', codec.ShortFixed),
+    ('H', 'x1_particle_number', codec.ShortFixed),
+    ('H', 'y0_particle_number', codec.ShortFixed),
+    ('H', 'y1_particle_number', codec.ShortFixed),
+    ('H', 'not_snowing_duration_lower_bound', codec.Time),
+    ('H', 'not_snowing_duration_delta', codec.time_delta('not_snowing_duration_lower_bound')),
+    ('H', 'not_snowing_value_lower_bound', codec.Percent),
+    ('H', 'not_snowing_value_delta', codec.percent_delta('not_snowing_value_lower_bound')),
+    ('H', 'not_snowing_transition_lower_bound', codec.Time),
+    ('H', 'not_snowing_transition_delta', codec.time_delta('not_snowing_transition_lower_bound')),
+    ('H', 'snowing_duration_lower_bound', codec.Time),
+    ('H', 'snowing_duration_delta', codec.time_delta('snowing_duration_lower_bound')),
+    ('H', 'snowing_value_lower_bound', codec.Percent),
+    ('H', 'snowing_value_delta', codec.percent_delta('snowing_value_lower_bound')),
+    ('H', 'snowing_transition_lower_bound', codec.Time),
+    ('H', 'snowing_transition_transition_delta', codec.time_delta('snowing_transition_lower_bound')),
     ('4s', 'ambient_sound_tag'),
     ('4s', 'splash_local_projectile_group_tag'),
-    ('h', 'box_width'),
-    ('h', 'box_top_height'),
-    ('h', 'box_bottom_height'),
-    ('h', 'max_splashes_per_cell'),
-    ('h', 'time_between_building_effects'),
-    ('30x', None),
+    ('H', 'box_width'),
+    ('H', 'box_top_height', codec.World),
+    ('H', 'box_bottom_height', codec.World),
+    ('H', 'max_splashes_per_cell'),
+    ('H', 'time_between_building_effects'),
+    ('26x', None),
 ])
 
 MAX_MEDIA_PRGR = 16
@@ -44,7 +61,7 @@ MediaFmt = ('Media', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
     ('16x', None),
-    ('64s', 'projectile_group_tags', utils.list_pack('MediaPgrTags', MAX_MEDIA_PRGR, '>4s')),
+    ('64s', 'projectile_group_tags', codec.list_pack('MediaPgrTags', MAX_MEDIA_PRGR, '>4s')),
     ('h', 'reflection_tint_fraction'),
     ('8s', 'reflection_tint_color'),
     ('h', 'surface_effect_density'),
@@ -71,7 +88,6 @@ GeomFmt = ('Geom', [
     ('4s', 'collection_reference_tag'),
 ])
 
-ANIM_FRAME_SIZE = 16
 MAX_ANIM_FRAMES = 31
 AnimFrameFmt = ('AnimFrame', [
     ('L', 'flags'),
@@ -84,7 +100,7 @@ AnimFmt = ('Anim', [
     ('L', 'flags'),
     ('h', 'number_of_frames'),
     ('h', 'ticks_per_frame'),
-    ('496s', 'frames', utils.list_codec(MAX_ANIM_FRAMES, AnimFrameFmt)),
+    ('496s', 'frames', codec.list_codec(MAX_ANIM_FRAMES, AnimFrameFmt)),
     ('444x', None),
     ('h', 'shadow_map_width'),
     ('h', 'shadow_map_height'),
@@ -112,15 +128,17 @@ SceneryFmt = ('Scenery', [
     ('h', 'valid_netgame_scoring_type'),
     ('h', 'netgame_flag_number'),
     ('4x', None),
-    ('16s', 'projectile_group_tags', utils.list_pack(
-        'SceneryPgrTags', MAX_SCENERY_PRGR, '>4s'
+    ('16s', 'projectile_group_tags', codec.list_pack(
+        'SceneryPgrTags', MAX_SCENERY_PRGR, '>4s',
+        filter_fun=lambda _self, t: not codec.all_on(t),
+        empty_value=struct.pack('>l', -1)
     )),
-    ('12s', 'sequence_indexes', utils.list_pack(
+    ('12s', 'sequence_indexes', codec.list_pack(
         'ScenerySeqIndexes', MAX_SCENERY_SEQ, '>h'
     )),
     ('58x', None),
     ('h', 'model_permutation_delta'),
-    ('8s', 'projectile_group_types', utils.list_pack(
+    ('8s', 'projectile_group_types', codec.list_pack(
         'SceneryPgrTypes', MAX_SCENERY_PRGR, '>h'
     )),
     ('h', 'collection_reference_index'),

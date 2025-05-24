@@ -3,6 +3,7 @@ import sys
 import os
 import struct
 
+import codec
 import myth_headers
 import utils
 
@@ -15,13 +16,13 @@ DmapHeader1Fmt = ('DmapHeader1', [
     ('B', 'height'),
     ('B', 'indices'), # width*height
     ('x', None,),
-    ('512s', 'dtex_ids', utils.list_pack(
+    ('512s', 'dtex_ids', codec.list_pack(
         'DmapDtexIds', MAX_DTEX_TAGS_PER_DMAP, '>4s',
-        filter_fun=lambda _self, t: not utils.all_on(t)
+        filter_fun=lambda _self, t: not codec.all_on(t)
     )),
-    ('128s', 'scales', utils.list_pack(
+    ('128s', 'scales', codec.list_pack(
         'DmapScales', MAX_DTEX_TAGS_PER_DMAP, '>B',
-        filter_fun=lambda _self, t: not utils.all_on(t)
+        filter_fun=lambda _self, t: not codec.all_on(t)
     )), # pixels per cell
 ])
 
@@ -45,7 +46,7 @@ DmapEntryFmt = ('DmapEntry', [
     ('B', 'g'), 
     ('B', 'b'),
     ('24x', None),
-    ('32s', 'name', utils.StringCodec),
+    ('32s', 'name', codec.String),
 ])
 
 def main(dmap_tag):
@@ -77,7 +78,7 @@ def parse_dmap_tag(data):
         entries = []
         for i, scale in enumerate(header.scales):
             if scale:
-                DmapEntry = utils.make_nt(DmapEntryFmt)
+                DmapEntry = codec.make_nt(DmapEntryFmt)
                 entry = DmapEntry(
                     dtex_id=header.dtex_ids[i],
                     pixels_per_cell=scale-1
@@ -91,15 +92,15 @@ def parse_dmap_tag(data):
         area = header.width * header.height
         print(header, area)
 
-        entries = utils.list_codec(
+        entries = codec.list_codec(
             MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
-            filter_fun=lambda _self, e: not utils.all_on(e.dtex_id) and not utils.all_off(e.dtex_id)
+            filter_fun=lambda _self, e: not codec.all_on(e.dtex_id) and not codec.all_off(e.dtex_id)
         )(data, offset=header.entries_offset)
         for entry in entries:
             if entry:
                 print(
                     f'\x1b[48;2;{entry.r};{entry.g};{entry.b}m \x1b[0m '
-                    f'{utils.decode_string(entry.dtex_id)} '
+                    f'{codec.decode_string(entry.dtex_id)} '
                     f'pixels_per_cell={entry.pixels_per_cell} '
                     f'desc={entry.name}'
                 )

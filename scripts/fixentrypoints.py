@@ -4,6 +4,7 @@ import sys
 import struct
 import pathlib
 
+import codec
 import myth_headers
 import mono2tag
 import mesh_tag
@@ -64,11 +65,11 @@ Mismatching entries that need fixing are marked with an x
         mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data, mono_header)
         if mesh_data:
             mesh_header = mesh_tag.parse_header(mesh_data)
-            desc_tag = utils.decode_string(mesh_header.map_description_string_list_tag)
+            desc_tag = codec.decode_string(mesh_header.map_description_string_list_tag)
             desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data, mono_header)
             if desc_data:
                 (_, desc_text) = myth_headers.parse_text_tag(desc_data)
-                level_name = utils.decode_string(desc_text.split(b'\r')[0])
+                level_name = codec.decode_string(desc_text.split(b'\r')[0])
                 correct = ''
                 if level_name != entry_long_name:
                     correct = 'x'

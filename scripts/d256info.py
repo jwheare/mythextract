@@ -5,6 +5,7 @@ import struct
 
 import myth_collection
 import loadtags
+import tag2info
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -15,6 +16,9 @@ def main(game_directory, d256_id, plugin_names):
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
+        if 'd256' not in tags:
+            print('No d256 tags loaded')
+            sys.exit(2)
         if d256_id == 'all':
             for tag_id, d256_headers in tags['d256'].items():
                 parse_d256_tag(game_version, tags, data_map, tag_id)
@@ -35,8 +39,12 @@ def parse_d256_tag(game_version, tags, data_map, d256_id):
     d256_tag_data = loadtags.get_tag_data(tags, data_map, 'd256', d256_id)
 
     print(d256_id, tags['d256'][d256_id], len(d256_tag_data))
-    myth_collection.parse_d256(d256_tag_data)
+
+    head = myth_collection.parse_d256_header(d256_tag_data)
+    tag2info.print_tag_obj(head)
     
+    myth_collection.parse_d256_bitmaps(d256_tag_data, head)
+    myth_collection.parse_d256_hues(d256_tag_data, head)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

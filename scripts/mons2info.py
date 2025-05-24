@@ -3,6 +3,7 @@ import sys
 import os
 import struct
 
+import codec
 import myth_collection
 import mons_tag
 import loadtags
@@ -43,7 +44,7 @@ def parse_mons_tag(game_version, tags, data_map, mons_id):
     return mons_tag.parse_tag(mons_tag_data)
 
 def coll_sequences(tags, data_map, coll_tag):
-    collection = utils.decode_string(coll_tag)
+    collection = codec.decode_string(coll_tag)
     (location, header, data) = loadtags.get_tag_info(tags, data_map, '.256', collection)
     coll_header = myth_collection.parse_collection_header(data, header)
     return myth_collection.parse_sequences(data, coll_header)
@@ -52,9 +53,7 @@ def print_tag(mons, mons_id, locations, tags, data_map):
     (location, tag_header) = locations[-1]
     print(mons_id, tag_header.name)
     print(location)
-    mons_d = mons._asdict()
-    for f in mons._fields:
-        val = mons_d[f]
+    for i, (f, val) in enumerate(mons._asdict().items()):
         if f == 'attacks':
             for attack_i, attack in enumerate(val):
                 if not attack:
@@ -99,11 +98,7 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                 else:
                     print()
         else:
-            if type(val) is bytes and utils.all_off(val):
-                val = f'[00 x {len(val.split(b'\x00'))-1}]'
-            elif type(val) is bytes and utils.all_on(val):
-                val = f'[FF x {len(val.split(b'\xff'))-1}]'
-            print(f'{f:<42} {val}')
+            print(f'{f:<42} {utils.val_repr(val)}')
             # print(f'[{mons_id}] {f} {val} {locations}')
 
 if __name__ == "__main__":

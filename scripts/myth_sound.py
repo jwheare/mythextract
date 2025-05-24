@@ -2,8 +2,8 @@
 import os
 import struct
 
+import codec
 import myth_headers
-import utils
 
 AIFC_VERSION_1 = 2726318400
 SAMPLE_RATE_80_FLOAT_22050 = b'\x40\x0D\xAC\x44\x00\x00\x00\x00\x00\x00'
@@ -67,10 +67,10 @@ AmsoFmt = ('Amso', [
     ('h', 'outer_radius'),
     ('h', 'period_lower_bound'),
     ('h', 'period_delta'),
-    ('24s', 'sound_tags', utils.list_pack("AmsoSoundTags", MAX_AMSO_SOUN, ">4s")),
+    ('24s', 'sound_tags', codec.list_pack("AmsoSoundTags", MAX_AMSO_SOUN, ">4s")),
     ('h', 'random_sound_radius'),
     ('10x', None),
-    ('12s', 'sound_indexes', utils.list_pack("AmsoSoundIndexes", MAX_AMSO_SOUN, ">h")),
+    ('12s', 'sound_indexes', codec.list_pack("AmsoSoundIndexes", MAX_AMSO_SOUN, ">h")),
     ('h', 'phase'),
     ('h', 'period'),
 ])
@@ -98,14 +98,14 @@ def parse_soun_tag(data):
 
     sound_data_offset = 0
     total_sample_frames = 0
-    for (p1, p2, p3, p_desc) in utils.iter_unpack(
+    for (p1, p2, p3, p_desc) in codec.iter_unpack(
         soun_header_end, soun_header.permutation_count,
         PermDescFmt, data
     ):
-        p_desc = utils.decode_string(p_desc)
+        p_desc = codec.decode_string(p_desc)
         p_descs.append(p_desc)
 
-    for i, p_meta in enumerate(utils.iter_decode(
+    for i, p_meta in enumerate(codec.iter_decode(
         permutation_end, soun_header.permutation_count,
         PermMetaFmt, data
     )):

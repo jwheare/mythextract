@@ -3,9 +3,9 @@ import sys
 import os
 import struct
 
+import codec
 import myth_collection
 import loadtags
-import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -44,7 +44,7 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
 
         print(coll_id, sequence['name'])
         for f, val in sequence['metadata']._asdict().items():
-            if type(val) is bytes and utils.all_on(val):
+            if type(val) is bytes and codec.all_on(val):
                 val = 'None'
             print(f'{f:<42} {val}')
         for seq_i, (seq_frame, seq_views) in enumerate(sequence['frames']):
@@ -69,7 +69,7 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
                 if view_idx > -1 and view_idx < len(bitmap_instances):
                     bitmap_instance = bitmap_instances[view_idx]
                     print(
-                        f'View {view_i:<2} '
+                        f'Frame {seq_i} View {view_i:<2} '
                         f'bm_flags={bitmap_instance.flags.value} '
                         f'bm_reg_x={bitmap_instance.reg_point_x:<3} '
                         f'bm_reg_y={bitmap_instance.reg_point_y:<3} '

@@ -6,6 +6,7 @@ import pathlib
 import re
 from collections import OrderedDict
 
+import codec
 import myth_headers
 import utils
 
@@ -73,9 +74,9 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
     entry_tag_count = 0
     entry_tag_data = b''
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
-        entry_id = utils.encode_string(entry_id)
-        entry_name = utils.encode_string(entry_name)
-        entry_long_name = utils.encode_string(entry_long_name)
+        entry_id = codec.encode_string(entry_id)
+        entry_name = codec.encode_string(entry_name)
+        entry_long_name = codec.encode_string(entry_long_name)
         entry_tag_data += struct.pack('>16s 32s 64s', entry_id, entry_name, entry_long_name)
         entry_tag_count += 1
     new_size = entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE
@@ -90,15 +91,15 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
 
 def get_entrypoints(data, mono_header):
     entrypoints = []
-    for (entry_id, entry_name, entry_long_name) in utils.iter_unpack(
+    for (entry_id, entry_name, entry_long_name) in codec.iter_unpack(
         mono_header.header_size,
         mono_header.entry_tag_count,
         '>16s 32s 64s',
         data
     ):
-        entry_id = utils.decode_string(entry_id)
-        entry_name = utils.decode_string(entry_name)
-        entry_long_name = utils.decode_string(entry_long_name)
+        entry_id = codec.decode_string(entry_id)
+        entry_name = codec.decode_string(entry_name)
+        entry_long_name = codec.decode_string(entry_long_name)
         entrypoints.append((entry_name, (entry_id, (entry_name, entry_long_name, [mono_header.filename]))))
     return OrderedDict([item for (_, item) in sorted(entrypoints)])
 

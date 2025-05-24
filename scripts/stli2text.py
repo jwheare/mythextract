@@ -2,6 +2,7 @@
 import sys
 import os
 
+import codec
 import myth_headers
 import utils
 
@@ -18,7 +19,7 @@ def main(tag_path, index):
         print(f"[{stli_header.tag_id}] {stli_header.name}")
         for i, s in enumerate(stli_text.split(b'\r')):
             if index in [None, i]:
-                print(f"{i:>3} {utils.decode_string(s)}")
+                print(f"{i:>3} {codec.decode_string(s)}")
     except UnicodeDecodeError as e:
         raise ValueError(f"Error processing binary data: {e}")
 

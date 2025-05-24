@@ -3,18 +3,17 @@ import enum
 import os
 import struct
 
+import codec
 import myth_headers
-import utils
 
 DEBUG_COLL = (os.environ.get('DEBUG_COLL') == '1')
 
-ANGLE_SF = (0xffff / 360)
 FIXED_SF = 1 << 16
 
 ColorFmt = ('Color', [
-    ('H', 'r', (FIXED_SF - 1)),
-    ('H', 'g', (FIXED_SF - 1)),
-    ('H', 'b', (FIXED_SF - 1)),
+    ('H', 'r', codec.ShortPercent),
+    ('H', 'g', codec.ShortPercent),
+    ('H', 'b', codec.ShortPercent),
     ('H', 'flags'),
 ])
 
@@ -22,7 +21,7 @@ CollectionRefFmt = ('CollectionRef', [
     ('4s', 'collection_tag'),
     ('H', 'number_of_permutations'),
     ('H', 'tint_fraction'),
-    ('320s', 'colors', lambda colors: [utils.list_codec(8, ColorFmt)(colors) for i in range(5)]),
+    ('320s', 'colors', lambda colors: [codec.list_codec(8, ColorFmt)(colors) for i in range(5)]),
     ('8s', 'tint', ColorFmt),
     ('36x', None),
     ('2x', None),
@@ -49,7 +48,7 @@ class D256RefFlags(enum.Flag):
     UNMIRROR = enum.auto()
 
 D256RefFmt = ('D256Ref', [
-    ('64s', 'name', utils.StringCodec),
+    ('64s', 'name', codec.String),
     ('L', 'offset'),
     ('L', 'size'),
     ('8x', None),
@@ -68,12 +67,12 @@ D256RefFmt = ('D256Ref', [
 ])
 
 HueChangeFmt = ('HueChange', [
-    ('64s', 'name', utils.StringCodec),
-    ('H', 'hue0', ANGLE_SF),
-    ('H', 'hue1', ANGLE_SF),
-    ('32s', 'colors_effected', utils.list_pack('HueChangeColors', 32, '>B')),
-    ('H', 'minimum_saturation', FIXED_SF),
-    ('H', 'median_hue', ANGLE_SF),
+    ('64s', 'name', codec.String),
+    ('H', 'hue0', codec.Angle),
+    ('H', 'hue1', codec.Angle),
+    ('32s', 'colors_effected', codec.list_pack('HueChangeColors', 32, '>B')),
+    ('H', 'minimum_saturation', codec.Fixed),
+    ('H', 'median_hue', codec.Angle),
     ('H', 'flags'),
     ('6x', None),
     ('16x', None),
@@ -180,7 +179,7 @@ def parse_color_table(data, coll_header):
         print(f'color table {ct_count}')
     
     color_table = []
-    for cc, (r, g, b, cc_flags) in enumerate(utils.iter_unpack(
+    for cc, (r, g, b, cc_flags) in enumerate(codec.iter_unpack(
         color_table_head_end, ct_count,
         '>Bx Bx Bx H', color_table_data
     )):
@@ -203,23 +202,23 @@ class InstanceFlags(enum.Flag):
 BitmapInstanceFmt = ('BitmapInstance', [
     ('L', 'flags', InstanceFlags),
     ('8x', None),
-    ('H', 'reg_point_x'),
-    ('H', 'reg_point_y'),
+    ('h', 'reg_point_x'),
+    ('h', 'reg_point_y'),
     ('8x', None),
-    ('H', 'key_point_x'),
-    ('H', 'key_point_y'),
+    ('h', 'key_point_x'),
+    ('h', 'key_point_y'),
     ('h', 'bitmap_index'),
-    ('H', 'highres_bitmap_index'),
-    ('l', 'highres_pixels_to_world'),
-    ('H', 'highres_reg_point_x'),
-    ('H', 'highres_reg_point_y'),
+    ('h', 'highres_bitmap_index'),
+    ('l', 'highres_pixels_to_world', codec.Fixed),
+    ('h', 'highres_reg_point_x'),
+    ('h', 'highres_reg_point_y'),
     ('8x', None),
     ('16x', None),
 ])
 
 def parse_bitmap_instance(data, coll_header):
     bitmap_instance_start = coll_header.data_offset + coll_header.bitmap_instances_offset
-    return utils.list_codec(
+    return codec.list_codec(
         coll_header.bitmap_instance_count,
         BitmapInstanceFmt
     )(data, offset=bitmap_instance_start)
@@ -232,31 +231,31 @@ class SequenceFlags(enum.Flag):
 
 SequenceDataFmt = ('SequenceData', [
     ('L', 'flags', SequenceFlags),
-    ('l', 'pixels_to_world', FIXED_SF),
+    ('l', 'pixels_to_world', codec.Fixed),
     ('h', 'number_of_views'),
     ('h', 'frames_per_view'),
     ('h', 'ticks_per_frame'),
     ('h', 'key_frame'),
     ('h', 'loop_frame'),
-    ('h', 'sound_index_first'),
-    ('h', 'sound_index_key'),
-    ('h', 'sound_index_last'),
+    ('2x', None), # runtime: sound_index_first
+    ('2x', None), # runtime: sound_index_key
+    ('2x', None), # runtime: sound_index_last
     ('4s', 'sound_tag_first'),
     ('4s', 'sound_tag_key'),
     ('4s', 'sound_tag_last'),
     ('h', 'transfer_mode'),
     ('h', 'transfer_period'),
-    ('l', 'radius', FIXED_SF),
-    ('l', 'height0', FIXED_SF),
-    ('l', 'height1', FIXED_SF),
-    ('h', 'world_radius'),
-    ('h', 'world_height0'),
-    ('h', 'world_height1'),
+    ('l', 'radius', codec.Fixed),
+    ('l', 'height0', codec.Fixed),
+    ('l', 'height1', codec.Fixed),
+    ('2x', None), # runtime: world_radius
+    ('2x', None), # runtime: world_height0
+    ('2x', None), # runtime: world_height1
     ('6x', None),
 ])
 
 SequenceRefFmt = ('SequenceRef', [
-    ('64s', 'name', utils.StringCodec),
+    ('64s', 'name', codec.String),
     ('I', 'offset'),
     ('I', 'size'),
     ('56x', None),
@@ -264,9 +263,9 @@ SequenceRefFmt = ('SequenceRef', [
 
 SequenceFrameFmt = ('SequenceFrame', [
     ('h', 'shadow_map_index'),
-    ('H', 'key_point_x'),
-    ('H', 'key_point_y'),
-    ('H', 'key_point_z'),
+    ('h', 'key_point_x'),
+    ('h', 'key_point_y'),
+    ('h', 'key_point_z'),
     ('38x', None),
 ])
 
@@ -274,22 +273,22 @@ def parse_sequences(data, coll_header):
     sequences = []
     if coll_header.sequence_reference_count:
         sequence_reference_start = coll_header.data_offset + coll_header.sequence_references_offset
-        for i, seq_ref in enumerate(utils.list_codec(
+        for i, seq_ref in enumerate(codec.list_codec(
             coll_header.sequence_reference_count,
             SequenceRefFmt
         )(data, offset=sequence_reference_start)):
             seq_start = coll_header.data_offset + seq_ref.offset
             seq_end = seq_start + SEQ_DATA_SIZE
-            seq_data = utils.codec(SequenceDataFmt)(data, offset=seq_start)
+            seq_data = codec.codec(SequenceDataFmt)(data, offset=seq_start)
 
             view_length = seq_data.number_of_views * 2
             frames = []
 
             frame_start = seq_end
             for frame_i in range(seq_data.frames_per_view):
-                frame = utils.codec(SequenceFrameFmt)(data, offset=frame_start)
+                frame = codec.codec(SequenceFrameFmt)(data, offset=frame_start)
                 view_start = frame_start + frame._item_def_size
-                views = utils.list_pack('SequenceView', seq_data.number_of_views, '>h', offset=view_start)(data)
+                views = codec.list_pack('SequenceView', seq_data.number_of_views, '>h', offset=view_start)(data)
 
                 frames.append((frame, views))
 
@@ -308,7 +307,7 @@ def parse_sequences(data, coll_header):
     return sequences
 
 BitmapReferenceFmt = ('BitmapReference', [
-    ('64s', 'name', utils.StringCodec),
+    ('64s', 'name', codec.String),
     ('I', 'offset'),
     ('I', 'size'),
     ('H', 'data_1'),
@@ -322,7 +321,7 @@ BitmapReferenceFmt = ('BitmapReference', [
 def parse_bitmaps(data, coll_header, color_table):
     bitmaps = []
     bitmap_reference_start = coll_header.data_offset + coll_header.bitmap_references_offset
-    for i, bitref in enumerate(utils.iter_decode(
+    for i, bitref in enumerate(codec.iter_decode(
         bitmap_reference_start, coll_header.bitmap_reference_count,
         BitmapReferenceFmt, data
     )):
@@ -357,7 +356,7 @@ logical_bit_depth: {bitdata.logical_bit_depth}
             bitmaps.append((bitref.name, bitdata.width, bitdata.height, rows))
     return bitmaps
 
-class ShadowMapFlags(enum.Flag):
+class ShadowMapFlags(enum.Flag, boundary=enum.CONFORM):
     IS_LIGHT_MAP = enum.auto() # changes application function
     MIRROR_HORIZONTAL = enum.auto()
     MIRROR_VERTICAL = enum.auto()
@@ -373,7 +372,7 @@ ShadowMapFmt = ('ShadowMap', [
 
 def parse_shadow_maps(data, coll_header):
     shadow_map_start = coll_header.data_offset + coll_header.shadow_maps_offset
-    return utils.list_codec(
+    return codec.list_codec(
         coll_header.shadow_map_count,
         ShadowMapFmt
     )(data, offset=shadow_map_start)
@@ -426,7 +425,7 @@ def parse_bitmap_data(total_size, start, data):
     meta_end = start + BITMAP_META_SIZE
     bitmap_data_end = start + total_size
 
-    bitmap_meta = utils.codec(BitmapMetaFmt)(data, offset=start)
+    bitmap_meta = codec.codec(BitmapMetaFmt)(data, offset=start)
 
     if BitmapFlags.NO_ROW_ADDRESS_TABLE in bitmap_meta.flags:
         bitmap_data = data[meta_end:bitmap_data_end]
@@ -510,7 +509,7 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
             print(row_i, num_spans, num_pixels, width)
             return
         spans = []
-        for span in utils.iter_unpack(
+        for span in codec.iter_unpack(
             span_start, num_spans,
             '>H H', bitmap_data
         ):
@@ -580,7 +579,7 @@ def is_opaque(s):
 def decode_bitmap_32(bitmap_data, width, height):
     pixel_count = width * height
     pixels = []
-    for (b, g, r, a) in utils.iter_unpack(
+    for (b, g, r, a) in codec.iter_unpack(
         0, pixel_count,
         ">B B B B", bitmap_data
     ):
@@ -655,7 +654,7 @@ def decode_bitmap_64(bitmap_data, width, height):
         rows.append(row)
     return rows
 
-def parse_d256_header(data, tag_header):
+def parse_d256_header(data):
     return myth_headers.parse_tag(D256HeadFmt, data)
 
 def parse_d256_bitmaps(data, head):
@@ -665,7 +664,7 @@ def parse_d256_bitmaps(data, head):
     total_ref_data = data[total_ref_start:total_ref_end]
 
     ret = []
-    for ref in utils.iter_decode(
+    for ref in codec.iter_decode(
         0, head.ref_count,
         D256RefFmt, total_ref_data
     ):
@@ -689,7 +688,7 @@ def parse_d256_hues(data, head):
     total_hue_data = data[total_hue_start:total_hue_end]
 
     hues = []
-    for hue_change in utils.iter_decode(
+    for hue_change in codec.iter_decode(
         0, head.hue_change_count,
         HueChangeFmt, total_hue_data
     ):
@@ -702,9 +701,3 @@ def parse_d256_hues(data, head):
             )
             print(hue_change.colors_effected)
     return hues
-
-def parse_d256(data):
-    tag_header = myth_headers.parse_header(data)
-    head = parse_d256_header(data, tag_header)
-    parse_d256_bitmaps(data, head)
-    parse_d256_hues(data, head)

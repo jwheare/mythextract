@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 
+import codec
 import myth_headers
 import myth_collection
 import mesh_tag
@@ -145,12 +146,12 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
         cutscene_tag_pregame = mesh_header.cutscene_tag_pregame
     else:
         cutscene_tag_pregame = mesh_header.cutscene_file_pregame
-    cutscenes = cutscenes2paths((None, utils.decode_string(cutscene_tag_pregame)), cutscene_paths)
+    cutscenes = cutscenes2paths((None, codec.decode_string(cutscene_tag_pregame)), cutscene_paths)
 
     next_level = None
-    next_entry_data = loadtags.get_tag_data(tags, data_map, 'mesh', utils.decode_string(mesh_header.next_mesh_alternate))
+    next_entry_data = loadtags.get_tag_data(tags, data_map, 'mesh', codec.decode_string(mesh_header.next_mesh_alternate))
     if not next_entry_data or not mesh_tag.has_single_player_story(game_version, next_entry_data):
-        next_entry_data = loadtags.get_tag_data(tags, data_map, 'mesh', utils.decode_string(mesh_header.next_mesh))
+        next_entry_data = loadtags.get_tag_data(tags, data_map, 'mesh', codec.decode_string(mesh_header.next_mesh))
     if next_entry_data and mesh_tag.has_single_player_story(game_version, next_entry_data):
         next_header = myth_headers.parse_header(next_entry_data)
         next_level = next_header.name.split(' ')[0]
@@ -159,31 +160,31 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
 
     # Extract narration text
     storyline_data = loadtags.get_tag_data(
-        tags, data_map, 'text', utils.decode_string(mesh_header.pregame_storyline_tag)
+        tags, data_map, 'text', codec.decode_string(mesh_header.pregame_storyline_tag)
     )
 
     # Extract sound data
     sound_data = loadtags.get_tag_data(
-        tags, data_map, 'soun', utils.decode_string(mesh_header.narration_sound_tag)
+        tags, data_map, 'soun', codec.decode_string(mesh_header.narration_sound_tag)
     )
     initial_delay = 5000
     scroll_rate = 10
 
     # Extract level name
     desc_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', utils.decode_string(mesh_header.map_description_string_list_tag)
+        tags, data_map, 'stli', codec.decode_string(mesh_header.map_description_string_list_tag)
     )
     (_, desc_text) = myth_headers.parse_text_tag(desc_data)
-    level_name = utils.decode_string(desc_text.split(b'\r')[0])
+    level_name = codec.decode_string(desc_text.split(b'\r')[0])
 
     # Extract pregame captions
     caption_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', utils.decode_string(mesh_header.picture_caption_string_list_tag)
+        tags, data_map, 'stli', codec.decode_string(mesh_header.picture_caption_string_list_tag)
     )
     
     # Extract pregame art
     pregame_data = loadtags.get_tag_data(
-        tags, data_map, '.256', utils.decode_string(mesh_header.pregame_collection_tag)
+        tags, data_map, '.256', codec.decode_string(mesh_header.pregame_collection_tag)
     )
     pregame_list = []
     map_dict = {}
@@ -193,7 +194,7 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
 
     # Extract postgame art
     postgame_data = loadtags.get_tag_data(
-        tags, data_map, '.256', utils.decode_string(mesh_header.postgame_collection_tag)
+        tags, data_map, '.256', codec.decode_string(mesh_header.postgame_collection_tag)
     )
     postgame_dict = {}
     if postgame_data:
@@ -240,7 +241,7 @@ def output_html(
     caption = ''
     if caption_data:
         (_, caption_text) = myth_headers.parse_text_tag(caption_data)
-        caption = utils.decode_string(caption_text.split(b'\r')[0])
+        caption = codec.decode_string(caption_text.split(b'\r')[0])
 
     output_dir = '../output/archive/'
     root_path = pathlib.Path(sys.path[0], output_dir).resolve()

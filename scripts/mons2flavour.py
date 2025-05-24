@@ -4,6 +4,7 @@ import pathlib
 import struct
 import sys
 
+import codec
 import loadtags
 import mesh_tag
 import mons_tag
@@ -44,7 +45,7 @@ def encode_flavour(tags, data_map, flavour_stli, flavour):
         tags, data_map, 'stli', flavour_stli
     )
 
-    flavour_data = utils.encode_string(flavour)
+    flavour_data = codec.encode_string(flavour)
     # Adjust tag header size
     new_tag_header = myth_headers.normalise_tag_header(
         stli_header, 
@@ -70,7 +71,7 @@ def generate_flavour(tags, data_map, input_mons_id):
             if unit['team_index'] == 0:
                 unit_data = loadtags.get_tag_data(tags, data_map, 'unit', unit['tag'])
                 unit_tag = mons_tag.parse_unit(unit_data)
-                yield get_flavour(tags, data_map, utils.decode_string(unit_tag.mons))
+                yield get_flavour(tags, data_map, codec.decode_string(unit_tag.mons))
     else:
         yield get_flavour(tags, data_map, input_mons_id)
 
