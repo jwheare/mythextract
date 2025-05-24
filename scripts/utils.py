@@ -182,6 +182,9 @@ class _ListPacker:
     def __repr__(self):
         return f'{self.__class__.__name__}({self.items})'
 
+    def __format__(self, format_spec):
+        return format(str(self.items), format_spec)
+
     @property
     def value(self):
         item_data = bytearray()
@@ -402,7 +405,7 @@ def list_codec(max_items, fmt, filter_fun=None, empty_value=None):
         fmt_codec = fmt
     else:
         fmt_codec = codec(fmt)
-    name = fmt_codec.__class__.__name__
+    name = fmt_codec._name
     attributes = {
         'MAX_ITEMS': max_items,
         'FILTER': filter_fun,

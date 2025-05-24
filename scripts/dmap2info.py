@@ -17,11 +17,11 @@ DmapHeader1Fmt = ('DmapHeader1', [
     ('x', None,),
     ('512s', 'dtex_ids', utils.list_pack(
         'DmapDtexIds', MAX_DTEX_TAGS_PER_DMAP, '>4s',
-        filter_fun=lambda t: not utils.all_on(t)
+        filter_fun=lambda _self, t: not utils.all_on(t)
     )),
     ('128s', 'scales', utils.list_pack(
         'DmapScales', MAX_DTEX_TAGS_PER_DMAP, '>B',
-        filter_fun=lambda t: not utils.all_on(t)
+        filter_fun=lambda _self, t: not utils.all_on(t)
     )), # pixels per cell
 ])
 
