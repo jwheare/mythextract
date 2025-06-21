@@ -21,6 +21,7 @@ COUNTS = os.environ.get('COUNTS')
 GAME_TYPE = os.environ.get('GAME_TYPE')
 STATS = os.environ.get('STATS')
 TIME = os.environ.get('TIME')
+DIFFICULTY = int(os.environ.get('DIFFICULTY', 2))
 
 NetgameNames = OrderedDict({
     'bc': 'Body Count',
@@ -129,16 +130,17 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
                     visible_count = 0
                     invisible_count = 0
                     for marker_id, marker in unit['markers'].items():
-                        if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
-                            invisible_count += 1
-                        else:
-                            visible_count += 1
-                        is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
-                        game_type_units[netgame][team][tag_id]['target'] = is_target
-                        if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
-                            has_stampede_targets = True
-                        if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
-                            has_assassin_target = True
+                        if marker['min_difficulty'] <= DIFFICULTY:
+                            if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
+                                invisible_count += 1
+                            else:
+                                visible_count += 1
+                            is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
+                            game_type_units[netgame][team][tag_id]['target'] = is_target
+                            if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
+                                has_stampede_targets = True
+                            if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
+                                has_assassin_target = True
                     game_type_units[netgame][team][tag_id]['count'] += visible_count
                     game_type_units[netgame][team][tag_id]['max'] += visible_count + invisible_count
 
@@ -182,7 +184,8 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
     if TIME:
         game_time = f' - {TIME} mins'
 
-    print(f"\n---\n\n{game_type}: {level_name} ({mesh_size}){game_time}\n")
+    difficulty = mesh_tag.difficulty(DIFFICULTY)
+    print(f"\n---\n\n{game_type}: {level_name} [{difficulty}] ({mesh_size}){game_time}\n")
 
     mismatch = False
     for team_id, (total, diffs, trade) in trades.items():
