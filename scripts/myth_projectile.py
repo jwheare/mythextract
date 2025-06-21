@@ -107,8 +107,8 @@ class DamageFlags(enum.Flag):
 ProjDmgFmt = ('ProjDmg', [
     ('h', 'type', DamageType),
     ('H', 'flags', DamageFlags),
-    ('h', 'damage_lower_bound', codec.Fixed),
-    ('h', 'damage_delta', codec.fixed_delta('damage_lower_bound')),
+    ('h', 'damage_lower_bound', codec.ShortFixed),
+    ('h', 'damage_delta', codec.short_fixed_delta('damage_lower_bound')),
     ('h', 'radius_lower_bound', codec.World),
     ('h', 'radius_delta', codec.world_delta('radius_lower_bound')),
     ('h', 'rate_of_expansion', codec.World),
