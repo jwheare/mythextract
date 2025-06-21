@@ -78,9 +78,21 @@ HueChangeFmt = ('HueChange', [
     ('16x', None),
 ])
 
+class UserDataFlags(enum.Flag):
+    CAN_BE_USED_FOR_TEXTURES = enum.auto()
+    CAN_BE_USED_FOR_MONSTERS = enum.auto()
+    CAN_BE_USED_FOR_PROJECTILES = enum.auto()
+    CAN_BE_USED_FOR_SCENERY = enum.auto()
+    CAN_BE_USED_FOR_ATMOSPHERIC_EFFECT = enum.auto()
+    CAN_BE_USED_FOR_INTERFACE = enum.auto()
+    CAN_BE_USED_FOR_UNKNOWN3 = enum.auto()
+    CAN_BE_USED_FOR_UNKNOWN4 = enum.auto()
+
+    IS_COLOR_MAP = enum.auto()
+
 Header256Fmt = ("Header256", [
     ('I', 'flags'),
-    ('I', 'user_data'),
+    ('I', 'user_data', UserDataFlags),
     ('56x', None),
     ('I', 'color_table_count'),
     ('I', 'color_tables_offset'),
