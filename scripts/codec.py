@@ -246,7 +246,9 @@ class _Codec:
 
     def __init__(self, item_data=None, values=None, offset=0):
         end = offset + self._item_def_size
-        self._original_data = item_data[offset:end]
+        self._original_data = None
+        if item_data:
+            self._original_data = item_data[offset:end]
         if self._original_data:
             values = struct.unpack(self._fmt_string, self._original_data)
         if values:
@@ -467,6 +469,89 @@ class Simple:
 
     def __format__(self, format_spec):
         return format(str(self), format_spec)
+
+    # Comparison operators
+    def __eq__(self, other):
+        return self.decode() == self._unwrap(other)
+
+    def __lt__(self, other):
+        return self.decode() < self._unwrap(other)
+
+    def __le__(self, other):
+        return self.decode() <= self._unwrap(other)
+
+    def __gt__(self, other):
+        return self.decode() > self._unwrap(other)
+
+    def __ge__(self, other):
+        return self.decode() >= self._unwrap(other)
+
+    # Arithmetic operators
+    def __add__(self, other):
+        return self.decode() + self._unwrap(other)
+
+    def __sub__(self, other):
+        return self.decode() - self._unwrap(other)
+
+    def __mul__(self, other):
+        return self.decode() * self._unwrap(other)
+
+    def __truediv__(self, other):
+        return self.decode() / self._unwrap(other)
+
+    def __floordiv__(self, other):
+        return self.decode() // self._unwrap(other)
+
+    def __mod__(self, other):
+        return self.decode() % self._unwrap(other)
+
+    def __pow__(self, other):
+        return self.decode() ** self._unwrap(other)
+
+    # Reverse operations (when this class is on the right side)
+    def __radd__(self, other):
+        return self._unwrap(other) + self.decode()
+
+    def __rsub__(self, other):
+        return self._unwrap(other) - self.decode()
+
+    def __rmul__(self, other):
+        return self._unwrap(other) * self.decode()
+
+    def __rtruediv__(self, other):
+        return self._unwrap(other) / self.decode()
+
+    def __rfloordiv__(self, other):
+        return self._unwrap(other) // self.decode()
+
+    def __rmod__(self, other):
+        return self._unwrap(other) % self.decode()
+
+    def __rpow__(self, other):
+        return self._unwrap(other) ** self.decode()
+
+    # Unary operations
+    def __neg__(self):
+        return -self.decode()
+
+    def __pos__(self):
+        return +self.decode()
+
+    def __abs__(self):
+        return abs(self.decode())
+
+    def __float__(self):
+        return float(self.decode())
+
+    def __int__(self):
+        return int(self.decode())
+
+    def __round__(self, *args):
+        return round(self.decode(), *args)
+
+    # Utility to extract value from other
+    def _unwrap(self, other):
+        return other.decode() if isinstance(other, Simple) else other
 
     @property
     def value(self):
