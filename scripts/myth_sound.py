@@ -111,24 +111,25 @@ def parse_soun_tag(data):
     )):
         permutation_sound_length = p_meta.num_sample_frames * IMA4_BYTES_PER_FRAME
         permutation_sound_end = sound_data_offset + permutation_sound_length
-        perm_sound_data = sound_data[sound_data_offset:permutation_sound_end]
+        
+        if p_meta.num_channels:
+            perm_sound_data = sound_data[sound_data_offset:permutation_sound_end]
+            duration = (
+                (IMA_COMPRESSION_RATIO * p_meta.sample_size * p_meta.num_sample_frames) /
+                (p_meta.num_channels * p_meta.sample_rate)
+            )
 
-        duration = (
-            (IMA_COMPRESSION_RATIO * p_meta.sample_size * p_meta.num_sample_frames) /
-            (p_meta.num_channels * p_meta.sample_rate)
-        )
-
-        permutation = {
-            'desc': p_descs[i],
-            'num_channels': p_meta.num_channels,
-            'sample_size': p_meta.sample_size,
-            'sample_rate': p_meta.sample_rate,
-            'num_sample_frames': p_meta.num_sample_frames,
-            'size': permutation_sound_length,
-            'duration': duration,
-            'sound_data': perm_sound_data
-        }
-        permutations.append(permutation)
+            permutation = {
+                'desc': p_descs[i],
+                'num_channels': p_meta.num_channels,
+                'sample_size': p_meta.sample_size,
+                'sample_rate': p_meta.sample_rate,
+                'num_sample_frames': p_meta.num_sample_frames,
+                'size': permutation_sound_length,
+                'duration': duration,
+                'sound_data': perm_sound_data
+            }
+            permutations.append(permutation)
 
         sound_data_offset = permutation_sound_end
         total_sample_frames = total_sample_frames + p_meta.num_sample_frames
