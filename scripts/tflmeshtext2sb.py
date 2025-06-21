@@ -3,7 +3,6 @@ import os
 import pathlib
 import struct
 import sys
-import time
 
 import codec
 import myth_headers
@@ -13,7 +12,6 @@ import loadtags
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-TIME = (os.environ.get('TIME') == '1')
 
 TFLTagMap = {
     '01': (('30cb', '301 crows bridge'), ('30cc', '301 crows bridge'), ('30cb', '301 captions')),
@@ -42,13 +40,6 @@ TFLTagMap = {
     '24': (('24tl', '324 the last battle'), ('24t3', '325 trow 3'), ('32ce', '324 captions')),
     '25': (('25tg', '325 the great devoid'), ('25tg', '325 great devoid'), ('32cf', '325 captions')),
 }
-
-def load_file(path):
-    t = time.perf_counter()
-    data = utils.load_file(path)
-    TIME and print(path, f'{(time.perf_counter() - t):.3f}')
-
-    return data
 
 def main(game_directory, level):
     """

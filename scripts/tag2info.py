@@ -40,6 +40,7 @@ def print_tag_obj(tag_obj):
 def print_tag_info(tag_data):
     tag_header = myth_headers.parse_header(tag_data)
     print(tag_header)
+    print(f'data size: {len(tag_data)}')
     match tag_header.tag_type:
         case 'mesh':
             print_tag_obj(mesh_tag.parse_header(tag_data))
