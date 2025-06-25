@@ -391,11 +391,16 @@ def list_codec(max_items, fmt, filter_fun=None, empty_value=None):
 
     return type(f'{name}List', (_ListCodec,), attributes)
 
+_CODEC_CACHE = {}
+
 def codec(fmt):
+    (name, field_format) = fmt
+    if name in _CODEC_CACHE:
+        return _CODEC_CACHE[name]
     (name, fmt_string, decoders, encoders, fields) = _data_format(fmt)
     nt = namedtuple(name, fields)
 
-    return type(fmt[0], (_Codec,), {
+    _CODEC_CACHE[name] = type(name, (_Codec,), {
         '_DefFmt': fmt,
 
         '_fmt_string': fmt_string,
@@ -407,6 +412,7 @@ def codec(fmt):
 
         '_item_def_size': struct.calcsize(fmt_string),
     })
+    return _CODEC_CACHE[name]
 
 def decode_data(data_format, data, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
