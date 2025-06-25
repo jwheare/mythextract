@@ -395,12 +395,14 @@ _CODEC_CACHE = {}
 
 def codec(fmt):
     (name, field_format) = fmt
-    if name in _CODEC_CACHE:
-        return _CODEC_CACHE[name]
+    field_names = tuple(t[1] for t in field_format)
+    cache_key = (name, field_names)
+    if cache_key in _CODEC_CACHE:
+        return _CODEC_CACHE[cache_key]
     (name, fmt_string, decoders, encoders, fields) = _data_format(fmt)
     nt = namedtuple(name, fields)
 
-    _CODEC_CACHE[name] = type(name, (_Codec,), {
+    _CODEC_CACHE[cache_key] = type(name, (_Codec,), {
         '_DefFmt': fmt,
 
         '_fmt_string': fmt_string,
@@ -412,7 +414,7 @@ def codec(fmt):
 
         '_item_def_size': struct.calcsize(fmt_string),
     })
-    return _CODEC_CACHE[name]
+    return _CODEC_CACHE[cache_key]
 
 def decode_data(data_format, data, offset=0):
     (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
