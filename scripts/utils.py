@@ -54,10 +54,13 @@ def cap_title(string):
     return ' '.join([w.title() for w in string.split('_')])
 
 def ansi_format(text):
-    italic = re.sub(r'[\|]i', '\x1b[3m', text)
-    bold = re.sub(r'[\|]b', '\x1b[1m', italic)
-    plain = re.sub(r'[\|]p', '\x1b[0m', bold)
+    italic = re.sub(r'[\|]i', '\x1b[3m', str(text), flags=re.IGNORECASE)
+    bold = re.sub(r'[\|]b', '\x1b[1m', italic, flags=re.IGNORECASE)
+    plain = re.sub(r'[\|]p', '\x1b[0m', bold, flags=re.IGNORECASE)
     return f'{plain}\x1b[0m'
+
+def strip_format(text):
+    return re.sub(r'[\|][ibp]', '', str(text), flags=re.IGNORECASE)
 
 def decode_string(s):
     return codec.decode_string(s)
