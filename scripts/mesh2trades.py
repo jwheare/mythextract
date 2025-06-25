@@ -48,16 +48,29 @@ def main(game_directory, level, plugin_names):
     """
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
+    counts = []
+    if COUNTS:
+        counts = [int(c) for c in COUNTS.split(',')]
     try:
         if level:
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                parse_mesh_trades(game_version, tags, data_map, mesh_id)
+                (game_type, units, diffs, max_points) = parse_mesh_trades(
+                    game_version, tags, data_map, mesh_id,
+                    DIFFICULTY, GAME_TYPE, TIME, counts
+                )
+
+                if not NO_TRADING:
+                    input_loop(game_type, units, diffs, max_points)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_mesh_trades(game_version, tags, data_map, mesh_id):
+def parse_mesh_trades(
+    game_version, tags, data_map, mesh_id,
+    difficulty, game_type_choice, game_time,
+    counts, team_choice=None
+):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
     try:
         mesh_header = mesh_tag.parse_header(mesh_tag_data)
@@ -71,12 +84,10 @@ def parse_mesh_trades(game_version, tags, data_map, mesh_id):
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
     
-    level_name = get_level_name(mesh_header, tags, data_map)
-    mesh_size = mesh_tag.mesh_size(mesh_header)
-    (game_type, units, diffs, max_points) = parse_game_teams(tags, data_map, palette, level_name, mesh_size)
-
-    if not NO_TRADING:
-        input_loop(game_type, units, diffs, max_points)
+    return parse_game_teams(
+        tags, data_map, palette, mesh_header,
+        difficulty, game_type_choice, game_time, counts, team_choice
+    )
 
 def get_level_name(mesh_header, tags, data_map):
     level_name_data = loadtags.get_tag_data(
@@ -88,17 +99,25 @@ def get_level_name(mesh_header, tags, data_map):
     return utils.ansi_format(codec.decode_string(level_name_text.split(b'\r')[0]))
 
 def sort_units(units):
-    return sorted(units, key=lambda k: (not k['tradeable'], k['spellings']))
+    return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index']), reverse=True)
 
-def set_initial_counts(units):
-    if COUNTS:
-        counts = COUNTS.split(',')
-        for i, u in enumerate(units):
+def set_initial_counts(units, counts):
+    new_units = []
+    for i, u in enumerate(units):
+        if u['max'] > 0 and u['tradeable']:
             if i < len(counts):
-                u['count'] = int(counts[i])
-    return units
+                u['count'] = counts[i]
+        new_units.append(u)
+    return new_units
 
-def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
+def parse_game_teams(
+    tags, data_map, palette, mesh_header,
+    difficulty, game_type_choice, game_time,
+    counts, team_choice=None
+):
+    level_name = get_level_name(mesh_header, tags, data_map)
+    mesh_size = mesh_tag.mesh_size(mesh_header)
+
     game_type_units = OrderedDict()
     has_stampede_targets = False
     has_assassin_target = False
@@ -121,7 +140,7 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
                     game_type_units[netgame][team] = OrderedDict()
                 if tag_id not in game_type_units[netgame][team]:
                     game_type_units[netgame][team][tag_id] = mons_dict | {
-                        'team': unit['team_index'],
+                        'team': team,
                         'count': 0,
                         'max': 0,
                         'target': False,
@@ -130,7 +149,7 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
                     visible_count = 0
                     invisible_count = 0
                     for marker_id, marker in unit['markers'].items():
-                        if marker['min_difficulty'] <= DIFFICULTY:
+                        if marker['min_difficulty'] <= difficulty:
                             if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
                                 invisible_count += 1
                             else:
@@ -143,6 +162,7 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
                                 has_assassin_target = True
                     game_type_units[netgame][team][tag_id]['count'] += visible_count
                     game_type_units[netgame][team][tag_id]['max'] += visible_count + invisible_count
+                    game_type_units[netgame][team][tag_id]['palette_index'] = marker['palette_index']
 
     if 'all' in game_type_units:
         included_game_types = list(mesh_tag.NetgameFlagInfo.values())
@@ -154,15 +174,13 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
         included_game_types = list(game_type_units.keys())
     included_game_types.sort()
 
-    game_type_nums = [
-        f'{i+1:>2}) {NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
-    ]
-
-    game_type_choice = GAME_TYPE
     if game_type_choice not in included_game_types:
         game_type_choice = None
 
     if not game_type_choice:
+        game_type_nums = [
+            f'{i+1:>2}) {NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
+        ]
         print(f"\n{level_name}\n")
         game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
         game_type_choice = included_game_types[game_type_choice_i-1]
@@ -174,39 +192,40 @@ def parse_game_teams(tags, data_map, palette, level_name, mesh_size):
         merged_units = units
         if team in shared_units:
             merged_units = shared_units[team] | merged_units
-        trades[team] = team_trade_parts(game_type_choice, set_initial_counts(sort_units(
-            list(merged_units.values())
-        )))
+        trades[team] = team_trade_parts(game_type_choice, set_initial_counts(
+            sort_units(list(merged_units.values())), counts
+        ))
+
+    game_time_mins = ''
+    if game_time:
+        game_time_mins = f' - {game_time} mins'
 
     game_type = NetgameNames[game_type_choice]
+    difficulty_level = mesh_tag.difficulty(difficulty)
+    print(f"\n---\n\n[{team_choice}] {game_type}: {level_name} [{difficulty_level}] ({mesh_size}){game_time_mins}\n")
 
-    game_time = ''
-    if TIME:
-        game_time = f' - {TIME} mins'
-
-    difficulty = mesh_tag.difficulty(DIFFICULTY)
-    print(f"\n---\n\n{game_type}: {level_name} [{difficulty}] ({mesh_size}){game_time}\n")
-
-    mismatch = False
-    for team_id, (total, diffs, trade) in trades.items():
-        if trade != trades[0][2]:
-            mismatch = True
-            print('- Assymetric teams -')
-            break
-    if mismatch:
+    if team_choice is None:
+        mismatch = False
         for team_id, (total, diffs, trade) in trades.items():
-            print(f"\nTeam {team_id}")
-            print('\n'.join(trade))
-        team_choice = int(input("\nChoose team: ").strip().lower())
-    else:
-        team_choice = 0
-        print('\n'.join(trades[team_choice][2]))
+            if trade != trades[0][2]:
+                mismatch = True
+                break
+        if mismatch:
+            print('- Assymetric teams -')
+            for team_id, (total, diffs, trade) in trades.items():
+                print(f"\nTeam {team_id}")
+                print('\n'.join(trade))
+            team_choice = int(input("\nChoose team: ").strip().lower())
+        else:
+            team_choice = 0
+
+    print('\n'.join(trades[team_choice][2]))
     
     (max_points, diffs, trade) = trades[team_choice]
 
-    final_merged_units = teams[team]
+    final_merged_units = teams[team_choice]
     if team_choice in shared_units:
-        final_merged_units = shared_units[team_choice] | teams[team]
+        final_merged_units = shared_units[team_choice] | teams[team_choice]
     units = sort_units(
         list(final_merged_units.values())
     )
