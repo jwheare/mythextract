@@ -89,7 +89,7 @@ def prompt(prompt_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 fixentrypoints.py <mono_file> [<output_file>]")
+        print(f"Usage: python3 {sys.argv[0]} <mono_file> [<output_file>]")
         sys.exit(1)
     
     input_file = sys.argv[1]

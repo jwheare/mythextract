@@ -48,7 +48,7 @@ def parse_d256_tag(game_version, tags, data_map, d256_id):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 d256info.py <game_directory> [<tag_id> [<plugin_names> ...]]")
+        print(f"Usage: python3 {sys.argv[0]} <game_directory> [<tag_id> [<plugin_names> ...]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]

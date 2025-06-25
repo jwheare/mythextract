@@ -157,7 +157,7 @@ def parse_form_file(data, units):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 form2info.py <form_tag> [<num_units>]")
+        print(f"Usage: python3 {sys.argv[0]} <form_tag> [<num_units>]")
         sys.exit(1)
     
     form_tag = sys.argv[1]

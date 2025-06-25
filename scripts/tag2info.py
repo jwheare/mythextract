@@ -95,7 +95,7 @@ def print_tag_info(tag_data):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 tag2info.py <input_file>")
+        print(f"Usage: python3 {sys.argv[0]} <input_file>")
         sys.exit(1)
     
     input_file = sys.argv[1]

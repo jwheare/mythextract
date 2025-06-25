@@ -120,7 +120,7 @@ def parse_dmap_tag(data):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 dmap2info.py <dmap_tag>")
+        print(f"Usage: python3 {sys.argv[0]} <dmap_tag>")
         sys.exit(1)
     
     dmap_tag = sys.argv[1]

@@ -325,7 +325,7 @@ def graph_emoji(pfx, value, low, medium, suffix=''):
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        print("Usage: python3 mons2stats.py <game_directory> <mons_id> [<plugin_names> ...]")
+        print(f"Usage: python3 {sys.argv[0]} <game_directory> <mons_id> [<plugin_names> ...]")
         sys.exit(1)
     
     game_directory = sys.argv[1]

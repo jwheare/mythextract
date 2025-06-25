@@ -183,7 +183,7 @@ def prompt(prompt_path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 mono2tag.py <input_file> [<tag_type> <tag_id> [<output_file>]]")
+        print(f"Usage: python3 {sys.argv[0]} <input_file> [<tag_type> <tag_id> [<output_file>]]")
         sys.exit(1)
     
     input_file = sys.argv[1]

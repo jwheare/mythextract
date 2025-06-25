@@ -25,7 +25,7 @@ def main(tag_path, index):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 stli2text.py <input_file> [<index>]")
+        print(f"Usage: python3 {sys.argv[0]} <input_file> [<index>]")
         sys.exit(1)
     
     input_file = sys.argv[1]

@@ -103,7 +103,7 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 seqmeta.py <game_directory> [<tag_id> [<plugin_names> ...]]")
+        print(f"Usage: python3 {sys.argv[0]} <game_directory> [<tag_id> [<plugin_names> ...]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]

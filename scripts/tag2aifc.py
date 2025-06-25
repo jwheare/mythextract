@@ -55,7 +55,7 @@ def prompt(prompt_path, perm_count):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 tag2aifc.py <input_file> [<output_file>]")
+        print(f"Usage: python3 {sys.argv[0]} <input_file> [<output_file>]")
         sys.exit(1)
     
     input_file = sys.argv[1]

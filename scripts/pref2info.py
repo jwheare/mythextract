@@ -144,7 +144,7 @@ def parse_pref_file(data):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 pref2info.py <pref_file>")
+        print(f"Usage: python3 {sys.argv[0]} <pref_file>")
         sys.exit(1)
     
     pref_file = sys.argv[1]

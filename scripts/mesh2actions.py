@@ -84,7 +84,7 @@ def print_actions(actions, tag_header):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python3 mesh2actions.py <game_directory> [<level> [<plugin_names> ...]]")
+        print(f"Usage: python3 {sys.argv[0]} <game_directory> [<level> [<plugin_names> ...]]")
         sys.exit(1)
     
     game_directory = sys.argv[1]
