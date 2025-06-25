@@ -476,7 +476,7 @@ def parse_palette_entry(entry):
         'tag': codec.String(entry.marker_tag),
         'team_index': entry.team_index,
         'netgame_flags': entry.netgame_flags,
-        'markers': {},
+        'markers': OrderedDict(),
     }
 
 # Not scientific, could be tweaked
@@ -495,7 +495,7 @@ def parse_markers(mesh_header, data):
 
     palette = {}
     orphans = {
-        'markers': {},
+        'markers': OrderedDict(),
         'count': 0,
     }
     for entry in codec.iter_decode(
