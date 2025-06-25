@@ -103,9 +103,9 @@ def parse_pref_plugins(plugin_data, count1):
     next_chunk = plugin_data
     plugins = []
     for i in range(count1):
-        flags = next_chunk[:4]
+        checksum = next_chunk[:4]
         (name, url, next_chunk) = next_chunk[4:].split(b'\0', 2)
-        plugins.append((name, url, flags.hex()))
+        plugins.append((name, url, checksum.hex()))
     return plugins
 
 
