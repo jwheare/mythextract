@@ -274,7 +274,9 @@ def team_trade_parts(game_type, units, max_points=None):
     divider = []
     untradeable = []
     suffix = []
+    class_distribution = {}
     total = sum(u['cost']*u['count'] for u in units)
+    class_total = 0
     diff = 0
     diffs = []
     if max_points:
@@ -283,6 +285,12 @@ def team_trade_parts(game_type, units, max_points=None):
         if u['target'] and game_type in ['ass', 'stamp']:
             afford = 0
         elif u['tradeable']:
+            unit_class = utils.cap_title(u['class'].name)
+            if unit_class not in class_distribution:
+                class_distribution[unit_class] = 0
+            unit_value = u['count'] * u['cost']
+            class_total += unit_value
+            class_distribution[unit_class] += unit_value
             afford = diff // u['cost']
             diff_amount = '           '
             if afford > 0:
@@ -346,6 +354,18 @@ def team_trade_parts(game_type, units, max_points=None):
         total_points += f'/{total} \x1b[92mremaining: 0\x1b[0m'
 
     suffix.append(total_points)
+    suffix.append("")
+    suffix.append("Class distribution:")
+    class_graph = ''
+    class_key = ''
+    for i, unit_class in enumerate(sorted(class_distribution.keys())):
+        color = f"\x1b[9{i+4}m"
+        class_count = class_distribution[unit_class]
+        class_graph += f"{color}{round(class_count/3)*'◼︎'}\x1b[0m"
+        class_key += f'{color}◼︎\x1b[0m {unit_class} ({round(100*class_count/class_total)}%) '
+
+    suffix.append(class_graph)
+    suffix.append(class_key)
     suffix.append("")
     suffix.append("---")
     suffix.append("")
