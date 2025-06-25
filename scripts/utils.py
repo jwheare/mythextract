@@ -65,6 +65,9 @@ def strip_format(text):
 def decode_string(s):
     return codec.decode_string(s)
 
+def flag(flag_class):
+    return lambda index: flag_class(1 << index)
+
 TagTypes = {
     'amso': "Ambient Sounds",
     'arti': "Artifacts",
