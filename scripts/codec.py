@@ -177,10 +177,16 @@ class _ListCodec:
     # original_data
     # items
 
-    # TODO max_items constructor override?
     def __init__(self, item_data, offset=0):
-        data_end = offset + self.MAX_ITEMS * self.data_size()
-        self.original_data = item_data[offset:data_end]
+        if self.MAX_ITEMS is None:
+            self.original_data = item_data[offset:]
+            self.MAX_ITEMS = len(self.original_data) / self.data_size()
+            if not self.MAX_ITEMS.is_integer():
+                raise ValueError('Item data not divisible by format length')
+            self.MAX_ITEMS = round(self.MAX_ITEMS)
+        else:
+            data_end = offset + self.MAX_ITEMS * self.data_size()
+            self.original_data = item_data[offset:data_end]
         self.items = []
 
         start = 0
