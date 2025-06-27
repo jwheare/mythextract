@@ -12,7 +12,6 @@ import mons2stats
 import mono2tag
 import loadtags
 import mons_tag
-import myth_headers
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -22,25 +21,6 @@ GAME_TYPE = os.environ.get('GAME_TYPE')
 STATS = os.environ.get('STATS')
 TIME = os.environ.get('TIME')
 DIFFICULTY = int(os.environ.get('DIFFICULTY', 2))
-
-NetgameNames = OrderedDict({
-    'bc': 'Body Count',
-    'stb': 'Steal the Bacon',
-    'lmoth': 'Last Man on the Hill',
-    'scav': 'Scavenger Hunt',
-    'fr': 'Flag Rally',
-    'ctf': 'Capture the Flag',
-    'balls': 'Balls on Parade',
-    'terries': 'Territories',
-    'caps': 'Captures',
-    'koth': 'King of the Hill',
-    'stamp': 'Stampede',
-    'ass': 'Assassin',
-    'hunt': 'Hunting',
-    'custom': 'Custom',
-    'koth_tfl': 'King of the Hill (TFL)',
-    'kotm': 'King of the Map',
-})
 
 def main(game_directory, level, plugin_names):
     """
@@ -54,10 +34,12 @@ def main(game_directory, level, plugin_names):
     try:
         if level:
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                (game_type, units, diffs, max_points) = parse_mesh_trades(
+                (trade_info, units, game_type) = parse_mesh_trades(
                     game_version, tags, data_map, mesh_id,
                     DIFFICULTY, GAME_TYPE, TIME, counts
                 )
+
+                (max_points, diffs, trade) = trade_info
 
                 if not NO_TRADING:
                     input_loop(game_type, units, diffs, max_points)
@@ -83,41 +65,40 @@ def parse_mesh_trades(
         sys.exit(0)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    
-    return parse_game_teams(
+    level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
+
+    (trade_info, units, game_type) = parse_game_teams(
         tags, data_map, palette, mesh_header,
-        difficulty, game_type_choice, game_time, counts, team_choice
+        level_name, difficulty, game_type_choice, game_time,
+        counts, team_choice
     )
 
-def get_level_name(mesh_header, tags, data_map):
-    level_name_data = loadtags.get_tag_data(
-        tags, data_map, 'stli', codec.decode_string(
-            mesh_header.map_description_string_list_tag
-        )
-    )
-    (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    return utils.ansi_format(codec.decode_string(level_name_text.split(b'\r')[0]))
+    (max_points, diffs, trade) = trade_info
+    print_game_info(mesh_header, level_name, game_type, DIFFICULTY, TIME)
+    print('\n'.join(trade))
 
+    return (trade_info, units, game_type)
+
+def rekey_units(units):
+    return OrderedDict(
+        (v['palette_index'], v)
+        for v in sort_units(units.values())
+    )
 def sort_units(units):
     return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index']), reverse=True)
 
 def set_initial_counts(units, counts):
-    new_units = []
-    for i, u in enumerate(units):
+    for i, u in enumerate(units.values()):
         if u['max'] > 0 and u['tradeable']:
             if i < len(counts):
                 u['count'] = counts[i]
-        new_units.append(u)
-    return new_units
+    return units
 
 def parse_game_teams(
     tags, data_map, palette, mesh_header,
-    difficulty, game_type_choice, game_time,
+    level_name, difficulty, game_type_choice, game_time,
     counts, team_choice=None
 ):
-    level_name = get_level_name(mesh_header, tags, data_map)
-    mesh_size = mesh_tag.mesh_size(mesh_header)
-
     game_type_units = OrderedDict()
     has_stampede_targets = False
     has_assassin_target = False
@@ -179,7 +160,7 @@ def parse_game_teams(
 
     if not game_type_choice:
         game_type_nums = [
-            f'{i+1:>2}) {NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
+            f'{i+1:>2}) {mesh_tag.NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
         ]
         print(f"\n{level_name}\n")
         game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
@@ -192,17 +173,11 @@ def parse_game_teams(
         merged_units = units
         if team in shared_units:
             merged_units = shared_units[team] | merged_units
-        trades[team] = team_trade_parts(game_type_choice, set_initial_counts(
-            sort_units(list(merged_units.values())), counts
-        ))
-
-    game_time_mins = ''
-    if game_time:
-        game_time_mins = f' - {game_time} mins'
-
-    game_type = NetgameNames[game_type_choice]
-    difficulty_level = mesh_tag.difficulty(difficulty)
-    print(f"\n---\n\n[{team_choice}] {game_type}: {level_name} [{difficulty_level}] ({mesh_size}){game_time_mins}\n")
+        
+        counted_units = set_initial_counts(
+            rekey_units(merged_units), counts
+        )
+        trades[team] = team_trade_parts(game_type_choice, counted_units)
 
     if team_choice is None:
         mismatch = False
@@ -211,6 +186,7 @@ def parse_game_teams(
                 mismatch = True
                 break
         if mismatch:
+            print_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
             print('- Assymetric teams -')
             for team_id, (total, diffs, trade) in trades.items():
                 print(f"\nTeam {team_id}")
@@ -219,19 +195,18 @@ def parse_game_teams(
         else:
             team_choice = 0
 
-    print('\n'.join(trades[team_choice][2]))
-    
-    (max_points, diffs, trade) = trades[team_choice]
-
     final_merged_units = teams[team_choice]
     if team_choice in shared_units:
         final_merged_units = shared_units[team_choice] | teams[team_choice]
-    units = sort_units(
-        list(final_merged_units.values())
-    )
-    return (game_type_choice, units, diffs, max_points)
+    units = rekey_units(final_merged_units)
+    return (trades[team_choice], units, game_type_choice)
 
-def input_loop(game_type, units, diffs, max_points):
+def print_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time):
+    info = mesh_tag.get_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
+    print(f"\n---\n\n{info}\n")
+
+def input_loop(game_type, unit_dict, diffs, max_points):
+    units = list(unit_dict.values())
     print("\n\x1b[1A", end='')
     while True:
         adjust = input("\x1b[KAdjust unit: (type unit num and count separated by a space, or num+ / num- for increment/decrement or num++ / num-- for max/min or num= to accept suggestion) ").strip().lower()
@@ -259,7 +234,7 @@ def input_loop(game_type, units, diffs, max_points):
         if unit is not None and count is not None:
             units[unit]['count'] = min(count, units[unit]['max'])
 
-        (total, diffs, trade) = team_trade_parts(game_type, units, max_points)
+        (total, diffs, trade) = team_trade_parts(game_type, unit_dict, max_points)
         # Move cursor up
         print(f"\x1b[{len(trade)+2}A", end='')
         for line in trade:
@@ -269,23 +244,31 @@ def input_loop(game_type, units, diffs, max_points):
         else:
             print("\x1b[K")
 
+def unit_class_name(unit):
+    class_name = unit['class'].name
+    if unit['class'] == mons_tag.MonsClass.MISSILE:
+        max_dmg = max([attack['dmg'] for attack in unit['attacks']])
+        if max_dmg >= 3:
+            class_name = 'artillery'
+    return utils.cap_title(class_name)
+
 def team_trade_parts(game_type, units, max_points=None):
     trades = []
     divider = []
     untradeable = []
     suffix = []
     class_distribution = {}
-    total = sum(u['cost']*u['count'] for u in units)
+    total = sum(u['cost']*u['count'] for u in units.values())
     class_total = 0
     diff = 0
     diffs = []
     if max_points:
         diff = max_points - total
-    for i, u in enumerate(units):
+    for i, u in enumerate(units.values()):
         if u['target'] and game_type in ['ass', 'stamp']:
             afford = 0
         elif u['tradeable']:
-            unit_class = utils.cap_title(u['class'].name)
+            unit_class = unit_class_name(u)
             if unit_class not in class_distribution:
                 class_distribution[unit_class] = 0
             unit_value = u['count'] * u['cost']
@@ -304,7 +287,7 @@ def team_trade_parts(game_type, units, max_points=None):
 
             if NO_TRADING:
                 diff_amount = ''
-            u_name = unit_name(u)
+            u_name = unit_name(u, with_class=True)
             trades.append(
                 f"{i+1:>7}) {u_name:<32}"
                 f"{u['count']:>2} / "
@@ -324,7 +307,7 @@ def team_trade_parts(game_type, units, max_points=None):
                 divider.append("")
                 divider.append("Not tradeable:")
                 divider.append("")
-            u_name = unit_name(u)
+            u_name = unit_name(u, with_class=True)
             untradeable.append(
                 f"         {u_name:<32}"
                 f"{u['count']:>2} / "
@@ -366,16 +349,17 @@ def team_trade_parts(game_type, units, max_points=None):
 
     suffix.append(class_graph)
     suffix.append(class_key)
-    suffix.append("")
-    suffix.append("---")
+    # suffix.append("")
+    # suffix.append("---")
     suffix.append("")
     return (total, diffs, trades + divider + untradeable + suffix)
 
-def unit_name(u):
+def unit_name(u, count=None, with_class=False):
     u_name = u['spellings'][0]
-    if len(u['spellings']) > 1:
+    if (count is None or count > 1) and len(u['spellings']) > 1:
         u_name = u['spellings'][1]
-    u_name += f' ({utils.cap_title(u['class'].name)})'
+    if with_class:
+        u_name += f' ({unit_class_name(u)})'
     return u_name
 
 if __name__ == "__main__":

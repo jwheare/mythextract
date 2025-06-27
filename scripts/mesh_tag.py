@@ -6,6 +6,8 @@ import struct
 
 import codec
 import myth_headers
+import loadtags
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
@@ -324,6 +326,24 @@ NetgameFlagInfo = OrderedDict({
     NetgameFlag.KING_OF_THE_HILL_TFL: 'koth_tfl',
     NetgameFlag.KING_OF_THE_MAP: 'kotm',
 })
+NetgameNames = OrderedDict({
+    'bc': 'Body Count',
+    'stb': 'Steal the Bacon',
+    'lmoth': 'Last Man on the Hill',
+    'scav': 'Scavenger Hunt',
+    'fr': 'Flag Rally',
+    'ctf': 'Capture the Flag',
+    'balls': 'Balls on Parade',
+    'terries': 'Territories',
+    'caps': 'Captures',
+    'koth': 'King of the Hill',
+    'stamp': 'Stampede',
+    'ass': 'Assassin',
+    'hunt': 'Hunting',
+    'custom': 'Custom',
+    'koth_tfl': 'King of the Hill (TFL)',
+    'kotm': 'King of the Map',
+})
 
 def netgame_flag_info(flag):
     actual_flag = flag
@@ -487,6 +507,24 @@ def mesh_size(mesh_header):
         return 'medium'
     else:
         return 'large'
+
+def get_level_name(mesh_header, tags, data_map):
+    level_name_data = loadtags.get_tag_data(
+        tags, data_map, 'stli', codec.decode_string(
+            mesh_header.map_description_string_list_tag
+        )
+    )
+    (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
+    return utils.ansi_format(codec.decode_string(level_name_text.split(b'\r')[0]))
+
+def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time):
+    game_time_mins = ''
+    if game_time:
+        game_time_mins = f' - {game_time} mins'
+    game_type = NetgameNames[game_type_choice]
+    diff = difficulty(difficulty_level)
+    size = mesh_size(mesh_header)
+    return f"{game_type}: {level_name} [{diff}] ({size}){game_time_mins}"
 
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)
