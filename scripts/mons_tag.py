@@ -4,6 +4,8 @@ import os
 import struct
 
 import myth_headers
+import mons2stats
+import loadtags
 import codec
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -495,3 +497,11 @@ def encode_tag(tag_header, mons_tag):
         new_tag_header.value
         + tag_data
     )
+
+def unit_stats(tags, data_map, tag_id):
+    unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
+    unit_tag = parse_unit(unit_data)
+    (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
+        tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
+    )
+    return mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)

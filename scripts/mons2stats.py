@@ -47,7 +47,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
     obje_tag = mons_tag.parse_obje(obje_data)
 
     if codec.all_on(mons.spelling_string_list_tag) or codec.all_off(mons.spelling_string_list_tag):
-        spellings = [mons_header.name, mons_header.name]
+        spellings = [str(mons_header.name), str(mons_header.name)]
     else:
         spelling_data = loadtags.get_tag_data(
             tags, data_map, 'stli', codec.decode_string(
@@ -60,7 +60,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
     can_block = mons.sequence_indexes[5] > -1
     heal_kills = mons.healing_fraction == 0
 
-    attacks = process_attacks(mons, tags, data_map)
+    (attacks, special_heals) = process_attacks(mons, tags, data_map)
 
     return {
         'spellings': spellings,
@@ -77,6 +77,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
         'stone': mons_tag.MonsFlag.TURNS_TO_STONE_WHEN_KILLED in mons.flags,
         'min_vitality': obje_tag.vitality_lower_bound,
         'max_vitality': obje_tag.vitality_delta.upper_bound(obje_tag),
+        'special_heals': special_heals,
         'healing_fraction': mons.healing_fraction,
         'flinch_system_shock': mons.flinch_system_shock,
         'absorbed_fraction': mons.absorbed_fraction,
@@ -136,6 +137,7 @@ def process_attacks(mons, tags, data_map):
                     'vet_velocity': 0,
                     'primary': False,
                 })
+    special_heals = False
     for attack_i in range(mons.number_of_attacks):
         attack = mons.attacks[attack_i]
         if attack:
@@ -173,6 +175,8 @@ def process_attacks(mons, tags, data_map):
 
             proj = myth_projectile.parse_proj(proj_data)
             if proj.damage.type == myth_projectile.DamageType.HEALING:
+                if mons_tag.AttackFlag.IS_SPECIAL_ABILITY:
+                    special_heals = True
                 continue
 
             if (
@@ -247,7 +251,7 @@ def process_attacks(mons, tags, data_map):
                     'vet_velocity': attack.velocity_improvement_with_experience,
                     'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                 })
-    return attacks
+    return (attacks, special_heals)
 
 def mons_stats(mons_dict):
     lines = []
