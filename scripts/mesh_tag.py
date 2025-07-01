@@ -345,6 +345,9 @@ NetgameNames = OrderedDict({
     'kotm': 'King of the Map',
 })
 
+def netgame_scoring_name(scoring):
+    return NetgameNames[NetgameFlagInfo[utils.flag(NetgameFlag)(scoring)]]
+
 def netgame_flag_info(flag):
     actual_flag = flag
     # These flags don't work, we just use the terries and koth_tfl values
