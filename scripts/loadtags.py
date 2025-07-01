@@ -230,7 +230,7 @@ def plugin_version_flags(mono_header):
             return None
 
 def dep_plugin(path_dir, plugin_dep, sub_order):
-    dep_path = (path_dir / plugin_dep)
+    dep_path = pathlib.Path(path_dir, plugin_dep)
     dep_header = utils.load_file(dep_path, myth_headers.SB_MONO_HEADER_SIZE)
     dep_mono_header = myth_headers.parse_mono_header(dep_path.name, dep_header)
     return (0, sub_order, dep_path, dep_mono_header)
@@ -291,8 +291,7 @@ def read_file_headers(path_dir, plugin_names):
                     # 4. Manual tagsets (other named plugins in order)
                     if len(plugin_names) > 1:
                         for plugin_name in plugin_names[:-1]:
-                            if not mono_header.entry_tag_count:
-                                sub_order = append_dep_plugin(plugins, path_dir, plugin_name, sub_order)
+                            sub_order = append_dep_plugin(plugins, path_dir, plugin_name, sub_order)
                 else:
                     debug_include(mono_header, False, (archive_priority(mono_header),0))
             except (struct.error, UnicodeDecodeError, ValueError) as e:
