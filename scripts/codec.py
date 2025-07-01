@@ -268,6 +268,12 @@ class _Codec:
     def value(self):
         return _encode_data(self._encoders, self._item, self._original_data)
 
+    def _replace_raw(self, **kwargs):
+        new_item = self._item._replace(**kwargs)
+        new_obj = copy.copy(self)
+        new_obj._item = new_item
+        return new_obj
+
     def _replace(self, **kwargs):
 
         processed = {}
