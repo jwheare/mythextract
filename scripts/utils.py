@@ -1,13 +1,23 @@
 import re
 import struct
 import sys
+import unicodedata
 
 import cProfile
 import pstats
 
 import codec
 
+import urllib.request
+import urllib.parse
+
 PROFILER = cProfile.Profile()
+
+def myth_random(seed):
+    RANDOM_A = 1664525
+    RANDOM_C = 1013904223
+    random_seed = (RANDOM_A * seed + RANDOM_C) & 0xFFFFFFFF
+    return (random_seed >> 16) & 0xFFFF, random_seed
 
 def all_on(val):
     return all(f == b'' for f in val.split(b'\xff'))
@@ -115,6 +125,61 @@ TagTypes = {
     'unit': "Units",
     'wind': "Wind",
 }
+
+def http_request(url, method='GET', data=None, headers={}):
+    if method == 'POST' and data:
+        data = urllib.parse.urlencode(data).encode('utf-8')
+    elif method == 'GET' and data:
+        url = f'{url}?{urllib.parse.urlencode(data)}'
+        data = None
+    req = urllib.request.Request(
+        url=url,
+        method=method,
+        data=data,
+        headers={
+            'User-Agent': 'github.com/jwheare/mythextract',
+        } | headers,
+    )
+
+    with urllib.request.urlopen(req) as response:
+        return (response.status, response.headers, response.read().decode('utf-8'))
+
+LIGATURES = {
+    'æ': 'ae', 'Æ': 'AE',
+    'œ': 'oe', 'Œ': 'OE',
+    'ß': 'ss',
+    'ð': 'd',  'Ð': 'D',
+    'þ': 'th', 'Þ': 'Th',
+    'ł': 'l',  'Ł': 'L',
+    'ĳ': 'ij', 'Ĳ': 'IJ',
+}
+def slugify(name):
+    # Strip myth formatting
+    name = strip_format(name)
+
+    # Remove text in brackets (e.g. "Foo (Bar)" ➝ "Foo")
+    name = re.sub(r"\s*\(.*?\)\s*", "", name)
+
+    # Lowercase and replace ligatures
+    name = ''.join(LIGATURES.get(c, c) for c in name.lower())
+
+    # Normalize and convert accented chars to ASCII
+    name = unicodedata.normalize("NFKD", name)
+    name = name.encode("ascii", "ignore").decode("ascii")
+
+    # Replace non-word characters with dashes
+    name = re.sub(r"[^\w\s-]", "", name)
+
+    # Replace spaces and underscores with a single dash
+    name = re.sub(r"[\s_]+", "-", name.strip())
+
+    # Collapse multiple dashes into one
+    name = re.sub(r"-{2,}", "-", name)
+
+    # Strip leading/trailing dashes
+    name = name.strip("-")
+
+    return name
 
 def local_folder(tag_header):
     return tag_type_name(tag_header.tag_type)
