@@ -508,14 +508,18 @@ def mesh_size(mesh_header):
     else:
         return 'large'
 
-def get_level_name(mesh_header, tags, data_map):
+def get_level_name(mesh_header, tags, data_map, strip_format=False):
     level_name_data = loadtags.get_tag_data(
         tags, data_map, 'stli', codec.decode_string(
             mesh_header.map_description_string_list_tag
         )
     )
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    return utils.ansi_format(codec.decode_string(level_name_text.split(b'\r')[0]))
+    level_name = codec.decode_string(level_name_text.split(b'\r')[0])
+    if strip_format:
+        return utils.strip_format(level_name)
+    else:
+        return utils.ansi_format(level_name)
 
 def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time):
     game_time_mins = ''

@@ -62,6 +62,9 @@ def ansi_format(text):
 def strip_format(text):
     return re.sub(r'[\|][ibp]', '', str(text), flags=re.IGNORECASE)
 
+def strip_order(text):
+    return re.sub(r'\s{3,}.*', '', str(text))
+
 def decode_string(s):
     return codec.decode_string(s)
 
