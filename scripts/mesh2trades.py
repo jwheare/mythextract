@@ -289,9 +289,14 @@ def input_loop(game_type, unit_dict, diffs):
 def unit_class_name(unit):
     class_name = unit['class'].name
     if unit['class'] == mons_tag.MonsClass.MISSILE:
-        max_dmg = max([attack['dmg'] for attack in unit['attacks'] if attack['dmg'] is not None])
-        if max_dmg >= 3:
-            class_name = 'artillery'
+        dmgs = [attack['dmg'] for attack in unit['attacks'] if attack['dmg'] is not None]
+        if len(dmgs):
+            # Assassin targets don't have attacks
+            max_dmg = max([attack['dmg'] for attack in unit['attacks'] if attack['dmg'] is not None])
+            if max_dmg >= 3:
+                class_name = 'artillery'
+        else:
+            class_name = 'target'
     return utils.cap_title(class_name)
 
 def team_trade_parts(game_type, units):
