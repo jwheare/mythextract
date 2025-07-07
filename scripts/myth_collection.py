@@ -137,7 +137,7 @@ Header256Fmt = ("Header256", [
     ('16x', None),
 ])
 
-class Encoding(enum.Enum):
+class ExtendedEncoding(enum.Enum):
     ORIGINAL = 0
     EXT_R8G8B8A5H = 1
     EXT_ARGB_8888_32 = enum.auto()
@@ -170,7 +170,7 @@ BitmapMetaFmt = ('BitmapMeta', [
     ('H', 'width_bits'),
     ('H', 'height_bits'),
     ('H', 'pixel_upshift'),
-    ('H', 'encoding', Encoding),
+    ('H', 'encoding'),
     ('34x', None),
 ])
 
@@ -438,6 +438,10 @@ def parse_bitmap_data(total_size, start, data):
     bitmap_data_end = start + total_size
 
     bitmap_meta = codec.codec(BitmapMetaFmt)(data, offset=start)
+    encoding = bitmap_meta.encoding
+    if BitmapFlags.BITMAP_EXTENDED_ENCODING not in bitmap_meta.flags:
+        encoding = 0
+    bitmap_meta = bitmap_meta._replace(encoding=ExtendedEncoding(encoding))
 
     if BitmapFlags.NO_ROW_ADDRESS_TABLE in bitmap_meta.flags:
         bitmap_data = data[meta_end:bitmap_data_end]
@@ -449,9 +453,9 @@ def parse_bitmap_data(total_size, start, data):
     return (bitmap_meta, bitmap_data)
 
 def decode_bitmap(bitdata, bitmap_data, color_table=None):
-    if bitdata.encoding == Encoding.EXT_R8G8B8A5H:
+    if bitdata.encoding == ExtendedEncoding.EXT_R8G8B8A5H:
         return decode_bitmap_64(bitmap_data, bitdata.width, bitdata.height)
-    elif bitdata.encoding == Encoding.EXT_ARGB_8888_32:
+    elif bitdata.encoding == ExtendedEncoding.EXT_ARGB_8888_32:
         return decode_bitmap_32(bitmap_data, bitdata.width, bitdata.height)
     if BitmapFlags.TRANSPARENCY_ENCODED_1BIT in bitdata.flags:
         return decode_compressed_bitmap(
@@ -468,7 +472,8 @@ def decode_raw_bitmap(color_table, bitmap_data, width, height):
         row = []
         for b_ix in bytearray(bitmap_data[row_start:row_end]):
             (r, g, b, _) = color_table[b_ix]
-            row.append((r, g, b, 255))
+            alpha = 255 if b_ix else 0
+            row.append((r, g, b, alpha))
         rows.append(row)
     return rows
 
