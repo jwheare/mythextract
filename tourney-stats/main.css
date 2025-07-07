@@ -1,0 +1,631 @@
+body {
+  font-family: system-ui;
+  background-color: #1C2C3B;
+  color: #fff;
+  line-height: 1.2;
+}
+a {
+  color: #ddd;
+}
+a:hover {
+  color: #fff;
+}
+#container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+header {
+  width: 1210px;
+  margin-bottom: 20px;
+}
+#tournament,
+#round {
+  width: 1210px;
+}
+
+.tournamentLink {
+  display: block;
+  position: relative;
+  padding: 20px;
+  text-decoration: none;
+  background-color: #2B4965;
+  border-radius: 5px;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.tournamentRounds,
+.tournamentGroupedRounds {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.tournamentGroupedRounds__group {
+    width: 200px;
+}
+.tournamentGroupedRounds__head {
+  font-weight: 24px;
+}
+.tournamentGroupedRounds__rounds {
+  margin: 0;
+  padding: 0;
+}
+.tournamentGroupedRounds__round {
+  margin: 0 0 40px 0;
+  padding: 0;
+  list-style: none;
+}
+.tournamentGroupedRounds__round_link {
+  display: block;
+  padding: 10px;
+  cursor: pointer;
+  text-decoration: none;
+  color: #bbb;
+  background-color: #2B4965;
+}
+.tournamentGroupedRounds__round_link:hover {
+  color: #eee;
+}
+
+.tournamentGroupedRounds__games {
+  display: flex;
+}
+.tournamentGroupedRounds__forfeit {
+  color: #999;
+  background-color: #233E56;
+  padding: 7px;
+  text-align: center;
+  font-style: italic;
+}
+.tournamentGroupedRounds__game {
+  display: block;
+  padding: 7px;
+  cursor: pointer;
+  text-decoration: none;
+  color: #aaa;
+  background-color: #233E56;
+  flex: 1;
+  text-align: center;
+}
+
+.tournamentGroupedRounds__team {
+  font-weight: bold;
+  color: #fff;
+}
+.tournamentGroupedRounds__team--winner {
+  color: lightgreen;
+  font-weight: bold;
+}
+.tournamentGroupedRounds__team--loser {
+  color: orange;
+}
+.tournamentGroupedRounds__result {
+  margin-left: 10px;
+}
+
+.tournamentRounds__round {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  width: 400px;
+}
+
+.tournamentRounds__round a {
+  cursor: pointer;
+  display: block;
+  padding: 20px;
+  height: 100px;
+  background-color: #2B4965;
+  text-decoration: none;
+}
+
+
+.round__stage {
+  color: #aaa;
+}
+.round__result {
+  margin-left: 15px;
+}
+
+.roundGames {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roundGames__overhead {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  width: 65px;
+  text-align: center;
+}
+.roundGames__overhead_img {
+  max-height: 60px;
+  max-width: 65px;
+}
+.roundGames__game {
+  margin: 0 0 20px 0;
+  padding: 0;
+  font-size: 20px;
+}
+.roundGames__game::marker {
+  content: counter(list-item) "  ";
+  color: #aaa;
+}
+.roundGames__info {
+  color: #aaa;
+}
+.roundGames__type {
+  color: #fff;
+}
+.roundGames__link:hover .roundGames__info {
+  color: #eee;
+}
+.roundGames__link {
+  display: block;
+  position: relative;
+  padding: 20px 20px 20px 100px;
+  text-decoration: none;
+  background-color: #2B4965;
+}
+.roundGames__winner {
+  margin-right: 5px;
+  padding: 5px;
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  text-align: right;
+  font-weight: bold;
+  color: #fff;
+}
+
+
+h1#title {
+  margin: 10px 0 20px 0;
+  font-weight: bold;
+  font-size: 25px;
+  color: #A4B6CE;
+}
+#subhead {
+  position: relative;
+}
+h2#subtitle {
+  margin: 18px 0 8px 0;
+  font-weight: normal;
+  font-size: 26px;
+}
+h3#caption {
+  margin: 8px 0;
+  font-weight: normal;
+  font-size: 18px;
+  color: #aaa;
+}
+#overhead {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+#overhead img {
+  height: 80px;
+}
+#columns {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto;
+}
+#graphs {
+  width: 900px;
+}
+#sidebar {
+  width: 300px;
+}
+#clicks {
+  position: relative;
+}
+svg {
+  position: relative;
+  overflow: visible;
+}
+
+#info {
+  width: 1200px;
+  display: none;
+  line-height: 1.5;
+}
+#info ul {
+  margin: 0 40px;
+  padding: 0;
+}
+#info li {
+  margin: 10px 0;
+}
+
+footer {
+  margin: 20px 0;
+  width: 1200px;
+  text-align: left;
+  font-size: 14px;
+  color: #A4B6CE;
+}
+.show-info #info {
+  display: block;
+}
+
+.unitFilter {
+  position: relative;
+  z-index: 2;
+}
+.unitFilter__button {
+  position: absolute;
+  top: -10px;
+  right: 25px;
+  cursor: pointer;
+  color: #ddd;
+  background-color: #2B4965;
+  border-radius: 3px;
+  padding: 5px;
+  font-size: 13px;
+  line-height: 11px;
+  height: 11px;
+}
+.unitFilter__button:hover {
+  color: #fff;
+  background-color: #08f;
+}
+.unitFilter--active .unitFilter__button {
+  color: #fff;
+  background-color: #09a;
+}
+.unitFilter--selected .unitFilter__button {
+  border-bottom-right-radius: 0;
+  border-bottom-left-radius: 0;
+  background-color: #08f;
+  color: #fff;
+}
+.unitFilter__dropdown {
+  display: none;
+  position: absolute;
+  top: 11px;
+  right: 25px;
+  background-color: #08f;
+  border-radius: 4px;
+  border-top-right-radius: 0;
+  padding: 5px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.unitFilter--selected .unitFilter__dropdown {
+  display: block;
+}
+.unitFilter__label {
+  display: block;
+  padding: 2px 0;
+  cursor: pointer;
+}
+
+.dataTable {
+  width: 1200px;
+  margin-bottom: 20px;
+  border-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: #bbb;
+}
+.dataTable td {
+  font-size: 14px;
+  padding: 4px 7px;
+  text-align: right;
+  line-height: 1.4;
+}
+.teamDataTable td.dataTable__Team,
+.teamDataTable td.dataTableHead__Team {
+  width: 120px;
+  text-align: left;
+  padding-left: 7px;
+}
+.playerDataTable td.dataTable__Team,
+.playerDataTable td.dataTableHead__Team {
+  width: 50px;
+}
+td.dataTable__Player,
+td.dataTableHead__Player {
+  width: 200px;
+  text-align: left;
+}
+.teamDataTable td.dataTable__Team,
+td.dataTable__Player {
+  font-size: 15px;
+  color: #fff;
+}
+.dataTable a {
+  padding: 5px 8px;
+  text-decoration: none;
+  color: #fff;
+}
+.dataTable a:hover {
+  background-color: #08f;
+}
+td.sorthead {
+  font-size: 13px;
+  padding-left: 0;
+  color: #fff;
+  white-space: pre;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+  line-height: 1.4;
+  border-bottom: 1px solid #222;
+  position: sticky;
+  top: 0;
+  background-color: #233E56;
+}
+td.sorthead::before {
+  content: '↑ ';
+  visibility: hidden;
+}
+td.sorthead.asc::before {
+  content: '↑ ';
+  visibility: visible;
+}
+td.sorthead.desc::before {
+  content: '↓ ';
+  visibility: visible;
+}
+
+.legendTable {
+  margin: 10px 0;
+  font-size: 12px;
+  border-spacing: 0;
+}
+.legendTable__cell {
+  padding: 5px;
+  white-space: nowrap;
+}
+.legendTable__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 5px;
+}
+
+.tooltip {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  top: -1000px;
+  left: -1000px;
+  background-color: #2B4965;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-size: 14px;
+  pointer-events: none;
+}
+.tooltip__plain {
+  white-space: pre-wrap;
+}
+.tooltip--show {
+  opacity: 1;
+}
+.tooltip__target {
+  cursor: help;
+}
+
+.show-stats #graphs {
+  width: 550px;
+}
+.show-stats #sidebar {
+  width: 650px;
+}
+.playerListHead {
+  color: #aaa;
+  font-size: 13px;
+  width: 260px;
+}
+.playerList__show_stats_show::marker {
+  content: "«  ";
+  color: #aaa;
+  font-size: 15px;
+}
+.playerList__show_stats_hide::marker {
+  content: "»  ";
+  color: #aaa;
+  font-size: 15px;
+}
+.playerList__show_stats_button {
+  cursor: pointer;
+  color: #ddd;
+}
+.playerList__show_stats_button:hover {
+  color: #fff;
+}
+.playerList__show_stats_hide,
+.show-stats .playerList__show_stats_show {
+  display: none;
+}
+.playerList__show_stats_show,
+.show-stats .playerList__show_stats_hide {
+  display: list-item;
+}
+.col_stat,
+.statCell {
+  display: none;
+}
+.show-stats .col_stat {
+  display: table-column;
+}
+.show-stats .statCell {
+  display: table-cell;
+}
+
+g[aria-label="tip"] {
+  --plot-background: #2B4965;
+}
+figure {
+  margin: 0;
+}
+
+.playerGraph__head {
+  margin-top: 30px;
+  margin-bottom: 30px;
+}
+
+.gameSelect {
+  margin: 0;
+  padding: 0;
+}
+
+.playerStats {
+  width: 100%;
+  height: fit-content;
+  border-spacing: 0;
+  border: 0;
+  font-variant-numeric: tabular-nums;
+  table-layout: fixed;
+}
+
+.col_stat {
+  width: 45px;
+}
+.col_stat__kills,
+.col_stat__losses {
+  width: 35px;
+}
+.col_spacerLeft {
+  width: 20px;
+}
+.show-stats .col_spacerLeft {
+  width: 30px;
+}
+.col_name {
+  width: 230px;
+}
+.col_pct {
+  width: 30px
+}
+.col_spacerRight {
+  width: 20px
+}
+
+.playerStats tr {
+  height: 100%;
+}
+.playerStats td {
+  box-sizing: border-box;
+}
+
+.playerStats__team td {
+  padding-top: 22px;
+  padding-bottom: 8px;
+}
+.playerStats__player td {
+  padding-top: 8px;
+  padding-bottom: 8px;
+  vertical-align: middle;
+}
+
+.statCell {
+  font-size: 12px;
+  text-align: right;
+}
+.statCell__kills,
+.statCell__losses {
+}
+
+.statTeam {
+  font-weight: bold;
+}
+.statHead {
+  color: #aaa;
+}
+
+td.playerListLeftSpacer {
+  padding: 0 10px 0 0;
+}
+.show-stats td.playerListLeftSpacer {
+  padding-left: 10px;
+}
+td.playerListLeftSpacerTeam {
+  padding-top: 15px;
+}
+td.playerListRightSpacer {
+  padding: 0 0 0 10px;
+}
+.playerListPlayerColor,
+.playerListTeamColor {
+  height: 100%;
+}
+
+.playerSelect__team {
+  margin: 0;
+  font-weight: bold;
+}
+
+.playerSelect__player {
+  cursor: pointer;
+}
+.playerSelect__percent,
+.playerSelect__percentHead {
+  text-align: right;
+  font-size: 13px;
+}
+.playerSelect__percentHead {
+  color: #aaa;
+}
+
+.gameSelect {
+  display: flex;
+  background-color: #2B4965;
+  font-weight: bold;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.gameSelect__game {
+  margin: 0;
+  list-style: none;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.gameSelect__game {
+  display: block;
+  padding: 10px 15px;
+  text-decoration: none;
+}
+.gameSelect__game_map {
+  display: block;
+  margin: 0;
+  padding: 0;
+  font-size: 16px;
+}
+.gameSelect__game_type {
+  display: block;
+  font-size: 16px;
+  color: #eee;
+  font-weight: normal;
+}
+.tournamentGroupedRounds__round_link:hover,
+.tournamentGroupedRounds__game:hover,
+.tournamentRounds__round a:hover,
+.roundGames__link:hover,
+.playerStats__player:hover,
+.gameSelect__game:hover,
+.tournamentLink:hover {
+  background-color: #08f;
+}
+.playerStats__player--selected,
+.playerStats__player--selected:hover,
+.gameSelect__game--selected,
+.gameSelect__game--selected:hover {
+  background-color: #09a;
+}
+.colorSquare {
+  display: inline-block;
+  width: 5px;
+  height: 10px;
+}

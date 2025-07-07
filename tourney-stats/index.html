@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Click graph</title>
+    <link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body>
+  <div id="container">
+    <header>
+      <h1 id="title"></h1>
+      <div id="gameList"></div>
+      <div id="subhead">
+        <div id="overhead"></div>
+        <h2 id="subtitle"></h2>
+        <h3 id="caption"></h3>
+      </div>
+    </header>
+    <div id="info">
+      <h2>Things to try</h2>
+      <p>When viewing game stats, you can click on player names to filter the graph by their units. Up/down arrow keys let you navigate between players. Pressing return will clear the filter.</p>
+      <p>You can also filter the graph by specific unit types with the Unit Filter dropdown. This includes both subject and target units.</p>
+      <p>On full tournament, team and player stats pages, the data tables can be sorted by clicking on the header.</p>
+      <p>Hover over column headers for more info on what they represent.</p>
+      <p>Downloading a film and opening it will launch the game straight into the replay.</p>
+
+      <h2>Things to note</h2>
+      <p>Damage/Kill/Loss stats come from bagrada.net, as uploaded from the host at the time the game was played. This information is not stored in films.</p>
+      <p>Damage in the game is counted as a function of unit cost. Killing a unit costing 3 points from full health rewards 3 damage.</p>
+      <p>Some extra stats have been calculated based on analysis of film data. These are counted from the end of planning time.</p>
+      <ul>
+        <li><b>Busyness</b>: raw count of movement and attack commands issued per player during a game. This doesn't include chat, drawing on the map, etc.</li>
+        <li><b>Aggression</b>: raw count of <i>attack</i> commands issued per player during a game. This can be an indicator of micro intensiveness.</li>
+        <li><b>Assertion Index</b>: damage dealt divided by attack commands issued, compared to all other players in the game. An index above/below 1 indicates an above/below average score. This can be a measure of how well your attacks translate to impact on the game.</li>
+        <li><b>Efficiency Index</b>: damage dealt divided by the cost of units held, compared to all other players in the game. This can indicate how well you make use of the units available to you.</li>
+      </ul>
+      <p>The player with the highest score across these stats as well as raw damage is awarded a 🎖️ medal for that game.</p>
+      <p>Engagement commands are: attack, ground attack, special attack, ground special. Heals and instant specials (dropping satchels, warlock ring of fire) are not counted.</p>
+      <p>All commands issued by players during a game are analyzed from the film data. Films track which commands were <i>issued</i> but not necessarily those that are carried out. The film has to be replayed in the game engine to determine the outcome. This can lead to overcounting if actions are repeatedly issued but are only successful once.</p>
+      <p>The engagements graphs on game pages count total engagement commands issued within 3 second intervals.</p>
+      <p>Where damage numbers are marked by an asterisk (*) they have been adjusted to account for wight heals, as the game assigns negative damage points when you heal your own wights. This adjustment isn't foolproof (see overcounting issues mentioned above, although unit allocations are used to cap the adjustment) but should give a better idea of damage output for players on puss creation duty.</p>
+      <p>All stats can be interpreted in many different ways, and have varying usefulness. They're presented here for interest and fun, not rigorous academic analysis. But please do suggest any improvements or more stats to track in future.</p>
+    </div>
+    <div id="tournament"></div>
+    <div id="round"></div>
+    <div id="columns" class="show-stats">
+      <div id="graphs">
+        <div id="summary"></div>
+        <div id="actionLegend"></div>
+        <div id="clicks">
+          <div id="filter"></div>
+          <div id="graph"></div>
+        </div>
+      </div>
+      <div id="sidebar">
+        <div id="playerList"></div>
+      </div>
+    </div>
+    <footer>Website by © James Wheare</footer>
+  </div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "myth-tourney-stats",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite --host --base /",
+    "build": "vite build --base /",
+    "preview": "vite preview --base /",
+    "test": "eslint main.js",
+    "archive": "tar --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist"
+  },
+  "author": "James Wheare",
+  "license": "MIT",
+  "description": "Display player and team stats and graphs for Myth Tournaments",
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "eslint": "^9.30.0",
+    "globals": "^16.3.0"
+  },
+  "dependencies": {
+    "@observablehq/plot": "^0.6.17",
+    "vite": "^7.0.0"
+  }
+}
