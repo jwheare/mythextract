@@ -175,7 +175,7 @@ def process_attacks(mons, tags, data_map):
 
             proj = myth_projectile.parse_proj(proj_data)
             if proj.damage.type == myth_projectile.DamageType.HEALING:
-                if mons_tag.AttackFlag.IS_SPECIAL_ABILITY:
+                if mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags:
                     special_heals = True
                 continue
 
@@ -284,7 +284,8 @@ def mons_stats(mons_dict):
             lines.append(graph('  radius ', round(attack['radius']*2), 5, 21, f" {round(attack['radius'], 2)}"))
 
     indent = '         '
-
+    if mons_dict['special_heals']:
+        lines.append(f'{indent}special \x1b[92mheals\x1b[0m')
     if mons_dict['can_block']:
         lines.append(f'{indent}can \x1b[92mblock\x1b[0m')
     if mons_dict['heal_kills']:
