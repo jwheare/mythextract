@@ -21,10 +21,10 @@ def main(game_directory, reco_file):
         (
             reco_header, players, players_idx, monsters, teams, teams_idx,
             plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
-            chat_lines, command_counts, trades, splits, metaserver_stats, command_log
+            overhead_map_data, chat_lines, trades, splits, game_stats
         ) = reco_tag.parse_reco_file(game_directory, reco_file)
 
-        reco_tag.print_metaserver_info(teams_idx, teams, players, metaserver_stats)
+        reco_tag.print_metaserver_info(teams_idx, teams, players, game_stats)
 
         info = mesh_tag.get_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
         print(info)
@@ -42,8 +42,7 @@ def main(game_directory, reco_file):
         reco_tag.print_chat(chat_lines, players)
 
         reco_tag.print_combined_stats(
-            reco_header, teams_idx, teams, players_idx, players,
-            command_counts, metaserver_stats
+            reco_header, players, players_idx, teams, teams_idx, game_stats
         )
 
     except (struct.error, UnicodeDecodeError) as e:

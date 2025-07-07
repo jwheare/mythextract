@@ -17,10 +17,10 @@ def main(game_directory, reco_file):
         (
             reco_header, players, players_idx, monsters, teams, teams_idx,
             plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
-            chat_lines, command_counts, trades, splits, metaserver_stats, command_log
+            overhead_map_data, chat_lines, trades, splits, game_stats
         ) = reco_tag.parse_reco_file(game_directory, reco_file)
 
-        print(json.dumps(command_log, separators=(',', ':')))
+        print(json.dumps(game_stats, indent=2))
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
