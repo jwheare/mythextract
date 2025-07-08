@@ -11,17 +11,16 @@ a:hover {
   color: #fff;
 }
 #container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  width: 1200px;
+  margin: 0 auto;
 }
 header {
-  width: 1210px;
+  width: 1200px;
   margin-bottom: 20px;
 }
 #tournament,
 #round {
-  width: 1210px;
+  width: 1200px;
 }
 
 .tournamentLink {
