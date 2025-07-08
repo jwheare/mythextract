@@ -312,7 +312,7 @@ def team_trade_parts(game_type, units):
     diffs = []
     max_points = sum(u['cost']*u['initial_count'] for u in units.values())
     diff = max_points - total
-    for i, u in enumerate(units.values()):
+    for i, (palette_index, u) in enumerate(units.items()):
         if u['target'] and game_type in ['ass', 'stamp']:
             afford = 0
         elif u['tradeable']:
@@ -335,7 +335,7 @@ def team_trade_parts(game_type, units):
 
             if NO_TRADING:
                 diff_amount = ''
-            u_name = unit_name(u, with_class=True)
+            u_name = unit_name(u, with_class=True, with_tag=True)
             trades.append(
                 f"{i+1:>7}) {u_name:<32}"
                 f"{u['count']:>2} / "
@@ -355,7 +355,7 @@ def team_trade_parts(game_type, units):
                 divider.append("")
                 divider.append("Not tradeable:")
                 divider.append("")
-            u_name = unit_name(u, with_class=True)
+            u_name = unit_name(u, with_class=True, with_tag=True)
             untradeable.append(
                 f"         {u_name:<32}"
                 f"{u['count']:>2} / "
@@ -399,12 +399,14 @@ def team_trade_parts(game_type, units):
     suffix.append("")
     return (diffs, trades + divider + untradeable + suffix)
 
-def unit_name(u, count=None, with_class=False):
+def unit_name(u, count=None, with_class=False, with_tag=False):
     u_name = u['spellings'][0]
     if (count is None or count > 1) and len(u['spellings']) > 1:
         u_name = u['spellings'][1]
     if with_class:
         u_name += f' ({unit_class_name(u)})'
+    if with_tag:
+        u_name += f' [{u['tag']}]'
     return u_name
 
 if __name__ == "__main__":
