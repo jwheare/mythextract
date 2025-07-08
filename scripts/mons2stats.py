@@ -113,7 +113,8 @@ def process_attacks(mons, tags, data_map):
             )
             ex_proj = myth_projectile.parse_proj(ex_proj_data)
             ex_dmg = ex_proj.damage.damage_delta.upper_bound(ex_proj.damage)
-            if ex_dmg > 2:
+            prop_velocity = myth_projectile.DamageFlags. PROPORTIONAL_TO_VELOCITY in ex_proj.damage.flags
+            if ex_dmg > 2 and not prop_velocity:
                 ex_radius = ex_proj.damage.radius_delta.upper_bound(ex_proj.damage)
                 attacks.append({
                     'name': f'{ex_proj_header.name} (explosion)',
@@ -123,10 +124,12 @@ def process_attacks(mons, tags, data_map):
                     'dps': ex_dmg,
                     'special': False,
                     'melee': False,
+                    'sets_fire': myth_projectile.ProjFlags.CAN_SET_LANDSCAPE_ON_FIRE in ex_proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
                     'radius': ex_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in ex_proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in ex_proj.damage.flags,
+                    'promotion_chance': ex_proj.promotion_on_detonation_fraction,
                     'range': 0,
                     'recovery': 0,
                     'mana_cost': 0,
@@ -157,10 +160,12 @@ def process_attacks(mons, tags, data_map):
                         'dps': None,
                         'special': False,
                         'melee': False,
+                        'sets_fire': False,
                         'aoe': False,
                         'radius': 0,
                         'paralysis': False,
                         'unblockable': False,
+                        'promotion_chance': 0,
                         'range': attack.maximum_range,
                         'recovery': attack.recovery_time,
                         'mana_cost': attack.mana_cost,
@@ -237,10 +242,12 @@ def process_attacks(mons, tags, data_map):
                     'dps': avg_dps,
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
+                    'sets_fire': myth_projectile.ProjFlags.CAN_SET_LANDSCAPE_ON_FIRE in proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
                     'radius': attack_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in proj.damage.flags,
+                    'promotion_chance': proj.promotion_on_detonation_fraction,
                     'range': attack_range,
                     'recovery': recov_s,
                     'mana_cost': attack.mana_cost,
@@ -264,9 +271,11 @@ def mons_stats(mons_dict):
     for attack in mons_dict['attacks']:
         special = " (special)" if attack['special'] else ""
         aoe = " (aoe)" if attack['aoe'] else ""
+        sets_fire = " (sets on fire)" if attack['sets_fire'] else ""
         paralysis = " (paralyses)" if attack['paralysis'] else ""
+        dud_rate = f" (dud rate: {round(100*attack['promotion_chance'])}%)" if attack['promotion_chance'] else ""
         attack_type = "melee" if attack['melee'] else "ranged"
-        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{paralysis}"
+        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{sets_fire}{paralysis}{dud_rate}"
         if attack['dps']:
             recov = ''
             if attack['mana_cost'] > 0:
