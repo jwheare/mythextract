@@ -32,7 +32,7 @@ def main(game_directory, level, plugin_names):
     if COUNTS:
         counts = [int(c) for c in COUNTS.split(',')]
     try:
-        if level:
+        if level and level != 'all':
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 (trade_info, units, game_type) = parse_mesh_trades(
                     game_version, tags, data_map, mesh_id,
@@ -237,7 +237,6 @@ def input_loop(game_type, unit_dict, diffs):
         unit = None
         count = None
         all_units = False
-        debug_info = []
         if match := re.match(r'^(\d+)\s+(\d+)$', adjust):
             unit = int(match.group(1)) - 1
             count = int(match.group(2))
@@ -282,9 +281,9 @@ def input_loop(game_type, unit_dict, diffs):
         for line in trade:
             print(f"\n\x1b[K{line}", end='')
         if unit is not None and count is not None:
-            print(f"\x1b[K{units[unit]['spellings'][1]} -> {units[unit]['count']}", debug_info)
+            print(f"\x1b[K{units[unit]['spellings'][1]} -> {units[unit]['count']}")
         else:
-            print("\x1b[K", debug_info)
+            print("\x1b[K")
 
 def unit_class_name(unit):
     class_name = unit['class'].name
