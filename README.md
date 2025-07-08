@@ -237,9 +237,7 @@ Initially developed with python 3.13.1 on macOS Sequoia 15.2. Please file an iss
 
 # Thanks
 
-These tools were developed without access to the Myth source code. Some useful information was found in the source code for [Chaos](https://tain.totalcodex.net/items/show/chaos-source) by TarousZars. Further information thanks to [Project Magma](https://projectmagma.net/) and [Oak](https://www.projectmagma.net/~melekor/oak/) developers.
-
-Mostly just figuring things out with [HexFiend](https://github.com/HexFiend/HexFiend).
+These tools were initially developed without access to the Myth source code figuring things out in a Hex editor. Later development was informed by the source code for [Chaos](https://tain.totalcodex.net/items/show/chaos-source) by TarousZars and further information from [Project Magma](https://projectmagma.net/) and [Oak](https://www.projectmagma.net/~melekor/oak/) developers.
 
 # Extras
 
