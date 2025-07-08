@@ -11,16 +11,16 @@ a:hover {
   color: #fff;
 }
 #container {
-  width: 1200px;
+  width: 1210px;
   margin: 0 auto;
 }
 header {
-  width: 1200px;
+  width: 1210px;
   margin-bottom: 20px;
 }
 #tournament,
 #round {
-  width: 1200px;
+  width: 1210px;
 }
 
 .tournamentLink {
@@ -233,7 +233,7 @@ svg {
 }
 
 #info {
-  width: 1200px;
+  width: 1210px;
   display: none;
   line-height: 1.5;
 }
@@ -247,7 +247,7 @@ svg {
 
 footer {
   margin: 20px 0;
-  width: 1200px;
+  width: 1210px;
   text-align: left;
   font-size: 14px;
   color: #A4B6CE;
@@ -309,7 +309,7 @@ footer {
 }
 
 .dataTable {
-  width: 1200px;
+  width: 1210px;
   margin-bottom: 20px;
   border-spacing: 0;
   font-variant-numeric: tabular-nums;

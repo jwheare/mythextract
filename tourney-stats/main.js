@@ -1784,6 +1784,8 @@ function renderPlayerList () {
 }
 
 function renderGameInfo() {
+  captionHead.innerHTML = '';
+
   let subtitle = `${GAME_DATA.header.game.game_type} on ${stripFormat(GAME_DATA.header.game.map_name)} (${GAME_DATA.header.game.difficulty}) - ${Math.round(GAME_DATA.header.game.time_limit/30/60)} mins`;
 
   // let host;

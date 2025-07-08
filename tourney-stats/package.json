@@ -5,9 +5,10 @@
   "scripts": {
     "dev": "vite --host --base /",
     "build": "vite build --base /",
-    "preview": "vite preview --base /",
+    "preview": "vite preview --host --base /",
     "test": "eslint main.js",
-    "archive": "tar --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist"
+    "archive-full": "tar --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats-full.tar.gz dist",
+    "archive": "tar --exclude='tournament' --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist"
   },
   "author": "James Wheare",
   "license": "MIT",
