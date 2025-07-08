@@ -69,7 +69,7 @@ const STAT_TOOLTIPS = {
   'Median\nDmg': "Median Damage Dealt",
   'Median\nBusy': "Median Busyness (Commands issued)",
   'Median\nAggr.': "Median Aggression (Engagement commands issued)",
-  'Median\nAssert': "Median Assertion Index (Dmg / Aggression vs average)",
+  'Median\nAssert': "Median Assertive Index (Dmg / Aggression vs average)",
   'Median\nEffic.': "Median Efficiency Index (Dmg / Unit value held vs average)",
   '🔹 Caps': "Total Times Captained",
   '🎖️ Medals': "Total Medals Earned",
@@ -914,7 +914,7 @@ function renderPlayerStats (bagrada_player) {
   renderPlayerGraph(stats, 'dmg_out', 'Damage Dealt', "Damage Dealt");
   renderPlayerGraph(stats, 'actions', 'Busyness', "Busyness (Commands issued)");
   renderPlayerGraph(stats, 'actions_engage', 'Aggression', "Aggression (Engagement commands issued)");
-  renderPlayerGraph(stats, 'dmg_action_ratio_engage', 'Assertion Index', "Assertion Index (Damage / Aggression vs average)");
+  renderPlayerGraph(stats, 'dmg_action_ratio_engage', 'Assertive Index', "Assertive Index (Damage / Aggression vs average)");
   renderPlayerGraph(stats, 'dmg_cost_ratio', 'Efficiency', "Efficiency Index (Damage / Unit value held vs average)");
 }
 
@@ -1546,7 +1546,7 @@ const STAT_COLS = new Map([
   ['actions', ['Busy', 'Busyness (Commands issued)']],
   ['actions_engage', ['Aggr.', 'Aggression (Engagement commands issued)']],
   ['dmg_cost_ratio', ['Effic.', 'Efficiency Index (Dmg / Unit value held vs average)']],
-  ['dmg_action_ratio_engage', ['Assert', 'Assertion Index (Dmg / Aggression vs average)']],
+  ['dmg_action_ratio_engage', ['Assert', 'Assertive Index (Dmg / Aggression vs average)']],
 ]);
 
 function colCalc (col, stats) {
