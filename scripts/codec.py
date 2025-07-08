@@ -569,6 +569,9 @@ class Simple:
     def __int__(self):
         return int(self.decode())
 
+    def __bool__(self):
+        return bool(self.decode())
+
     def __round__(self, *args):
         return round(self.decode(), *args)
 
