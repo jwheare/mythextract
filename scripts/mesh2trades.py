@@ -45,6 +45,8 @@ def main(game_directory, level, plugin_names):
                     input_loop(game_type, units, diffs)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
+            mesh_input = input('Choose a mesh id: ')
+            main(game_directory, f'mesh={mesh_input}', plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
