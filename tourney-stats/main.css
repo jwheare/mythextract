@@ -26,6 +26,7 @@ header {
 .tournamentLink {
   display: block;
   position: relative;
+  margin: 0 0 20px 0;
   padding: 20px;
   text-decoration: none;
   background-color: #2B4965;
@@ -309,7 +310,7 @@ footer {
 }
 
 .dataTable {
-  width: 1210px;
+  width: 1260px;
   margin-bottom: 20px;
   border-spacing: 0;
   font-variant-numeric: tabular-nums;

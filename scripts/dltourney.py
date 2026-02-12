@@ -43,7 +43,11 @@ def fetch_round(tourney_id, round_id):
     url = f'https://bagrada.net/rank-server/api/public/tournaments/{tourney_id}/rounds/{round_id}'
     return fetch_json(url)
 
-def download_film(film_name, output_dir):
+def download_film(game_info, output_dir):
+    film_name = game_info['film_name']
+    if not film_name:
+        print(f"Missing film_name {game_info}")
+        return False
     try:
         film_url = f'https://bagrada.net/recordings/public/{film_name}'
         urllib.request.urlretrieve(film_url, output_dir / film_name)
@@ -80,6 +84,32 @@ def process_round_name(tourney_id, round_name):
                 'team1': team1.lower(),
                 'team2': team2.lower(),
                 'part': part,
+                '_processed': True,
+            }
+    elif tourney_id == '9':
+        # smo draft 2025
+        if match := re.match(r'((?:Round \d+)|(?:SE)) (.*) vs (.*)', round_name):
+            stage = match.group(1)
+            team1 = match.group(2)
+            team2 = match.group(3)
+            round_name = f'{stage}: {team1} vs {team2}'
+            return round_name, {
+                'stage': stage,
+                'team1': team1.lower(),
+                'team2': team2.lower(),
+                'part': None,
+                '_processed': True,
+            }
+        elif round_name == 'Finals':
+            stage = round_name
+            team1 = 'Akira'
+            team2 = 'Homer'
+            round_name = f'{stage}: {team1} vs {team2}'
+            return round_name, {
+                'stage': stage,
+                'team1': team1.lower(),
+                'team2': team2.lower(),
+                'part': None,
                 '_processed': True,
             }
 
@@ -140,7 +170,7 @@ def main(tourney_id, output_dir):
             games = round_data['games']
             film_count += len(games)
             games_data = []
-            for game_num, game_info in enumerate(round_data['games'], 1):
+            for game_num, game_info in enumerate(games, 1):
                 games_data.append({
                     'game_num': game_num,
                     'bagrada_game': game_info['id'],
@@ -200,7 +230,7 @@ def main(tourney_id, output_dir):
             for game_info in round_info['games']:
                 output_path = path / game_info['game_path']
                 pathlib.Path(output_path).mkdir(parents=True, exist_ok=True)
-                dl_futures.append(executor.submit(download_film, game_info['film_name'], output_path))
+                dl_futures.append(executor.submit(download_film, game_info, output_path))
 
         for f in as_completed(dl_futures):
             (film_name, film_url, film_output) = f.result()

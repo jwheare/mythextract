@@ -20,6 +20,7 @@ const playerList = document.getElementById("playerList");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
+const DATA_VERSION = '2025-08-03';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -136,6 +137,8 @@ function routeUrl () {
 
   if (TOURNEY_ID == '7-mwc25') {
     initMWC25();
+  } else if (TOURNEY_ID == '9-smo25') {
+    initSmo25();
   }
 
   if (GAME_ID) {
@@ -236,7 +239,7 @@ function renderHome () {
 }
 
 async function renderTournament() {
-  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/info.json`);
+  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/info.json?v=${DATA_VERSION}`);
   TOURNEY_DATA = JSON.parse(await response.text());
   window.TOURNEY_DATA = TOURNEY_DATA;
 
@@ -261,7 +264,7 @@ async function renderTournament() {
 }
 
 async function renderRound () {
-  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}/info.json`);
+  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}/info.json?v=${DATA_VERSION}`);
   ROUND_DATA = JSON.parse(await response.text());
   window.ROUND_DATA = ROUND_DATA;
 
@@ -276,7 +279,7 @@ async function renderRound () {
 }
 
 async function renderGame () {
-  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}/games/${GAME_ID}/stats.json`);
+  const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}/games/${GAME_ID}/stats.json?v=${DATA_VERSION}`);
   GAME_DATA = JSON.parse(await response.text());
   window.GAME_DATA = GAME_DATA;
   UNIT_FILTER = null;
@@ -323,8 +326,12 @@ function renderHomeInfo () {
 }
 
 function renderHomeTourneys () {
-  let tourneyLink = stateLink('tournament/7-mwc25', 'Myth World Cup 2025', 'tournamentLink');
-  tournamentContainer.appendChild(tourneyLink);
+  tournamentContainer.appendChild(
+    stateLink('tournament/7-mwc25', 'Myth World Cup 2025', 'tournamentLink')
+  );
+  tournamentContainer.appendChild(
+    stateLink('tournament/9-smo25', "'smo draft tournament 2025", 'tournamentLink')
+  );
 }
 
 function renderTournamentInfo () {
@@ -445,6 +452,22 @@ function initMWC25 () {
   };
 }
 
+function initSmo25 () {
+  ROUND_MAP = new Map([
+    ['Round 1', 'Round 1'],
+    ['Round 2', 'Round 2'],
+    ['Round 3', 'Round 3'],
+    ['SE', 'Single Elimination'],
+    ['Finals', 'Finals'],
+  ]);
+  TEAM_MAP = {
+    'asmo': ['Asmo', 'Asmodian'],
+    'dantski': ['Dant', 'Dantski'],
+    'homer': ['Homer', 'Homer'],
+    'akira': ['Akira', 'Akira'],
+  };
+}
+
 function initStats (obj, key) {
   if (!(key in obj)) {
     obj[key] = {
@@ -456,8 +479,11 @@ function initStats (obj, key) {
       'actions_engage': 0,
       'game_wins': 0,
       'game_losses': 0,
+      'game_ties': 0,
       'round_wins': 0,
       'round_losses': 0,
+      'round_ties': 0,
+      'points': 0,
       'medals': 0,
       'captains': 0,
       'games': 0,
@@ -515,8 +541,10 @@ function calculateTourneyStats (teamFilter) {
               incrementStats(teamStats, teamSlug, stats);
               let playerStat = incrementStats(playerStats, bagrada_player, stats);
               if (player.stats.actions_engage) {
-                if (team.winner && player.stats.actions_engage) {
+                if (team.winner) {
                   playerStat.game_wins += 1;
+                } else if (g.tie) {
+                  playerStat.game_ties += 1;
                 } else {
                   playerStat.game_losses += 1;
                 }
@@ -545,9 +573,14 @@ function calculateTourneyStats (teamFilter) {
           let teamStat = initStats(teamStats, teamSlug);
           if (team.winner) {
             teamStat.game_wins += 1;
+            teamStat.points += 3;
+          } else if (g.tie) {
+            teamStat.game_ties += 1;
+            teamStat.points += 1;
           } else {
             teamStat.game_losses += 1;
           }
+
           if (team.stats.dmg_action_ratio) {
             teamStat.game_dmg_action_ratio.push(team.stats.dmg_action_ratio);
           }
@@ -575,45 +608,58 @@ function calculateTourneyStats (teamFilter) {
       team1.rounds += 1;
       if (r.team1 == r.round_winner) {
         team1.round_wins += 1;
-      } else {
+      } else if (r.round_winner) {
         team1.round_losses += 1;
+      } else {
+        team1.round_ties += 1;
       }
       let team2 = initStats(teamStats, r.team2);
       team2.rounds += 1;
       if (r.team2 == r.round_winner) {
         team2.round_wins += 1;
-      } else {
+      } else if (r.round_winner) {
         team2.round_losses += 1;
+      } else {
+        team2.round_ties += 1;
       }
 
     }
   });
   let overallTeamStats = [];
   for (let [team, stats] of Object.entries(teamStats)) {
-    overallTeamStats.push({
-      Team: stateLink(
-        `tournament/${TOURNEY_ID}/teams/${team}`,
-        teamName(team)
-      ),
+    if (!teamFilter || teamFilter == team) {
+      let teamLink = teamName(team);
+      if (!teamFilter) {
+        teamLink = stateLink(
+          `tournament/${TOURNEY_ID}/teams/${team}`,
+          teamName(team)
+        );
+      }
+      overallTeamStats.push({
+        Team: teamLink,
 
-      'Total\nDmg': stats.dmg_out,
-      'Total\nBusy': stats.actions,
-      'Total\nAggr.': stats.actions_engage,
+        'Total\nDmg': stats.dmg_out,
+        'Total\nBusy': stats.actions,
+        'Total\nAggr.': stats.actions_engage,
 
-      'Median\nDmg': Math.round(avgMedian(stats.game_dmg_out)),
-      'Median\nBusy': Math.round(avgMedian(stats.game_actions)),
-      'Median\nAggr.': Math.round(avgMedian(stats.game_actions_engage)),
-      'Median\nAssert': avgMedian(stats.game_dmg_action_ratio_engage).toFixed(2),
-      'Median\nEffic.': avgMedian(stats.game_dmg_cost_ratio).toFixed(2),
+        'Median\nDmg': Math.round(avgMedian(stats.game_dmg_out)),
+        'Median\nBusy': Math.round(avgMedian(stats.game_actions)),
+        'Median\nAggr.': Math.round(avgMedian(stats.game_actions_engage)),
+        'Median\nAssert': avgMedian(stats.game_dmg_action_ratio_engage).toFixed(2),
+        'Median\nEffic.': avgMedian(stats.game_dmg_cost_ratio).toFixed(2),
 
-      'Games\nPlayed': stats.games,
-      'Games\nWon': stats.game_wins,
-      'Games\nLost': stats.game_losses,
-      'Rounds\nPlayed': stats.rounds,
-      'Round\nVictories': stats.round_wins,
-      'Round\nDefeats': stats.round_losses,
-      '🎖️ Medals': stats.medals + Math.max(0, stats.round_wins - stats.round_losses) + Math.max(0, stats.game_wins - stats.game_losses),
-    });
+        'Games\nPlayed': stats.games,
+        'Games\nWon': stats.game_wins,
+        'Games\nLost': stats.game_losses,
+        'Games\nTied': stats.game_ties,
+        'Points\n ': stats.points,
+        'Rounds\nPlayed': stats.rounds,
+        'Round\nVictories': stats.round_wins,
+        'Round\nDefeats': stats.round_losses,
+        'Round\nTies': stats.round_ties,
+        '🎖️ Medals': stats.medals + Math.max(0, stats.round_wins - stats.round_losses) + Math.max(0, stats.game_wins - stats.game_losses),
+      });
+    }
   }
   let overallPlayerStats = [];
   for (let [playerId, stats] of Object.entries(playerStats)) {
@@ -625,17 +671,25 @@ function calculateTourneyStats (teamFilter) {
       stripFormat(stripOrder(avgMode(player.names)))
     );
     playerLink.style.borderLeft = `8px solid ${playerColor}`;
-    overallPlayerStats.push(Object.assign({
-      Team: stateLink(
+    let teamLink = teamNameShort(avgMode(player.teams));
+    if (!teamFilter) {
+      teamLink = stateLink(
         `tournament/${TOURNEY_ID}/teams/${teamSlug}`,
         teamNameShort(avgMode(player.teams))
-      ),
+      );
+    }
+    overallPlayerStats.push(Object.assign({
+      Team: teamLink,
       Player: playerLink,
     }, aggregatePlayerStats(stats)));
   }
 
-  if (!teamFilter) {
-    tournamentContainer.append(dce('h3', '', 'Team Stats'));
+  if (!PLAYER_ID) {
+    let teamStatHeading = 'Team Stats';
+    if (teamFilter) {
+      teamStatHeading = `Team Stats: ${teamName(teamFilter)}`;
+    }
+    tournamentContainer.append(dce('h3', '', teamStatHeading));
     let teamTable = makeTable(
       Object.keys(overallTeamStats[0]),
       overallTeamStats.map(s => Object.values(s)),
@@ -644,14 +698,12 @@ function calculateTourneyStats (teamFilter) {
       STAT_TOOLTIPS,
     );
     tournamentContainer.append(teamTable);
-    teamTable.querySelector('td.dataTableHead___Medals').click();
+    teamTable.querySelector('td.dataTableHead__Points_').click();
   }
 
-  let playerStatHeading = 'Player Stats';
-  if (teamFilter) {
-    playerStatHeading = `Team Stats: ${teamName(teamFilter)}`;
+  if (!teamFilter) {
+    tournamentContainer.append(dce('h3', '', 'Player Stats'));
   }
-  tournamentContainer.append(dce('h3', '', playerStatHeading));
   let playerTable = makeTable(
     Object.keys(overallPlayerStats[0]),
     overallPlayerStats.map(s => Object.values(s)),
@@ -674,6 +726,7 @@ function makeTable (headers, values, types, className, tooltips) {
   }
   let thead = dce('thead');
   let theadRow = dce('tr');
+  theadRow.append(dce('td', 'dataTablePos'));
   headers.forEach((h, i) => {
     let headCell = dce('td', `dataTableHead__${tableClass(h)}`, h);
     if (types && types[i] != 'none') {
@@ -689,8 +742,9 @@ function makeTable (headers, values, types, className, tooltips) {
   table.append(thead)
 
   let tbody = dce('tbody');
-  values.forEach(row => {
+  values.forEach((row, i) => {
     let valueRow = dce('tr');
+    valueRow.append(dce('td', 'dataTablePos', i+1));
     row.forEach((v, i) => {
       if (v && (!types || !types[i] || !types[i] == 'number')) {
         v = v.toLocaleString();
@@ -728,8 +782,8 @@ function sortTable (table) {
       }
 
       rows.sort((a, b) => {
-        const cellA = a.children[colIndex].textContent.trim();
-        const cellB = b.children[colIndex].textContent.trim();
+        const cellA = a.children[colIndex+1].textContent.trim();
+        const cellB = b.children[colIndex+1].textContent.trim();
         let valA = type === 'number' ? parseFloat(cellA.replace(',', '')) : cellA.toLowerCase();
         let valB = type === 'number' ? parseFloat(cellB.replace(',', '')) : cellB.toLowerCase();
 
@@ -745,7 +799,10 @@ function sortTable (table) {
       });
       th.classList.add(ascending ? 'asc' : 'desc');
 
-      rows.forEach(row => tbody.appendChild(row)); // Reorder rows
+      rows.forEach((row, i) => {
+        row.querySelector('.dataTablePos').textContent = i + 1;
+        tbody.appendChild(row)
+      }); // Reorder rows
     });
   });
 
@@ -829,6 +886,7 @@ function aggregatePlayerStats (stats) {
     'Games\nPlayed': stats.games,
     'Games\nWon': stats.game_wins,
     'Games\nLost': stats.game_losses,
+    'Games\nTied': stats.game_ties,
     '🔹 Cap': stats.captains,
     '🎖️ Medals': stats.medals + Math.max(0, stats.game_wins - stats.game_losses),
   };
@@ -857,6 +915,8 @@ function renderPlayerStats (bagrada_player) {
           if (player.stats.actions_engage) {
             if (team.winner && player.stats.actions_engage) {
               playerStat.game_wins += 1;
+            } else if (g.tie) {
+              playerStat.game_ties += 1;
             } else {
               playerStat.game_losses += 1;
             }
@@ -1144,12 +1204,18 @@ function renderRoundGames (games) {
     let gameType = dce('span', 'roundGames__type', game.game_type);
     gameInfo.prepend(gameType);
 
-    let gameWinner = dce('span', 'roundGames__winner', teamNameShort(game.winning_team));
-    let winningTeam = game.teams[game.winning_team];
-    gameWinner.style.borderBottom = `5px solid ${winningTeam.color[0]}`;
-    tooltip(gameWinner, `Winner: ${teamName(game.winning_team)}`);
-    gameInfo.prepend(' ');
-    gameInfo.prepend(gameWinner);
+    if (game.winning_team) {
+      let gameWinner = dce('span', 'roundGames__winner', teamNameShort(game.winning_team));
+      let winningTeam = game.teams[game.winning_team];
+      gameWinner.style.borderBottom = `5px solid ${winningTeam.color[0]}`;
+      tooltip(gameWinner, `Winner: ${teamName(game.winning_team)}`);
+      gameInfo.prepend(' ');
+      gameInfo.prepend(gameWinner);
+    } else if (game.tie) {
+      let gameTie = dce('span', 'roundGames__winner', 'Tie')
+      gameInfo.prepend(' ');
+      gameInfo.prepend(gameTie);
+    }
 
     let gameTime = dce('span', 'roundGames__time', `${Math.round(game.time_limit/30/60)} mins`);
     gameInfo.appendChild(gameTime);

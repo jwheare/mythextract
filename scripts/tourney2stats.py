@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-from collections import OrderedDict
 import json
 import os
 import pathlib
@@ -11,52 +10,52 @@ import tag2png
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
-# MWC25 specific
-CAPTAIN_TEAMS = {
-    11: "spy kids",
-    26: "ag",
-    31: "d&t",
-    34: "spy kids",
-    38: "tmf",
-    41: "mit",
-    44: "z snake",
-    47: "spy kids",
-    51: "z snake",
-    52: "spy kids",
-    54: "ag",
-    59: "spy kids",
-    68: "spy kids",
-    96: "tmf",
-    150: "ag",
-    210: "tmf",
-    252: "tmf",
-    283: "pk",
-    338: "tmf",
-    342: "pk"
-}
+def cap2team(tourney_id, round_id, game_num, cap_id):
+    teams = {
+        7: {
+            # MWC25
+            11: "spy kids",
+            26: "ag",
+            31: "d&t",
+            34: "spy kids",
+            38: "tmf",
+            41: "mit",
+            44: "z snake",
+            47: "spy kids",
+            51: "z snake",
+            52: "spy kids",
+            54: "ag",
+            59: "spy kids",
+            68: "spy kids",
+            96: "tmf",
+            150: "ag",
+            210: "tmf",
+            252: "tmf",
+            283: "pk",
+            338: "tmf",
+            342: "pk"
+        },
+        9: {
+            # smo draft 2025
+            31: 'homer' if round_id == 77 else 'asmo', # asmodian
+            53: 'homer', # homer
+            11: 'akira', # ephemeral
+            103: 'dantski', # dantski
+            41: 'dantski', # lordscaryowl
+            51: 'akira', # akira
+            52: 'homer', # karma
+            283: 'akira', # drunken
+            213: 'homer', # detriment
+            13: 'akira', # giant killer general
+        }
+    }
+    return teams.get(int(tourney_id), {}).get(int(cap_id))
+
 FORFEIT_WINNERS = {
-    43: ['tmf', 5],
-    48: ['ag', 5],
-}
-ROUND_MAP = OrderedDict([
-    ('QR1', 'Qualifying Round 1'),
-    ('QR2', 'Qualifying Round 2'),
-    ('QR3', 'Qualifying Round 3'),
-    ('DE1', 'Double Elimination 1'),
-    ('DE2', 'Double Elimination 2'),
-    ('DE3', 'Double Elimination 3'),
-    ('BB Finals', 'Bottom Bracket Finals'),
-    ('Grand Finals', 'Grand Finals'),
-])
-TEAM_MAP = {
-    'ag': ['AG', "Avon's Grove"],
-    'd&t': ['D&T', "Death & Taxes"],
-    'ma': ['MA', "Marmotas Assassinas"],
-    'mit': ['MiT', "Men in Tights"],
-    'pk': ['PK', "Peacekeepers"],
-    'spy kids': ['SK', "Spy Kids"],
-    'tmf': ['TMF', "The Myth-Fits"],
-    'z snake': ['ZS', "Z Snake"],
+    7: {
+        43: ['tmf', 5],
+        48: ['ag', 5],
+    }
 }
 
 def main(tourney_dir, game_directory, output_dir):
@@ -76,7 +75,8 @@ def main(tourney_dir, game_directory, output_dir):
     tourney_name = tourney_info['name']
     tourney_short_name = tourney_info['short_name']
     tourney_start = tourney_info['start']
-    print(f"Tournament: {tourney_name} ({tourney_info['bagrada_tournament']})")
+    tourney_id = tourney_info['bagrada_tournament']
+    print(f"Tournament: {tourney_name} ({tourney_id})")
     print(f"Short name: {tourney_short_name}")
     print(f"Start date: {tourney_start}")
 
@@ -103,15 +103,14 @@ def main(tourney_dir, game_directory, output_dir):
                 winning_teams[round_info['team1']] = 0
                 winning_teams[round_info['team2']] = 0
 
-            print(winning_teams)
-
             if not len(round_info['games']):
                 if winning_teams:
-                    forfeit_winner = FORFEIT_WINNERS[round_info['bagrada_round']]
-                    winning_teams[forfeit_winner[0]] = forfeit_winner[1]
-                    round_info['forfeit'] = (
-                        round_info['team1'] if forfeit_winner[0] == round_info['team2'] else round_info['team2']
-                    )
+                    forfeit_winner = FORFEIT_WINNERS.get(tourney_id).get(round_info['bagrada_round'])
+                    if forfeit_winner:
+                        winning_teams[forfeit_winner[0]] = forfeit_winner[1]
+                        round_info['forfeit'] = (
+                            round_info['team1'] if forfeit_winner[0] == round_info['team2'] else round_info['team2']
+                        )
             for game_info in round_info['games']:
                 game_dir = base_path / game_info['game_path']
                 film_name = game_info['film_name']
@@ -138,13 +137,20 @@ def main(tourney_dir, game_directory, output_dir):
                 game_stats['header']['round'] = round_info
 
                 # Re-index teams header by tourney team slugs
-                game_stats['header']['teams'] = {
+                reindexed = {}
+                for team_index, team_data in game_stats['header']['teams'].items():
+                    bagrada_captain = team_data['captain']['bagrada_player']
                     # Relies on tourney specific data
-                    CAPTAIN_TEAMS[team_data['captain']['bagrada_player']]: team_data | {
+                    team_name = cap2team(
+                        tourney_id, round_info['bagrada_round'], game_info['game_num'], bagrada_captain
+                    )
+                    if not team_name:
+                        print('Missing cap', tourney_id, team_data['captain'])
+                        sys.exit(1)
+                    reindexed[team_name] = team_data | {
                         'team_index': team_index
                     }
-                    for team_index, team_data in game_stats['header']['teams'].items()
-                }
+                game_stats['header']['teams'] = reindexed
 
                 reco_stats_out_path = game_dir / 'stats.json'
                 pathlib.Path(reco_stats_out_path.parent).mkdir(parents=True, exist_ok=True)
@@ -177,20 +183,23 @@ def main(tourney_dir, game_directory, output_dir):
                 if 'host' in stats_game:
                     game_info['host'] = stats_game['host']
                 if 'tie_teams' in stats_game:
-                    game_info['tie_teams'] = [
-                        tie_t['captain']['bagrada_player']
-                        for tie_t in stats_game['tie_teams']
-                    ]
-                if 'winning_bagrada_captain' in stats_game:
+                    game_info['tie_teams'] = stats_game['tie_teams']
+                if 'winning_bagrada_captain' in stats_game and stats_game['winning_bagrada_captain']:
                     if winning_teams:
-                        winning_team = CAPTAIN_TEAMS[stats_game['winning_bagrada_captain']]
+                        winning_team = cap2team(
+                            tourney_id, round_info['bagrada_round'], game_info['game_num'], stats_game['winning_bagrada_captain']
+                        )
                         winning_teams[winning_team] += 1
                         game_info['winning_team'] = winning_team
 
                 # teams and players info
-                teams_info = {
+                teams_info = {}
+                for team_index, team_data in game_stats['header']['teams'].items():
                     # Relies on tourney specific data
-                    CAPTAIN_TEAMS[team_data['captain']['bagrada_player']]: {
+                    team_name = cap2team(
+                        tourney_id, round_info['bagrada_round'], game_info['game_num'], team_data['captain']['bagrada_player']
+                    )
+                    teams_info[team_name] = {
                         tk: tv
                         for tk, tv in team_data.items() if tk in [
                             'name',
@@ -217,14 +226,14 @@ def main(tourney_dir, game_directory, output_dir):
                             }
                             for player_id, player_data in team_data['players'].items()
                         }
-                    } for team_index, team_data in game_stats['header']['teams'].items()
-                }
+                    }
                 game_info['teams'] = teams_info
 
                 print('DONE')
 
             # Relies on tourney specific data
             if winning_teams:
+                round_winner = None
                 if winning_teams[round_info['team1']] > winning_teams[round_info['team2']]:
                     round_winner = round_info['team1']
                 elif winning_teams[round_info['team2']] > winning_teams[round_info['team1']]:
