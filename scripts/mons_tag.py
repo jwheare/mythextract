@@ -59,6 +59,24 @@ AttackDefFmt = ('AttackDef', [
     ('2x', None),
 ])
 
+AttackDefFmtTFL = ('AttackDefTFL', [
+    ('H', 'miss_fraction', codec.Fixed),
+    ('H', 'flags', AttackFlag),
+    ('4s', 'projectile_tag'),
+    ('h', 'minimum_range', codec.World),
+    ('h', 'maximum_range', codec.World),
+    ('h', 'sequence_index'),
+    ('h', 'repetitions'),
+    ('h', 'initial_velocity_lower_bound', codec.World),
+    ('h', 'initial_velocity_delta', codec.world_delta('initial_velocity_lower_bound')),
+    ('h', 'initial_velocity_error', codec.World),
+    ('h', 'recovery_time', codec.Time),
+    ('h', 'elevated_sequence_index'),
+    ('h', 'declined_sequence_index'),
+    ('h', 'recovery_time_experience_delta', codec.Time),
+    ('2x', None),
+])
+
 class MonsFlag(enum.Flag):
     TRANSLATES_CONTINUOUSLY = enum.auto()
     HOLDS_WITH_CLEAR_SHOT = enum.auto()
@@ -172,6 +190,12 @@ MonsTerrainCostsFmt = ('MonsTerrainCosts', [
     ('b', 'flying_impassable'),  # unused in extended flags?
 ])
 
+def vet_max(mons_tag):
+    if MonsFlag.USE_EXTENDED in mons_tag.flags:
+        ext = extended_flags(mons_tag)
+        return ext['maximum_experience_points']
+    return 5
+
 def extended_flags(mons_tag):
     rocky_unsigned = codec.unsigned8(mons_tag.terrain_costs.rocky)
     marsh_unsigned = codec.unsigned8(mons_tag.terrain_costs.marsh)
@@ -248,7 +272,7 @@ def terrain_passability(mons_tag):
     gameplay_gt_130 = True
 
     # This flag is not on by default, and likely has never been turned on
-    ignore_costs = MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
+    ignore_costs = MonsFlag.USE_EXTENDED in mons_tag.flags or MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
     # Given the above, this will likely be true, even though we're above 1.7.0
     use_terrain_costs = gameplay_lte_170 or not ignore_costs
     # This will also be true, we're above 1.3.0
@@ -439,31 +463,35 @@ SequenceNames = [
 ]
 
 MAX_ARTI_PROJ = 4
-MAX_ARTI_EFFECT_MODS = 16
-ArtifactFmt = ('Artifact', [
-    ('L', 'flags'),
-    ('4s', 'monster_restriction_tag'),
-    ('h', 'specialization_restriction'),
-    ('h', 'initial_charges_lower_bound'),
-    ('h', 'initial_charges_delta'),
-    ('h', 'pad'),
-    ('4s', 'collection_tag'),
-    ('h', 'sequence_inventory'),
-    ('h', 'sequence_2'),
-    ('h', 'sequence_3'),
-    ('h', 'sequence_4'),
-    ('16s', 'projectile_tags', codec.list_pack('ArtifactProjTags', MAX_ARTI_PROJ, '>4s')),
-    ('L', 'bonus_monster_flags'),
-    ('h', 'monster_override_type'),
-    ('h', 'expiry_timer'),
-    ('32s', 'bonus_effect_modifiers', codec.list_pack('ArtifactEffectMods', MAX_ARTI_EFFECT_MODS, '>h')),
-    ('64s', 'override_attack', codec.codec(AttackDefFmt)),
-    ('4s', 'special_ability_string_list_tag'),
-    ('4s', 'monster_override_tag'),
-    ('h', 'collection_index'),
-    ('h', 'special_ability_string_list_index'),
-    ('8s', 'projectile_types', codec.list_pack('ArtifactProjTypes', MAX_ARTI_PROJ, '>h')),
-])
+MAX_ARTI_EFFECT_MODS_SB = 16
+MAX_ARTI_EFFECT_MODS_TFL = 12
+def ArtifactFmt(game_version=2):
+    max_arti_effect_mods = MAX_ARTI_EFFECT_MODS_SB if game_version == 2 else MAX_ARTI_EFFECT_MODS_TFL
+    attack_def = codec.codec(AttackDefFmt) if game_version == 2 else codec.codec(AttackDefFmtTFL)
+    return ('Artifact', [
+        ('L', 'flags'),
+        ('4s', 'monster_restriction_tag'),
+        ('h', 'specialization_restriction'),
+        ('h', 'initial_charges_lower_bound'),
+        ('h', 'initial_charges_delta'),
+        ('h', 'pad'),
+        ('4s', 'collection_tag'),
+        ('h', 'sequence_inventory'),
+        ('h', 'sequence_2'),
+        ('h', 'sequence_3'),
+        ('h', 'sequence_4'),
+        (f'{MAX_ARTI_PROJ*4}s', 'projectile_tags', codec.list_pack('ArtifactProjTags', MAX_ARTI_PROJ, '>4s')),
+        ('L', 'bonus_monster_flags'),
+        ('h', 'monster_override_type'),
+        ('h', 'expiry_timer'),
+        (f'{max_arti_effect_mods*2}s', 'bonus_effect_modifiers', codec.list_pack('ArtifactEffectMods', max_arti_effect_mods, '>h')),
+        (f'{attack_def._item_def_size}s', 'override_attack', attack_def),
+        ('4s', 'special_ability_string_list_tag'),
+        ('4s', 'monster_override_tag'),
+        ('h', 'collection_index'),
+        ('h', 'special_ability_string_list_index'),
+        (f'{MAX_ARTI_PROJ*2}s', 'projectile_types', codec.list_pack('ArtifactProjTypes', MAX_ARTI_PROJ, '>h')),
+    ])
 
 def sequence_name(idx):
     if idx < len(SequenceNames):
@@ -471,8 +499,8 @@ def sequence_name(idx):
     else:
         return ''
 
-def parse_artifact(data):
-    return myth_headers.parse_tag(ArtifactFmt, data)
+def parse_artifact(data, tag_header):
+    return myth_headers.parse_tag(ArtifactFmt(myth_headers.game_version(tag_header)), data)
 
 def parse_unit(data):
     return myth_headers.parse_tag(UnitTagFmt, data)
@@ -504,4 +532,4 @@ def unit_stats(tags, data_map, tag_id):
     (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
         tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
     )
-    return mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)
+    return mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)

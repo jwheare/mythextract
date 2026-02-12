@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import math
 import struct
 import sys
 
@@ -32,13 +33,14 @@ def print_mons_stats(game_version, tags, data_map, mons_id):
     (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
         tags, data_map, 'mons', mons_id
     )
-    mons_dict = get_mons_dict(tags, data_map, mons_header, mons_data)
-    print(f"[{mons_id}] {mons_dict['spellings'][0]} ({mons_header.name})")
+    mons_dict = get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
+    print(f"[{mons_id}] {mons_dict['spellings'][0]} ({mons_header.name}) [{mons_loc}]")
+    print(f'    cost {mons_dict["cost"]}')
     lines = mons_stats(mons_dict)
     print('\n'.join(lines))
     print('================================')
 
-def get_mons_dict(tags, data_map, mons_header, mons_data):
+def get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc):
     mons = mons_tag.parse_tag(mons_data)
 
     obje_data = loadtags.get_tag_data(
@@ -64,6 +66,7 @@ def get_mons_dict(tags, data_map, mons_header, mons_data):
 
     return {
         'spellings': spellings,
+        'location': mons_loc,
         'class': mons.monster_class,
         'cost': mons.cost,
         'speed': mons.base_movement_speed,
@@ -97,6 +100,7 @@ def sequence(tags, data_map, collection_tag, sequence_index):
 
 def process_attacks(mons, tags, data_map):
     attacks = []
+    vet_max = mons_tag.vet_max(mons)
 
     (_, ex_prgr_header, ex_prgr_data) = loadtags.get_tag_info(
         tags, data_map, 'prgr', codec.decode_string(
@@ -124,12 +128,14 @@ def process_attacks(mons, tags, data_map):
                     'dps': ex_dmg,
                     'special': False,
                     'melee': False,
+                    'ammo': False,
                     'sets_fire': myth_projectile.ProjFlags.CAN_SET_LANDSCAPE_ON_FIRE in ex_proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in ex_proj.damage.flags,
                     'radius': ex_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in ex_proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in ex_proj.damage.flags,
                     'promotion_chance': ex_proj.promotion_on_detonation_fraction,
+                    'promotion_proj': ex_proj.promoted_projectile_tag if not codec.all_on(ex_proj.promoted_projectile_tag) else None,
                     'range': 0,
                     'recovery': 0,
                     'mana_cost': 0,
@@ -138,6 +144,7 @@ def process_attacks(mons, tags, data_map):
                     'velocity_error': 0,
                     'vet_recovery': 0,
                     'vet_velocity': 0,
+                    'vet_max': vet_max,
                     'primary': False,
                 })
     special_heals = False
@@ -160,12 +167,14 @@ def process_attacks(mons, tags, data_map):
                         'dps': None,
                         'special': False,
                         'melee': False,
+                        'ammo': False,
                         'sets_fire': False,
                         'aoe': False,
                         'radius': 0,
                         'paralysis': False,
                         'unblockable': False,
                         'promotion_chance': 0,
+                        'promotion_proj': None,
                         'range': attack.maximum_range,
                         'recovery': attack.recovery_time,
                         'mana_cost': attack.mana_cost,
@@ -174,14 +183,16 @@ def process_attacks(mons, tags, data_map):
                         'velocity_error': attack.initial_velocity_error,
                         'vet_recovery': attack.recovery_time_experience_delta,
                         'vet_velocity': attack.velocity_improvement_with_experience,
+                        'vet_max': vet_max,
                         'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                     })
                 continue
 
             proj = myth_projectile.parse_proj(proj_data)
+            ammo = mons.initial_ammunition_lower_bound if mons_tag.AttackFlag.USES_AMMUNITION in attack.flags else False
             if proj.damage.type == myth_projectile.DamageType.HEALING:
                 if mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags:
-                    special_heals = True
+                    special_heals = ammo
                 continue
 
             if (
@@ -199,7 +210,7 @@ def process_attacks(mons, tags, data_map):
                 avg_time_s = 1/30
             else:
                 seq_times = []
-                recov_s = attack.recovery_time.decode() + 0.2
+                recov_s = attack.recovery_time.decode() + 0.5 + 0.2 # random between 0 and 0.2
                 for attack_si, attack_s in enumerate(attack.sequences):
                     if not attack_s:
                         continue
@@ -242,12 +253,14 @@ def process_attacks(mons, tags, data_map):
                     'dps': avg_dps,
                     'special': mons_tag.AttackFlag.IS_SPECIAL_ABILITY in attack.flags,
                     'melee': myth_projectile.ProjFlags.MELEE_ATTACK in proj.flags,
+                    'ammo': ammo,
                     'sets_fire': myth_projectile.ProjFlags.CAN_SET_LANDSCAPE_ON_FIRE in proj.flags,
                     'aoe': myth_projectile.DamageFlags.AREA_OF_EFFECT in proj.damage.flags,
                     'radius': attack_radius,
                     'paralysis': myth_projectile.DamageFlags.CAN_CAUSE_PARALYSIS in proj.damage.flags,
                     'unblockable': myth_projectile.DamageFlags.CANNOT_BE_BLOCKED in proj.damage.flags,
                     'promotion_chance': proj.promotion_on_detonation_fraction,
+                    'promotion_proj': proj.promoted_projectile_tag if not codec.all_on(proj.promoted_projectile_tag) else None,
                     'range': attack_range,
                     'recovery': recov_s,
                     'mana_cost': attack.mana_cost,
@@ -256,6 +269,7 @@ def process_attacks(mons, tags, data_map):
                     'velocity_error': attack.initial_velocity_error,
                     'vet_recovery': attack.recovery_time_experience_delta,
                     'vet_velocity': attack.velocity_improvement_with_experience,
+                    'vet_max': min(math.ceil(recov_s/attack.recovery_time_experience_delta), vet_max) if attack.recovery_time_experience_delta else vet_max,
                     'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                 })
     return (attacks, special_heals)
@@ -271,18 +285,22 @@ def mons_stats(mons_dict):
     for attack in mons_dict['attacks']:
         special = " (special)" if attack['special'] else ""
         aoe = " (aoe)" if attack['aoe'] else ""
+        ammo = f" ({attack['ammo']} ammo)" if attack['ammo'] else ""
         sets_fire = " (sets on fire)" if attack['sets_fire'] else ""
         paralysis = " (paralyses)" if attack['paralysis'] else ""
-        dud_rate = f" (dud rate: {round(100*attack['promotion_chance'])}%)" if attack['promotion_chance'] else ""
+        dud_rate = f" (dud rate: {round(100*attack['promotion_chance'])}%)" if attack['promotion_chance'] and attack['promotion_proj'] else ""
         attack_type = "melee" if attack['melee'] else "ranged"
-        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{sets_fire}{paralysis}{dud_rate}"
+        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{sets_fire}{paralysis}{dud_rate}{ammo}"
         if attack['dps']:
             recov = ''
             if attack['mana_cost'] > 0:
                 mana_recharge_time = (attack['mana_cost'] / (mons_dict['mana_recharge_rate'] * 30))
                 recov = f' (mana recovery: {round(mana_recharge_time, 1)}s)'
             elif 'attack_time' in attack:
-                recov = f' (recovery: {round(attack['recovery'], 2)}s total_time: {round(attack['attack_time'], 2)}s)'
+                vet = ''
+                if attack['vet_recovery'] > 0:
+                    vet = f" - reduction: {round(attack['vet_recovery'], 2)}s per kill / max {attack['vet_max']}"
+                recov = f' (recovery: {round(attack['recovery'], 2)}s total_time: {round(attack['attack_time'], 2)}s{vet})'
             lines.append(graph('     dmg ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
             lines.append(graph('     dps ', round(attack['dps']*2), 1.2, 4, f" {round(attack['dps'], 2)}{recov}"))
             attack_details = ''
@@ -294,7 +312,10 @@ def mons_stats(mons_dict):
 
     indent = '         '
     if mons_dict['special_heals']:
-        lines.append(f'{indent}special \x1b[92mheals\x1b[0m')
+        heal_ammo = ''
+        if mons_dict['special_heals'] is not True:
+            heal_ammo = f' ({mons_dict['special_heals']} ammo)'
+        lines.append(f'{indent}special \x1b[92mheals\x1b[0m{heal_ammo}')
     if mons_dict['can_block']:
         lines.append(f'{indent}can \x1b[92mblock\x1b[0m')
     if mons_dict['heal_kills']:

@@ -91,6 +91,7 @@ def lookup_tag_header(tags, tag_type, tag_id):
     return (None, None)
 
 def load_tags(game_directory, plugin_names=[]):
+    plugin_names = [os.path.basename(p) for p in plugin_names]
     (files, cutscenes) = build_file_list(game_directory, plugin_names)
     (game_version, tags, entrypoint_map, data_map) = build_tag_map(files)
     return (game_version, tags, entrypoint_map, data_map, cutscenes)

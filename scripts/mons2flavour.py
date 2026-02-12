@@ -79,7 +79,7 @@ def get_flavour(tags, data_map, mons_id):
     (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
         tags, data_map, 'mons', mons_id
     )
-    mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data)
+    mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
     return (mons_id, mons_dict, mons_header, mons_flavour(mons_dict))
 
 def write_flavours(tags, data_map, input_mons_id):

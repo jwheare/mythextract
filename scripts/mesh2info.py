@@ -26,6 +26,7 @@ def main(game_directory, level, plugin_names):
         raise ValueError(f"Error processing binary data: {e}")
 
 def mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
+    plugin_names = [os.path.basename(p) for p in plugin_names]
     if level == 'all':
         if game_version == 1:
             for level in range(1, 26):

@@ -308,6 +308,13 @@ class TagDataGenerator:
                 if DEBUG:
                     print(f'{location:<32} {tag_type.upper()}.{tag_header.tag_id} {tag_header.name:<32} {tree_path}')
                 yield (tag_header, tag_data)
+        else:
+            tree_path = ' > '.join([
+                f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
+                for (tree_loc, tree_header) in tree
+            ])
+            missing_tag = f'{tag_type.upper()}.{codec.decode_string(tag_id)}'
+            print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:

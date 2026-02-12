@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import struct
+import os
 
 import codec
 import myth_headers
+
+DEBUG = (os.environ.get('DEBUG') == '1')
 
 ConnectorFmt = ('Connector', [
     ('L', 'flags'),
@@ -78,14 +81,87 @@ MediaFmt = ('Media', [
     ('134x', None),
 ])
 
+MAXIMUM_MATERIALS_PER_GEOMETRY = 32
+ModelPermutationFmt = ('ModelPermutation', [
+    ('H', 'collection_reference_permutation'),
+    ('32s', 'frames', codec.list_pack('ModelPermutationFrames', MAXIMUM_MATERIALS_PER_GEOMETRY, '>b')),
+    ('26x', None),
+    ('2x', None),
+    ('2x', None),
+])
+ModelMeshCellFmt = ('ModelMeshCell', [
+    ('h', 'x'),
+    ('h', 'y'),
+    ('h', 'flags'),
+    ('2x', None)
+])
 ModelFmt = ('Model', [
     ('L', 'flags'),
     ('4s', 'geometry_tag'),
+    ('h', 'geometry_index'),
+    ('H', 'vertex_flags_count'),
+    ('H', 'permutation_count'),
+    ('H', 'mesh_cell_count'),
+
+    ('L', 'geometry_vertex_offset'),
+    ('L', 'geometry_vertex_size'),
+    ('l', 'geometry_vertex_ptr'),
+    
+    ('L', 'permutations_offset'),
+    ('L', 'permutations_size'),
+    ('L', 'permutations_ptr'),
+    
+    ('L', 'mesh_cell_offset'),
+    ('L', 'mesh_cell_size'),
+    ('L', 'mesh_cell_ptr'),
+    
+    ('L', 'data_offset'),
+    ('L', 'data_size'),
+    ('L', 'data_ptr'),
 ])
 
+GeomMaterialFmt = ('GeomMaterial', [
+    ('32s', 'name', codec.String),
+    ('h', 'sequence_index'),
+    ('h', 'collection_index'),
+    ('h', 'color_table_index'),
+    ('h', 'bitmap_index'),
+    ('24x', None),
+])
 GeomFmt = ('Geom', [
     ('L', 'flags'),
     ('4s', 'collection_reference_tag'),
+    ('h', 'material_count'),
+    ('h', 'vertex_count'),
+    ('h', 'surface_count'),
+    ('h', 'dependency_count'),
+    ('h', 'center_x'),
+    ('h', 'center_y'),
+    ('h', 'center_z'),
+    ('6x', None),
+    ('L', 'materials_offset'),
+    ('L', 'materials_size'),
+    ('L', 'materials_ptr'),
+    ('L', 'vertex_offset'),
+    ('L', 'vertex_size'),
+    ('L', 'vertex_ptr'),
+    ('L', 'surface_offset'),
+    ('L', 'surface_size'),
+    ('L', 'surface_ptr'),
+    ('L', 'dependency_offset'),
+    ('L', 'dependency_size'),
+    ('L', 'dependency_ptr'),
+    ('L', 'data_offset'),
+    ('L', 'data_size'),
+    ('L', 'data_ptr'),
+    ('h', 'bounds_min_x'),
+    ('h', 'bounds_min_y'),
+    ('h', 'bounds_min_z'),
+    ('h', 'bounds_max_x'),
+    ('h', 'bounds_max_y'),
+    ('h', 'bounds_max_z'),
+    ('26x', None),
+    ('2x', None),
 ])
 
 MAX_ANIM_FRAMES = 31
@@ -157,10 +233,52 @@ def parse_media(data):
     return myth_headers.parse_tag(MediaFmt, data)
 
 def parse_model(data):
-    return myth_headers.parse_tag(ModelFmt, data)
+    model = myth_headers.parse_tag(ModelFmt, data)
+    if DEBUG:
+        model_data = data[64:]
+        value_data = model_data[model.data_offset:]
+        print('actual model data size', len(model_data[model.data_offset:]))
+        print('combined size', model.geometry_vertex_size + model.permutations_size + model.mesh_cell_size)
+
+        vertex_flags = codec.list_pack('ModelVertexFlags', model.vertex_flags_count, '>L', offset=model.geometry_vertex_offset)(value_data)
+
+        permutations = codec.list_codec(
+            model.permutation_count,
+            ModelPermutationFmt
+        )(value_data, offset=model.permutations_offset)
+
+        mesh_cells = codec.list_codec(
+            model.mesh_cell_count,
+            ModelMeshCellFmt
+        )(value_data, offset=model.mesh_cell_offset)
+
+        print('vertex_flags', len(vertex_flags), list(vertex_flags))
+        print('permutations', len(permutations))
+        for p in permutations:
+            print(p.collection_reference_permutation, list(p.frames))
+        print('  mesh_cells', len(mesh_cells), [(c.x, c.y, c.flags) for c in mesh_cells])
+
+    return model
 
 def parse_geom(data):
-    return myth_headers.parse_tag(GeomFmt, data)
+    geom = myth_headers.parse_tag(GeomFmt, data)
+    if DEBUG:
+        geom_data = data[64:]
+        value_data = geom_data[geom.data_offset:]
+        
+        print('actual geom data size', len(geom_data[geom.data_offset:]))
+        print('combined size', geom.materials_size + geom.vertex_size + geom.surface_size + geom.dependency_size)
+
+        materials = codec.list_codec(
+            geom.material_count,
+            GeomMaterialFmt
+        )(value_data, offset=geom.materials_offset)
+
+        print('materials', len(materials))
+        for mat in materials:
+            print(mat)
+
+    return geom
 
 def parse_anim(data):
     return myth_headers.parse_tag(AnimFmt, data)

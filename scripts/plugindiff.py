@@ -42,8 +42,8 @@ def main(file_1, file_2, tag_type, tag_id):
             mono_header_2
         )])
 
-        print(f'< {path_1}')
-        print(f'> {path_2}')
+        print(f'< {path_1} - {len(data_1)} bytes')
+        print(f'> {path_2} - {len(data_2)} bytes')
         diff_mono_headers(mono_header_1, mono_header_2)
 
         if not tag_type and not tag_id:

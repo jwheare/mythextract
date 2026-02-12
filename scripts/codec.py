@@ -90,7 +90,11 @@ def iter_decode(start, count, data_format, data):
 
 def _decode_data_value(decoder, value):
     if callable(decoder):
-        return decoder(value)
+        try:
+            return decoder(value)
+        except ValueError as ex:
+            print(ex)
+            return value
     elif type(decoder) in [int, float]:
         return value / decoder
     else:
@@ -492,6 +496,9 @@ class Simple:
 
     def __format__(self, format_spec):
         return format(str(self), format_spec)
+
+    def __hash__(self):
+        return hash(self.decode())
 
     # Comparison operators
     def __eq__(self, other):

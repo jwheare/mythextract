@@ -2,6 +2,7 @@
 import enum
 import os
 import struct
+import sys
 
 import codec
 import myth_headers
@@ -558,9 +559,13 @@ def decode_compressed_bitmap(color_table, bitmap_data, width, height, flags):
                 else:
                     pixel_end = pixel_start + 1
                     (ct_idx,) = struct.unpack('>B', bitmap_data[pixel_start:pixel_end])
-
                     (r, g, b, _) = color_table[ct_idx]
-                    row.append((r, g, b, 255))
+
+                    if BitmapFlags.BITMAP_IS_OVERLAY in flags:
+                        alpha = max([r, g, b])
+                    else:
+                        alpha = 255 if ct_idx else 0
+                    row.append((r, g, b, alpha))
                 pixel_start = pixel_end
 
             col_i = col_i + num_preceding_transparent + span_size

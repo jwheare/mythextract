@@ -13,7 +13,6 @@ import mons_tag
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
-DEAD_TAGS = (os.environ.get('DEAD_TAGS') == '1')
 
 def main(input_file):
     """
@@ -80,7 +79,7 @@ def print_tag_info(tag_data):
         case 'proj':
             print_tag_obj(myth_projectile.parse_proj(tag_data))
         case 'arti':
-            print_tag_obj(mons_tag.parse_artifact(tag_data))
+            print_tag_obj(mons_tag.parse_artifact(tag_data, tag_header))
         case '.256':
             print_tag_obj(myth_collection.parse_collection_header(tag_data, tag_header))
         case 'ligh':
