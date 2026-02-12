@@ -114,6 +114,8 @@ Script environment variables:
 * `DEBUG_ACTIONS=1` prints extra debug action parsing output
 * `DEBUG_MARKERS=1` prints extra debug marker parsing output
 
+Video intro: https://www.youtube.com/watch?v=xoKW-hnvuVQ
+
 ## [scripts/mesh2text.py](scripts/mesh2text.py)
 
 Outputs pregame text data from a mesh tag
