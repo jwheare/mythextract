@@ -233,39 +233,6 @@ def extended_flags(mons_tag):
         'charge_range': min(1, mons_tag.terrain_costs.snow),
     }
 
-# int val = terrain_costs[_terrain_steep];
-# if (val < -29) val = -29;
-# val += 30;
-
-# SetEditTextAsFloat(theDialog, iBlockChance, (float)val / 30.0f, 3);
-
-# // Blocking values are only valid between -29 (0.033) and 127 (5.233) of normal
-# if (theDialog->FindPaneByID(iIncreasedChanceToBlock)->GetValue()) 
-# {
-#     int iVal = ((int)(GetEditTextAsFloat(theDialog, iBlockChance) * 30.0) - 30);
-#     terrain_costs[_terrain_steep] = PIN(iVal, -29, 127);
-# }
-
-# ---
-
-# SetEditTextAsFloat(theDialog, iChargeSpeed, ((float)terrain_costs[_terrain_rocky] / 100.0f) + 1.0f, 3);
-# // Non-positive speeds are set to 1.2 times.
-# iVal = ((int)(GetEditTextAsFloat(theDialog, iChargeSpeed) * 100.0f) - 100);
-# terrain_costs[_terrain_rocky] = PIN(iVal, 20, 127);
-
-# ---
-
-# SetEditTextAsShort(theDialog, iChargeRange, (terrain_costs[_terrain_snow] < 0) ? 0 : terrain_costs[_terrain_snow]);
-# // Negative charge ranges have no effect
-# int iVal = GetEditTextAsShort(theDialog, iChargeRange);
-# terrain_costs[_terrain_snow] = PIN(iVal, 1, 127);
-
-# ---
-
-# SetEditTextAsShort(theDialog, iExperienceLimit, (unsigned char)terrain_costs[_terrain_marsh]);
-# // Build 337 - HAR - Added vetting convenience field
-# terrain_costs[_terrain_marsh] = (theDialog->FindPaneByID(iCanHasMoreExperience)->GetValue()) ? GetEditTextAsShort(theDialog, iExperienceLimit) : 0;
-
 def terrain_passability(mons_tag):
     # Based on Myth code
     gameplay_lte_170 = False
