@@ -307,7 +307,7 @@ def actions_tree(actions, palette, tags, action_help):
 
         # Action
         (help_text, more_help) = action_type_help(action_help, act)
-        if len(act['parameters']):
+        if len(children):
             id_prefix = f'[{action_id}] '
         else:
             id_prefix = '        '
