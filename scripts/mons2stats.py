@@ -33,31 +33,35 @@ def print_mons_stats(game_version, tags, data_map, mons_id):
     (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
         tags, data_map, 'mons', mons_id
     )
-    mons_dict = get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
+    mons_dict = get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
     print(f"[{mons_id}] {mons_dict['spellings'][0]} ({mons_header.name}) [{mons_loc}]")
     print(f'    cost {mons_dict["cost"]}')
     lines = mons_stats(mons_dict)
     print('\n'.join(lines))
     print('================================')
 
-def get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc):
-    mons = mons_tag.parse_tag(mons_data)
+def get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc):
+    mons = mons_tag.parse_tag(game_version, mons_data)
 
     obje_data = loadtags.get_tag_data(
         tags, data_map, 'obje', codec.decode_string(mons.object_tag)
     )
     obje_tag = mons_tag.parse_obje(obje_data)
 
+    spelling_default = [str(mons_header.name), str(mons_header.name)]
     if codec.all_on(mons.spelling_string_list_tag) or codec.all_off(mons.spelling_string_list_tag):
-        spellings = [str(mons_header.name), str(mons_header.name)]
+        spellings = spelling_default
     else:
         spelling_data = loadtags.get_tag_data(
             tags, data_map, 'stli', codec.decode_string(
                 mons.spelling_string_list_tag
             )
         )
-        (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-        spellings = [codec.decode_string(s) for s in spelling_text.split(b'\r')]
+        if spelling_data:
+            (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
+            spellings = [codec.decode_string(s) for s in spelling_text.split(b'\r')]
+        else:
+            spellings = spelling_default
 
     can_block = mons.sequence_indexes[5] > -1
     heal_kills = mons.healing_fraction == 0
@@ -94,6 +98,8 @@ def sequence(tags, data_map, collection_tag, sequence_index):
     (_, coll_header, coll_data) = loadtags.get_tag_info(
         tags, data_map, '.256', codec.decode_string(collection_tag)
     )
+    if not coll_header:
+        return
     coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
     seqs = myth_collection.parse_sequences(coll_data, coll_head)
     return seqs[sequence_index]
@@ -206,6 +212,7 @@ def process_attacks(mons, tags, data_map):
             avg_time_s = None
             attack_radius = proj.damage.radius_delta.upper_bound(proj.damage)
             attack_range = attack.maximum_range
+            recov_s = 0
             if myth_projectile.ProjFlags.CONTINUALLY_DETONATES in proj.flags:
                 avg_time_s = 1/30
             else:
@@ -216,6 +223,8 @@ def process_attacks(mons, tags, data_map):
                         continue
 
                     seq = sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
+                    if not seq:
+                        continue
                     seq_meta = seq['metadata']
 
                     ticks = (

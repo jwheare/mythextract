@@ -20,6 +20,7 @@ import mono2tag
 import mesh2info
 import loadtags
 import utils
+import convertmp4
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 TIME = (os.environ.get('TIME') == '1')
@@ -108,9 +109,9 @@ def cutscenes2paths(cutscenes, cutscene_paths):
         if not cutscene:
             cutscene_path = None
         elif cutscene.endswith('.smk'):
-            cutscene_path = cutscene_paths.get(f'{cutscene[:-4]}.mov')
+            cutscene_path = cutscene_paths.get(cutscene)
         elif cutscene.endswith('.mov'):
-            cutscene_paths.get(cutscene)
+            cutscene_path = cutscene_paths.get(cutscene)
         else:
             cutscene_path = cutscene_paths.get(f'{cutscene}.mov')
         paths.append(cutscene_path)
@@ -297,7 +298,7 @@ def output_html(
             cutscene = cutscenes[i]
             if cutscene:
                 shutil.copy2(cutscene.path, cutscene_output_path)
-                convert_mp4(cutscene_output_path)
+                convertmp4.convert(cutscene_output_path, cutscene_output_path.with_suffix('.mp4'))
                 cutscene_output_path.unlink()
                 cutscene_videos.append((
                     f'<video playsinline width="640px" class="{cutscene_type}_cutscene_video">'
@@ -393,16 +394,24 @@ def convert_mp3(aifc_path):
     TIME and print('convert_mp3', f'{(time.perf_counter() - t):.3f}')
     return output_path
 
-def convert_mp4(mov_path):
+def convert_smk_mp4(smk_path):
     t = time.perf_counter()
-    output_path = mov_path.with_suffix('.mp4')
+    output_path = smk_path.with_suffix('.mp4')
     subprocess.run([
         "ffmpeg", "-hide_banner", "-loglevel", "error",
         "-y",
-        "-i", mov_path,
-        mov_path.with_suffix('.mp4')
+        "-i", smk_path,
+        "-vf", "scale=iw:ih*2:flags=bicubic",
+        "-c:v", "libx264",
+        "-crf", "18",
+        "-preset", "slow",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        "-movflags", "+faststart",
+        smk_path.with_suffix('.mp4')
     ])
-    TIME and print('convert_mp4', f'{(time.perf_counter() - t):.3f}')
+    TIME and print('convert_smk_mp4', f'{(time.perf_counter() - t):.3f}')
     return output_path
 
 def rgba2css(rgba):

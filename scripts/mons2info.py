@@ -20,7 +20,12 @@ def main(game_directory, mons_id, plugin_names):
     try:
         if mons_id and mons_id != 'all':
             mons = parse_mons_tag(game_version, tags, data_map, mons_id)
-            print_tag(mons, mons_id, tags['mons'][mons_id], tags, data_map)
+
+            locations = tags['mons'][mons_id]
+            (location, tag_header) = locations[-1]
+            print(mons_id, tag_header.name)
+            print(location)
+            print_tag(game_version, mons, tags, data_map)
         else:
             # print_mons_debug(game_version, tags, data_map)
             print_mons_tags(tags)
@@ -41,7 +46,7 @@ def print_mons_tags(tags):
 
 def parse_mons_tag(game_version, tags, data_map, mons_id):
     mons_tag_data = loadtags.get_tag_data(tags, data_map, 'mons', mons_id)
-    return mons_tag.parse_tag(mons_tag_data)
+    return mons_tag.parse_tag(game_version, mons_tag_data)
 
 def coll_sequences(tags, data_map, coll_tag):
     collection = codec.decode_string(coll_tag)
@@ -49,13 +54,11 @@ def coll_sequences(tags, data_map, coll_tag):
     coll_header = myth_collection.parse_collection_header(data, header)
     return myth_collection.parse_sequences(data, coll_header)
 
-def print_tag(mons, mons_id, locations, tags, data_map):
-    (location, tag_header) = locations[-1]
-    print(mons_id, tag_header.name)
-    print(location)
+def print_tag(game_version, mons, tags=None, data_map=None):
     for i, (f, val) in enumerate(mons._asdict().items()):
         if f == 'attacks':
-            for attack_i, attack in enumerate(val):
+            for attack_i in range(mons.number_of_attacks):
+                attack = val[attack_i]
                 if not attack:
                     print(f'{f:<42} [{attack_i}]: None')
                 else:
@@ -79,6 +82,15 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                     f'{movement_modifier:<18} | '
                     f'{real_passability:<16}'
                 )
+
+            if game_version == 2:
+                use_extended = mons_tag.use_extended(mons)
+                print("-" * 84)
+                print(f'{"use_extended":<42} {use_extended}')
+                if use_extended:
+                    for k, v in mons_tag.extended_flags(mons).items():
+                        print(f'{k:<42} {v}')
+                print("-" * 84)
         elif f == 'movement_modifiers':
             pass
         elif f == 'sound_tags':
@@ -87,7 +99,7 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                 print(f'{f:<42} [{i}]: tag={sound_tag} type={sound_type.name}')
         elif f == 'sound_types':
             pass
-        elif f == 'sequence_indexes':
+        elif f == 'sequence_indexes' and tags and data_map:
             sequences = coll_sequences(tags, data_map, mons.collection_tag)
             for seq, idx in enumerate(val):
                 print(f'{f:<42} [{seq:>2}]: {mons_tag.sequence_name(seq):<16} {idx:>3} ', end='')
@@ -99,7 +111,6 @@ def print_tag(mons, mons_id, locations, tags, data_map):
                     print()
         else:
             print(f'{f:<42} {utils.val_repr(val)}')
-            # print(f'[{mons_id}] {f} {val} {locations}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

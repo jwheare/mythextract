@@ -10,6 +10,7 @@ import myth_collection
 import myth_sound
 import myth_projectile
 import mons_tag
+import mons2info
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -38,11 +39,13 @@ def print_tag_obj(tag_obj):
 
 def print_tag_info(tag_data):
     tag_header = myth_headers.parse_header(tag_data)
+    game_version = myth_headers.game_version(tag_header)
     print(tag_header)
     print(f'data size: {len(tag_data)}')
     match tag_header.tag_type:
         case 'mesh':
-            print_tag_obj(mesh_tag.parse_header(tag_data))
+            mesh_header = mesh_tag.parse_header(tag_data)
+            print_tag_obj(mesh_header)
         case 'soun':
             print_tag_obj(myth_sound.parse_soun_header(tag_data))
         case 'amso':
@@ -67,11 +70,8 @@ def print_tag_info(tag_data):
         case 'geom':
             print_tag_obj(myth_tags.parse_geom(tag_data))
         case 'mons':
-            mons_obj = mons_tag.parse_tag(tag_data)
-            print_tag_obj(mons_obj)
-            print('extended_flags')
-            for k, v in mons_tag.extended_flags(mons_obj).items():
-                print(f'{k:<32} {v}')
+            mons_obj = mons_tag.parse_tag(game_version, tag_data)
+            mons2info.print_tag(game_version, mons_obj)
         case 'anim':
             print_tag_obj(myth_tags.parse_anim(tag_data))
         case 'scen':

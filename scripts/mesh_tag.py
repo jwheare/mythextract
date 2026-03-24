@@ -124,7 +124,7 @@ MeshHeaderFmt = ('MeshHeader', [
     ('4s', 'connector_tag'),
     ('L', 'flags', MeshFlags),
     ('4s', 'particle_system_tag'),
-    ('l', 'team_count'),
+    ('L', 'team_count'),
     ('h', 'dark_fraction'),
     ('h', 'light_fraction'),
     ('8s', 'dark_color'),
@@ -189,6 +189,85 @@ MeshHeaderFmt = ('MeshHeader', [
     ('L', 'extra_flags', ExtraFlags),
     ('f', 'minimum_zoom_factor'),
     ('468x', None),
+])
+
+MeshHeaderFmtTFL = ('MeshHeader', [
+    ('4s', 'landscape_collection_tag'),
+    ('4s', 'media_tag'),
+    ('H', 'submesh_width'),
+    ('H', 'submesh_height'),
+    ('L', 'mesh_offset'),
+    ('L', 'mesh_size'),
+    ('4x', None), # runtime: mesh_ptr
+    ('L', 'data_offset'),
+    ('L', 'data_size'),
+    ('4x', None), # runtime: data_ptr
+    ('L', 'marker_palette_entries'),
+    ('L', 'marker_palette_offset'),
+    ('L', 'marker_palette_size'),
+    ('4x', None), # runtime: marker_palette_ptr
+    ('L', 'marker_count'),
+    ('L', 'markers_offset'),
+    ('L', 'markers_size'),
+    ('4x', None), # runtime: markers_ptr
+    ('4s', 'mesh_lighting_tag'),
+    ('4s', 'render_variables_tag'),
+    ('L', 'flags', MeshFlags),
+    ('4s', 'particle_system_tag'),
+    ('L', 'team_count'),
+    ('L', 'teams_offset'),
+    ('L', 'teams_size'),
+    ('4x', None), # runtime: teams_ptr
+    ('L', 'annotation_count'),
+    ('L', 'annotation_offset'),
+    ('L', 'annotation_size'),
+    ('4x', None), # runtime: annotations_ptr
+    ('8s', 'edge_of_mesh_buffer_zones'),
+    ('4s', 'global_ambient_sound_tag'),
+    ('L', 'map_action_count'),
+    ('L', 'map_actions_offset'),
+    ('L', 'map_action_buffer_size'),
+    ('4s', 'map_description_string_list_tag'),
+    ('4s', 'postgame_collection_tag'),
+    ('4s', 'pregame_collection_tag'),
+    ('4s', 'overhead_map_collection_tag'),
+    ('4s', 'next_mesh'),
+    ('4s', 'next_mesh_alternate'),
+    ('4s', 'cutscene_tag_pregame'),
+    ('4s', 'cutscene_tag_success'),
+    ('4s', 'cutscene_tag_failure'),
+    ('4s', 'pregame_storyline_tag'),
+    ('4s', 'storyline_string_tags_2'),
+    ('4s', 'storyline_string_tags_3'),
+    ('4s', 'storyline_string_tags_4'),
+    ('L', 'media_coverage_region_offset'),
+    ('L', 'media_coverage_region_size'),
+    ('4x', None), # runtime: media_coverage_region_ptr
+    ('L', 'mesh_LOD_data_offset'),
+    ('L', 'mesh_LOD_data_size'),
+    ('4x', None), # runtime: mesh_LOD_data_ptr
+    ('8s', 'global_tint_color'),
+    ('h', 'global_tint_fraction'),
+    ('H', 'pad'),
+    ('4s', 'wind_tag'),
+    ('4s', 'screen_collection_tags_1'),
+    ('4s', 'screen_collection_tags_2'),
+    ('4s', 'screen_collection_tags_3'),
+    ('8s', 'blood_color'),
+    ('4s', 'picture_caption_string_list_tag'),
+    ('4s', 'narration_sound_tag'),
+    ('4s', 'win_ambient_sound_tag'),
+    ('4s', 'loss_ambient_sound_tag'),
+
+    ('730x', None),
+
+    ('2x', None), # map_description_string_index
+    ('2x', None), # overhead_map_collection_index
+    ('2x', None), # landscape_collection_index
+    ('2x', None), # global_ambient_sound_index
+    ('2x', None), # media_type
+
+    ('16x', None), # editor_data
 ])
 
 # nested tags
@@ -517,6 +596,8 @@ def get_level_name(mesh_header, tags, data_map, strip_format=False):
             mesh_header.map_description_string_list_tag
         )
     )
+    if not level_name_data:
+        return ''
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
     level_name = codec.decode_string(level_name_text.split(b'\r')[0])
     if strip_format:
@@ -524,7 +605,7 @@ def get_level_name(mesh_header, tags, data_map, strip_format=False):
     else:
         return utils.ansi_format(level_name)
 
-def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time):
+def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''
     if game_time:
         game_time_mins = f' - {game_time} mins'

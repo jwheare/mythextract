@@ -16,6 +16,7 @@ import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEAD_TAGS = (os.environ.get('DEAD_TAGS') == '1')
+SKIP_LOCAL = (os.environ.get('SKIP_LOCAL') == '1')
 
 def main(game_directory, tag_type, tag_id, plugin_names):
     """
@@ -24,13 +25,13 @@ def main(game_directory, tag_type, tag_id, plugin_names):
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
-        extract_tags(tag_type, tag_id, tags, data_map, plugin_names)
+        extract_tags(game_version, tag_type, tag_id, tags, data_map, plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def extract_tags(tag_type, input_tag_id, tags, data_map, plugin_names):
+def extract_tags(game_version, tag_type, input_tag_id, tags, data_map, plugin_names):
     all_tag_data = []
-    tdg = TagDataGenerator(tags, data_map, plugin_names)
+    tdg = TagDataGenerator(game_version, tags, data_map, plugin_names)
 
     if input_tag_id == 'all':
         output_dir = f'../output/tag2local/{tag_type}_all/local'
@@ -59,7 +60,8 @@ def extract_tags(tag_type, input_tag_id, tags, data_map, plugin_names):
             for dead_tag_type, dead_tag_tags in dead_tags.items():
                 for dead_tag_id, dead_tag_locations in dead_tag_tags.items():
                     (dead_tag_location, dead_tag_header) = dead_tag_locations[-1]
-                    print(f'Dead tag {dead_tag_type.upper()}.{dead_tag_id} {dead_tag_header.name}')
+                    if not plugin_names or dead_tag_location in plugin_names:
+                        print(f'Dead tag {dead_tag_type.upper()}.{dead_tag_id} {dead_tag_header.name}')
 
     else:
         (location, header) = loadtags.lookup_tag_header(
@@ -73,17 +75,18 @@ def extract_tags(tag_type, input_tag_id, tags, data_map, plugin_names):
         for td in tdg.get_tag_data(tag_type, codec.encode_string(input_tag_id)):
             all_tag_data.append(td)
 
-    output_path = pathlib.Path(sys.path[0], output_dir).resolve()
+    if not SKIP_LOCAL:
+        output_path = pathlib.Path(sys.path[0], output_dir).resolve()
 
-    if prompt(output_path):
-        for (tag_header, tag_data) in all_tag_data:
-            file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
-            pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
+        if prompt(output_path):
+            for (tag_header, tag_data) in all_tag_data:
+                file_path = (output_path / f'{utils.local_folder(tag_header)}/{tag_header.name}')
+                pathlib.Path(file_path.parent).mkdir(parents=True, exist_ok=True)
 
-            with open(file_path, 'wb') as tag_file:
-                tag_file.write(tag_data)
+                with open(file_path, 'wb') as tag_file:
+                    tag_file.write(tag_data)
 
-            print(f"Tag extracted. Output saved to {file_path}")
+                print(f"Tag extracted. Output saved to {file_path}")
 
 def prompt(prompt_path):
     # return True
@@ -93,7 +96,8 @@ def prompt(prompt_path):
 class TagDataGenerator:
     FETCHED = {}
 
-    def __init__(self, tags, data_map, plugin_names):
+    def __init__(self, game_version, tags, data_map, plugin_names):
+        self.game_version = game_version
         self.tags = tags
         self.data_map = data_map
         self.plugin_names = plugin_names
@@ -108,7 +112,7 @@ class TagDataGenerator:
             return
         self.FETCHED[tag_type][tag_id] = True
 
-        if codec.all_on(tag_id) or codec.all_off(tag_id):
+        if not tag_id or codec.all_on(tag_id) or codec.all_off(tag_id):
             return
         (location, tag_header, tag_data) = loadtags.get_tag_info(
             self.tags, self.data_map, tag_type, codec.decode_string(tag_id)
@@ -172,8 +176,6 @@ class TagDataGenerator:
                 lpgr = myth_projectile.parse_lpgr(tag_data)
                 yield from self.get_tag_data('core', lpgr.collection_reference_tag, tree)
                 yield from self.get_tag_data('phys', lpgr.physics_tag, tree)
-                yield from self.get_tag_data('lpgr', lpgr.chain_to_lpgr_tag, tree)
-                yield from self.get_tag_data('meli', lpgr.local_light_tag, tree)
 
             elif tag_header.tag_type == 'core':
                 core = myth_collection.parse_collection_ref(tag_data)
@@ -219,7 +221,7 @@ class TagDataGenerator:
                 yield from self.get_tag_data('core', model.collection_reference_tag, tree)
 
             elif tag_header.tag_type == 'mons':
-                mons = mons_tag.parse_tag(tag_data)
+                mons = mons_tag.parse_tag(self.game_version, tag_data)
                 yield from self.get_tag_data('.256', mons.collection_tag, tree)
                 yield from self.get_tag_data('prgr', mons.burning_death_projectile_group_tag, tree)
                 yield from self.get_tag_data('obje', mons.object_tag, tree)
@@ -279,7 +281,7 @@ class TagDataGenerator:
                 yield from self.get_tag_data('unit', proj.promotion_unit_tag, tree)
 
             elif tag_header.tag_type == 'arti':
-                artifact = mons_tag.parse_artifact(tag_data)
+                artifact = mons_tag.parse_artifact(tag_data, tag_header)
                 # yield from self.get_tag_data('mons', artifact.monster_restriction_tag, tree)
                 yield from self.get_tag_data('.256', artifact.collection_tag, tree)
                 yield from self.get_tag_data('proj', artifact.override_attack.projectile_tag, tree)
@@ -314,6 +316,7 @@ class TagDataGenerator:
                 for (tree_loc, tree_header) in tree
             ])
             missing_tag = f'{tag_type.upper()}.{codec.decode_string(tag_id)}'
+
             print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}')
 
 if __name__ == "__main__":

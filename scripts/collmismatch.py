@@ -33,9 +33,9 @@ def parse_mesh_markers(game_version, tags, data_map, mesh_id):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    log_mismatches(mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans)
+    log_mismatches(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans)
 
-def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
+def check_unit_collection_mismatch(game_version, tags, data_map, tag_type, tag_id):
     if tag_type == 'unit':
         (unit_location, unit_header, unit_data) = loadtags.get_tag_info(tags, data_map, tag_type, tag_id)
 
@@ -45,7 +45,7 @@ def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
             (mons_location, mons_header, mons_data) = loadtags.get_tag_info(tags, data_map, 'mons', mons_tag_id)
             mons_coll = None
             if mons_data:
-                mons = mons_tag.parse_tag(mons_data)
+                mons = mons_tag.parse_tag(game_version, mons_data)
                 mons_coll = codec.decode_string(mons.collection_tag)
 
             core_tag_id = codec.decode_string(unit.core)
@@ -67,14 +67,14 @@ def check_unit_collection_mismatch(tags, data_map, tag_type, tag_id):
                     ])
                 ])
 
-def log_mismatches(mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans):
+def log_mismatches(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans):
     mismatched_unit_collections = {}
     for palette_type, p_list in palette.items():
         for palette_index, p_val in enumerate(p_list):
             tag_id = p_val['tag']
             tag_type = mesh_tag.Marker2Tag.get(palette_type)
             (location, tag_header) = loadtags.lookup_tag_header(tags, tag_type, tag_id)
-            mismatch_tree = check_unit_collection_mismatch(tags, data_map, tag_type, tag_id)
+            mismatch_tree = check_unit_collection_mismatch(game_version, tags, data_map, tag_type, tag_id)
             if mismatch_tree:
                 mismatched_unit_collections[tag_id] = mismatch_tree
 

@@ -16,12 +16,43 @@ import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 NO_TRADING = (os.environ.get('NO_TRADING') == '1')
-WARN_ASSYMETRIC = (os.environ.get('WARN_ASSYMETRIC') == '1')
 COUNTS = os.environ.get('COUNTS')
 GAME_TYPE = os.environ.get('GAME_TYPE')
 STATS = os.environ.get('STATS')
 TIME = os.environ.get('TIME')
+TEAM = os.environ.get('TEAM')
 DIFFICULTY = int(os.environ.get('DIFFICULTY', 2))
+
+CSV = os.environ.get('CSV')
+JSON = os.environ.get('JSON')
+PLUGIN_GROUP = os.environ.get('PLUGIN_GROUP')
+PLUGIN_AUTHOR = os.environ.get('PLUGIN_AUTHOR')
+PLUGIN_V = os.environ.get('PLUGIN_V')
+PLUGIN_SLUG = os.environ.get('PLUGIN_SLUG')
+
+def csv_header():
+    return [
+        'Mismatched teams',
+        'Mesh name',
+
+        'Unit',
+        'Unit class',
+        'Count',
+        'Max',
+        'Cost',
+        'Value',
+        'Tradeable',
+
+        'Mesh ID',
+        'Version',
+        'Plugin',
+        'Author',
+        'Group',
+        'Game type',
+        'Difficulty',
+        'Size',
+        'URL',
+    ]
 
 def main(game_directory, level, plugin_names):
     """
@@ -32,18 +63,92 @@ def main(game_directory, level, plugin_names):
     counts = []
     if COUNTS:
         counts = [int(c) for c in COUNTS.split(',')]
+
+    csv_rows = []
+    json_rows = []
     try:
         if level and level != 'list':
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                ret = parse_mesh_trades(
-                    game_version, tags, data_map, mesh_id,
-                    DIFFICULTY, GAME_TYPE, TIME, counts
+                mesh_header, mesh_tag_data, mesh_tag_location = parse_mesh_header(tags, data_map, mesh_id)
+                if mesh_tag.is_single_player(mesh_header):
+                    continue
+
+                level_name = mesh_tag.get_level_name(mesh_header, tags, data_map) or mesh_id
+                (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
+
+                if mesh_tag.MarkerType.UNIT not in palette:
+                    continue
+
+                game_type, game_type_units = parse_game_type_units(
+                    tags, data_map, palette, mesh_header,
+                    level_name, DIFFICULTY, GAME_TYPE
                 )
 
-                if ret:
-                    (trade_info, units, game_type) = ret
-                    (diffs, trade) = trade_info
+                if not CSV and not JSON:
+                    print_game_info(mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
 
+                (trade_info, units, mismatch) = parse_game_teams(
+                    game_type, game_type_units,
+                    counts, team_choice=TEAM
+                )
+                (diffs, trade) = trade_info
+                (mismatch_team, mismatch_rows) = mismatch
+                if JSON:
+                    level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
+                    is_mismatch = False
+                    mismatch_info = None
+                    if mismatch_rows:
+                        is_mismatch = True
+                        mismatch_info = {'team_id': mismatch_team, 'rows': mismatch_rows}
+                    json_rows.append({
+                        'is_mismatch': is_mismatch,
+                        'mismatch_info': mismatch_info,
+                        'mesh_name': level_name,
+                        'trade': trade,
+                        'game_type': game_type,
+                        'difficulty': mesh_tag.difficulty(DIFFICULTY),
+                        'mesh_size': mesh_tag.mesh_size(mesh_header),
+                        'mesh_id': mesh_id,
+                        'mesh_plugin': mesh_tag_location,
+                        'plugin_version': PLUGIN_V,
+                        'plugin_tain_slug': PLUGIN_SLUG,
+                        'plugin_author': PLUGIN_AUTHOR,
+                        'plugin_group': PLUGIN_GROUP,
+                    })
+                elif CSV:
+                    level_name_strip = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
+                    for i, row in enumerate(trade):
+                        mismatch_str = ''
+                        if mismatch_rows is True:
+                            mismatch_str = 'mismatch'
+                        elif mismatch_rows and i in mismatch_rows:
+                            mismatch_str = ' / '.join(
+                                [f'{key}: {val1} -> {val2}' for (key, (val1, val2)) in mismatch_rows[i].items()]
+                            )
+                        csv_rows.append([
+                            mismatch_str,
+                            level_name_strip,
+
+                            row['unit'],
+                            row['class'],
+                            row['count'],
+                            row['max'],
+                            row['cost'],
+                            row['value'],
+                            'Tradeable' if row['tradeable'] else 'Default',
+
+                            mesh_id,
+                            PLUGIN_V,
+                            mesh_tag_location,
+                            PLUGIN_AUTHOR,
+                            PLUGIN_GROUP,
+                            game_type,
+                            mesh_tag.difficulty(DIFFICULTY),
+                            mesh_tag.mesh_size(mesh_header),
+                            f"https://tain.totalcodex.net/items/show/{PLUGIN_SLUG}" if PLUGIN_SLUG else '',
+                        ])
+                else:
+                    print('\n'.join(trade))
                     if not NO_TRADING:
                         input_loop(game_type, units, diffs)
         else:
@@ -53,38 +158,34 @@ def main(game_directory, level, plugin_names):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_mesh_trades(
-    game_version, tags, data_map, mesh_id,
-    difficulty, game_type_choice, game_time,
-    counts, team_choice=None
-):
-    (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
+    if JSON and len(json_rows):
+        import json
+        with open(JSON, 'a', newline='') as jsonfile:
+            if jsonfile.tell() == 0:
+                jsonfile.write('[\n{}')
+            for row in json_rows:
+                jsonfile.write(',\n')
+                json.dump(row, jsonfile)
+        json_rows
+    elif CSV and len(csv_rows):
+        import csv
+        with open(CSV, 'a', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+            if csvfile.tell() == 0:
+                csvwriter.writerow(csv_header())
+            csvwriter.writerows(csv_rows)
+
+def parse_mesh_header(tags, data_map, mesh_id):
+    (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
+        tags, data_map, 'mesh', mesh_id
+    )
     try:
         mesh_header = mesh_tag.parse_header(mesh_tag_data)
     except (struct.error, UnicodeDecodeError):
         print("Error loading mesh")
-        return
+        sys.exit(1)
 
-    if mesh_tag.is_single_player(mesh_header):
-        print("Not a netmap")
-        sys.exit(0)
-
-    (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
-
-    ret = parse_game_teams(
-        tags, data_map, palette, mesh_header,
-        level_name, difficulty, game_type_choice, game_time,
-        counts, team_choice
-    )
-
-    if ret:
-        (trade_info, units, game_type) = ret
-        (diffs, trade) = trade_info
-        print_game_info(mesh_header, level_name, game_type, DIFFICULTY, TIME)
-        print('\n'.join(trade))
-
-        return (trade_info, units, game_type)
+    return mesh_header, mesh_tag_data, mesh_tag_location
 
 def rekey_units(units):
     return OrderedDict(
@@ -116,71 +217,75 @@ def auto_adjust_counts(units):
     
     return adjusted
 
-def parse_game_teams(
+def parse_game_type_units(
     tags, data_map, palette, mesh_header,
-    level_name, difficulty, game_type_choice, game_time,
-    counts, team_choice=None, adjust=False
+    level_name, difficulty, game_type_choice
 ):
     game_type_units = OrderedDict()
     has_stampede_targets = False
     has_assassin_target = False
 
-    for unit in palette[mesh_tag.MarkerType.UNIT]:
-        netgame_info = mesh_tag.netgame_flag_info(unit['netgame_flags'])
-        team = unit['team_index']
-        if team > -1 and len(netgame_info) and len(unit['markers']):
-            tag_id = unit['tag']
-            unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
-            unit_tag = mons_tag.parse_unit(unit_data)
-            (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
-                tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
-            )
-            mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
-            for netgame in netgame_info:
-                if netgame not in game_type_units:
-                    game_type_units[netgame] = {}
-                if team not in game_type_units[netgame]:
-                    game_type_units[netgame][team] = OrderedDict()
-                if tag_id not in game_type_units[netgame][team]:
-                    game_type_units[netgame][team][tag_id] = mons_dict | {
-                        'tag': tag_id,
-                        'team': team,
-                        'initial_count': 0,
-                        'count': 0,
-                        'max': 0,
-                        'min': 0,
-                        'target': False,
-                        'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
-                    }
-                visible_count = 0
-                invisible_count = 0
-                for marker_id, marker in unit['markers'].items():
-                    game_type_units[netgame][team][tag_id]['palette_index'] = marker['palette_index']
-                    if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
-                        continue
-                    if marker['min_difficulty'] <= difficulty:
-                        if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
-                            invisible_count += 1
-                        else:
-                            visible_count += 1
-                        is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
-                        game_type_units[netgame][team][tag_id]['target'] = is_target
-                        if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
-                            has_stampede_targets = True
-                        if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
-                            has_assassin_target = True
+    if mesh_tag.MarkerType.UNIT in palette:
+        for unit in palette[mesh_tag.MarkerType.UNIT]:
+            netgame_info = mesh_tag.netgame_flag_info(unit['netgame_flags'])
+            team = unit['team_index']
+            if team > -1 and len(netgame_info) and len(unit['markers']):
+                tag_id = unit['tag']
+                unit_data = loadtags.get_tag_data(tags, data_map, 'unit', tag_id)
+                unit_tag = mons_tag.parse_unit(unit_data)
+                if not unit_tag.mons:
+                    continue
+                (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
+                    tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
+                )
+                if not mons_data:
+                    continue
+                mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
+                for netgame in netgame_info:
+                    if netgame not in game_type_units:
+                        game_type_units[netgame] = {}
+                    if team not in game_type_units[netgame]:
+                        game_type_units[netgame][team] = OrderedDict()
+                    if tag_id not in game_type_units[netgame][team]:
+                        game_type_units[netgame][team][tag_id] = mons_dict | {
+                            'tag': tag_id,
+                            'team': team,
+                            'initial_count': 0,
+                            'count': 0,
+                            'max': 0,
+                            'min': 0,
+                            'target': False,
+                            'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
+                        }
+                    visible_count = 0
+                    invisible_count = 0
+                    for marker_id, marker in unit['markers'].items():
+                        game_type_units[netgame][team][tag_id]['palette_index'] = marker['palette_index']
+                        if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
+                            continue
+                        if marker['min_difficulty'] <= difficulty:
+                            if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
+                                invisible_count += 1
+                            else:
+                                visible_count += 1
+                            is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
+                            game_type_units[netgame][team][tag_id]['target'] = is_target
+                            if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
+                                has_stampede_targets = True
+                            if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
+                                has_assassin_target = True
 
-                if mesh_tag.is_single_player(mesh_header):
-                    count = visible_count + invisible_count
-                    max_count = count
-                else:
-                    count = visible_count
-                    max_count = visible_count + invisible_count
-                game_type_units[netgame][team][tag_id]['initial_count'] += count
-                game_type_units[netgame][team][tag_id]['count'] += count
-                game_type_units[netgame][team][tag_id]['max'] += max_count
-                if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
-                    game_type_units[netgame][team][tag_id]['min'] = game_type_units[netgame][team][tag_id]['max']
+                    if mesh_tag.is_single_player(mesh_header):
+                        count = visible_count + invisible_count
+                        max_count = count
+                    else:
+                        count = visible_count
+                        max_count = visible_count + invisible_count
+                    game_type_units[netgame][team][tag_id]['initial_count'] += count
+                    game_type_units[netgame][team][tag_id]['count'] += count
+                    game_type_units[netgame][team][tag_id]['max'] += max_count
+                    if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
+                        game_type_units[netgame][team][tag_id]['min'] = game_type_units[netgame][team][tag_id]['max']
 
     if 'all' in game_type_units:
         included_game_types = list(mesh_tag.NetgameFlagInfo.values())
@@ -203,8 +308,14 @@ def parse_game_teams(
         game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
         game_type_choice = included_game_types[game_type_choice_i-1]
 
+    return game_type_choice, game_type_units
+
+def parse_game_teams(
+    game_type, game_type_units,
+    counts=[], team_choice=None, adjust=False
+):
     shared_units = game_type_units.get('all', {})
-    teams = game_type_units.get(game_type_choice, shared_units)
+    teams = game_type_units.get(game_type, shared_units)
     for team in shared_units.keys():
         if team not in teams:
             teams[team] = shared_units[team]
@@ -216,26 +327,43 @@ def parse_game_teams(
         
         rekeyed_units = rekey_units(merged_units)
         counted_units = set_initial_counts(rekeyed_units, counts)
-        trades[team] = team_trade_parts(game_type_choice, counted_units)
+        trades[team] = team_trade_parts(game_type, counted_units)
+
+    mismatch = (None, None)
+    for team_id, (diffs, trade) in trades.items():
+        first_trade = trades[list(trades.keys())[0]][1]
+        if trade != first_trade:
+            if CSV or JSON:
+                mismatch_rows = []
+                if len(trade) != len(first_trade):
+                    mismatch = (team_id, True)
+                else:
+                    for i, row in enumerate(first_trade):
+                        if row != trade[i]:
+                            mismatch_keys = {}
+                            for col in ['count', 'max']:
+                                if (row[col] != trade[i][col]):
+                                    mismatch_keys[col] = (row[col], trade[i][col])
+                            mismatch_rows.append((i, mismatch_keys))
+                    mismatch = (team_id, dict(mismatch_rows))
+            else:
+                mismatch = (team_id, {})
+            break
+
+    if mismatch[1] is not None:
+        print('\x1b[91m- Asymmetric teams -\x1b[0m')
 
     if team_choice is None:
-        mismatch = False
-        for team_id, (diffs, trade) in trades.items():
-            if trade != trades[list(trades.keys())[0]][1]:
-                mismatch = True
-                break
-        if mismatch:
-            print_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
-            print('\x1b[91m- Assymetric teams -\x1b[0m')
-            for team_id, (diffs, trade) in trades.items():
-                print(f"\nTeam {team_id}")
-                print('\n'.join(trade))
-            if WARN_ASSYMETRIC:
-                return
-            else:
-                team_choice = int(input("\nChoose team: ").strip().lower())
+        if mismatch[1] is not None:
+            if not CSV and not JSON:
+                for team_id, (diffs, trade) in trades.items():
+                    print(f"\nTeam {team_id}")
+                    print('\n'.join(trade))
+            team_choice = input("\nChoose team: ").strip().lower()
         else:
             team_choice = 0
+    else:
+        team_choice = int(team_choice)
 
     final_merged_units = teams[team_choice]
     if team_choice in shared_units:
@@ -244,11 +372,11 @@ def parse_game_teams(
     trade = trades[team_choice]
     if adjust:
         if auto_adjust_counts(final_units):
-            trade = team_trade_parts(game_type_choice, final_units)
-    return (trade, final_units, game_type_choice)
+            trade = team_trade_parts(game_type, final_units)
+    return (trade, final_units, mismatch)
 
-def print_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time):
-    info = mesh_tag.get_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
+def print_game_info(mesh_header, level_name, game_type, difficulty, game_time=None):
+    info = mesh_tag.get_game_info(mesh_header, level_name, game_type, difficulty, game_time)
     print(f"\n---\n\n{info}\n")
 
 def input_loop(game_type, unit_dict, diffs):
@@ -320,7 +448,27 @@ def unit_class_name(unit):
             class_name = 'target'
     return utils.cap_title(class_name)
 
+def team_trade_parts_export(game_type, units):
+    rows = []
+    for i, (palette_index, u) in enumerate(units.items()):
+        if u['target'] and game_type in ['ass', 'stamp']:
+            pass
+        elif u['tradeable'] or u['count']:
+            rows.append({
+                'unit': unit_name(u),
+                'class': unit_class_name(u),
+                'count': u['count'],
+                'max': u['max'],
+                'cost': u['cost'],
+                'value': u['cost'] * u['count'],
+                'tradeable': u['tradeable']
+            })
+
+    return ([], rows)
+
 def team_trade_parts(game_type, units):
+    if CSV or JSON:
+        return team_trade_parts_export(game_type, units)
     trades = []
     divider = []
     untradeable = []

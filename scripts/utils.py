@@ -50,7 +50,7 @@ def val_repr(val, nt=None):
     elif nt and isinstance(val, codec._Delta):
         upper = val.upper_bound(nt)
         if upper:
-            return f'{repr(val)} upper={val.upper_bound_str(nt)}'
+            return f'{repr(val)} {val.lower_bound_str(nt)} -> {val.upper_bound_str(nt)}'
         else:
             return repr(val)
     else:

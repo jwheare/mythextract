@@ -27,6 +27,22 @@ class AttackFlag(enum.Flag):
     DONT_SHOOT_OVER_NEARBY_UNITS = enum.auto()
     LOB_TO_HIT_LOWER_NEARBY_UNITS = enum.auto()
 
+class AttackFlagTFL(enum.Flag):
+    IS_INDIRECT = enum.auto()
+    DOES_NOT_REQUIRE_A_FIRING_SOLUTION = enum.auto()
+    AIMED_AT_TARGETS_FEET = enum.auto()
+    LEADS_TARGET = enum.auto()
+    USES_AMMUNITION = enum.auto()
+    USES_CARRIED_PROJECTLE = enum.auto()
+    IS_REFLEXIVE = enum.auto()
+    IS_SPECIAL_ABILITY = enum.auto()
+    CANNOT_BE_ABORTED = enum.auto()
+    IS_PRIMARY_ATTACK = enum.auto()
+    AVOIDS_FRIENDLY_UNITS = enum.auto()
+    CHOOSES_SEQUENCES_RANDOMLY = enum.auto()
+    VS_GIANT_SIZED = enum.auto()
+    PROHIBITED_VS_GIANT_SIZED = enum.auto()
+
 MAX_ATTACKS = 4
 MAX_ATTACK_SEQS = 4
 AttackSequenceFmt = ('AttackSequence', [
@@ -61,7 +77,7 @@ AttackDefFmt = ('AttackDef', [
 
 AttackDefFmtTFL = ('AttackDefTFL', [
     ('H', 'miss_fraction', codec.Fixed),
-    ('H', 'flags', AttackFlag),
+    ('H', 'flags', AttackFlagTFL),
     ('4s', 'projectile_tag'),
     ('h', 'minimum_range', codec.World),
     ('h', 'maximum_range', codec.World),
@@ -190,8 +206,11 @@ MonsTerrainCostsFmt = ('MonsTerrainCosts', [
     ('b', 'flying_impassable'),  # unused in extended flags?
 ])
 
+def use_extended(mons_tag):
+    return MonsFlag.USE_EXTENDED in mons_tag.flags
+
 def vet_max(mons_tag):
-    if MonsFlag.USE_EXTENDED in mons_tag.flags:
+    if use_extended(mons_tag):
         ext = extended_flags(mons_tag)
         return ext['maximum_experience_points']
     return 5
@@ -238,11 +257,15 @@ def terrain_passability(mons_tag):
     gameplay_lte_170 = False
     gameplay_gt_130 = True
 
-    # This flag is not on by default, and likely has never been turned on
-    ignore_costs = MonsFlag.USE_EXTENDED in mons_tag.flags or MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
-    # Given the above, this will likely be true, even though we're above 1.7.0
+    # IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY is not on for stock monsters
+    # but Fear post 1.4 force it to be on when saving a monster
+    ignore_costs = use_extended(mons_tag) or MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
+    
+    # Given the above, this will be true for stock monsters, even though we're above 1.7.0
+    # but false for anything saved by a post 1.4 Fear
     use_terrain_costs = gameplay_lte_170 or not ignore_costs
-    # This will also be true, we're above 1.3.0
+    
+    # This will always be true, we're above 1.3.0
     use_movement_modifiers = gameplay_gt_130
 
     passability = {}
@@ -294,7 +317,7 @@ MonsTagFmt = ('MonsTag', [
     ('H', 'propelled_system_shock'),
     ('H', 'damage_to_propulsion'),
     ('16s', 'terrain_costs', codec.codec(MonsTerrainCostsFmt)),
-    ('H', 'terrain_impassability_flags'), # set at runtime
+    ('2x', None), # set at runtime: terrain_impassability_flags
     ('h', 'pathfinding_radius'),
     ('16s', 'movement_modifiers', codec.codec(MonsMovementModsFmt)),
     ('H', 'absorbed_fraction', codec.Fixed),
@@ -363,6 +386,91 @@ MonsTagFmt = ('MonsTag', [
     ('L', 'extra_flags', MonsExtraFlag),
     ('208x', None),
     ('264x', None),
+])
+
+MonsEffectFmtTFL = ('MonsEffect', [
+    ('h', 'close_range_physical_damage', codec.ShortFixed),
+    ('h', 'long_range_physical_damage', codec.ShortFixed),
+    ('h', 'explosive_damage', codec.ShortFixed),
+    ('h', 'electric_damage', codec.ShortFixed),
+    ('h', 'magical_damage', codec.ShortFixed),
+    ('h', 'paralysis_duration', codec.ShortFixed),
+    ('h', 'stone', codec.ShortFixed),
+    ('10x', None),
+])
+
+MonsTagFmtTFL = ('MonsTag', [
+    ('L', 'flags', MonsFlag),
+    ('4s', 'collection_tag'),
+    ('32s', 'sequence_indexes', codec.list_pack('MonsSeqIndexes', 16, '>h')),
+    ('32x', None),
+    ('16s', 'terrain_costs', codec.codec(MonsTerrainCostsFmt)),
+    ('14x', None),
+    ('2x', None), # set at runtime: terrain_impassability_flags
+    ('16s', 'movement_modifiers', codec.codec(MonsMovementModsFmt)),
+    ('H', 'absorbed_fraction', codec.Fixed),
+    ('h', 'warning_distance'),
+    ('h', 'critical_distance'),
+    ('h', 'healing_fraction', codec.ShortPercent),
+    ('h', 'initial_ammunition_lower_bound'),
+    ('h', 'initial_ammunition_delta'),
+    ('h', 'activation_distance'),
+    ('h', 'visual_distance'),
+
+    ('H', 'turning_speed', codec.AngularVelocity),
+    ('h', 'base_movement_speed'),
+    ('H', 'left_handed_fraction'),
+    ('h', 'intelligence', Size),
+    ('4s', 'object_tag'),
+    ('h', 'number_of_attacks'),
+    ('h', 'desired_projectile_volume'),
+    ('128s', 'attacks', codec.list_codec(
+        MAX_ATTACKS, AttackDefFmtTFL,
+        filter_fun=lambda self, attack: not codec.all_off(attack.projectile_tag)
+    )),
+    ('h', 'object_scale_lower_bound', codec.ShortPercent),
+    ('h', 'object_scale_delta', codec.delta('object_scale_lower_bound')),
+    ('h', 'sound_pitch_lower_bound', codec.ShortPercent),
+    ('h', 'sound_pitch_delta', codec.delta('sound_pitch_lower_bound')),
+    ('h', 'attack_frequency_lower_bound', codec.Simple),
+    ('h', 'attack_frequency_delta', codec.delta('attack_frequency_lower_bound')),
+    ('4s', 'exploding_projectile_group_tag'),
+    ('h', 'maximum_vitality', codec.ShortPercent),
+    ('h', 'maximum_ammunition_count'),
+    ('H', 'hard_death_system_shock'),
+    ('H', 'flinch_system_shock', codec.Fixed),
+    ('4s', 'melee_impact_projectile_group_tag'),
+    ('4s', 'dying_projectile_group_tag'),
+    ('4s', 'spelling_string_list_tag'),
+    ('4s', 'names_string_list_tag'),
+    ('4s', 'flavor_string_list_tag'),
+    ('h', 'melee_power'),
+    ('h', 'monster_class', MonsClass),
+    ('h', 'monster_allegiance'),
+    ('h', 'experience_point_value'),
+    ('40s', 'sound_tags', codec.list_pack(
+        'MonsSoundTags', 10, '>4s',
+        filter_fun=lambda self, tag: not codec.all_on(tag),
+        empty_value=struct.pack('>l', -1)
+    )),
+    ('4s', 'blocked_impact_projectile_group_tag'),
+    ('4s', 'absorbed_impact_projectile_group_tag'),
+    ('4s', 'ammunition_projectile_tag'),
+    ('h', 'visibility_type'),
+    ('h', 'combined_power'),
+    ('h', 'longest_range', codec.World),
+    ('24s', 'effect_modifiers', codec.codec(MonsEffectFmtTFL)),
+    ('h', 'cost'),
+    ('10s', 'sound_types', codec.list_pack('MonsSoundTypes', 10, '>b')),
+    ('h', 'enemy_experience_kill_bonus'),
+    ('4s', 'entrance_projectile_group_tag'),
+    ('4s', 'local_projectile_group_tag'),
+    ('4s', 'special_ability_string_list_tag'),
+    ('4s', 'exit_projectile_group_tag'),
+
+    ('16x', None),
+    # runtime
+    ('52x', None),
 ])
 
 class ObjeFlags(enum.Flag):
@@ -475,8 +583,8 @@ def parse_unit(data):
 def parse_obje(data):
     return myth_headers.parse_tag(ObjeTagFmt, data)
 
-def parse_tag(data):
-    return myth_headers.parse_tag(MonsTagFmt, data)
+def parse_tag(game_version, data):
+    return myth_headers.parse_tag(MonsTagFmt if game_version == 2 else MonsTagFmtTFL, data)
 
 def encode_tag(tag_header, mons_tag):
     tag_data = mons_tag.value

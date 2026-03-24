@@ -621,10 +621,16 @@ def get_trades(
     tags, data_map, palette, mesh_header,
     level_name, game_param, game_type_choice, game_time,
     unit_counts, players_idx, captain
-):
-    (trade_info, units, _game_type) = mesh2trades.parse_game_teams(
+):  
+    game_type, game_type_units = mesh2trades.parse_game_type_units(
         tags, data_map, palette, mesh_header,
-        level_name, game_param.difficulty_level, game_type_choice, game_time,
+        level_name, game_param.difficulty_level, game_type_choice
+    )
+
+    mesh2trades.print_game_info(mesh_header, level_name, game_type, game_param.difficulty_level, game_time)
+
+    (trade_info, units, mismatch) = mesh2trades.parse_game_teams(
+        game_type, game_type_units,
         unit_counts, captain.team_index, adjust=True
     )
 

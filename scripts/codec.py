@@ -26,7 +26,11 @@ def _data_format(data_format):
     value_i = 0
     for field in field_format:
         fmt = field[0]
-        field_size = struct.calcsize(f'>{fmt}')
+        try:
+            field_size = struct.calcsize(f'>{fmt}')
+        except Exception as e:
+            print(fmt)
+            raise e
         end = start + field_size
         fmt_string += f' {fmt}'
         if field[1]:
@@ -261,9 +265,10 @@ class _Codec:
             self._original_data = item_data[offset:end]
         if self._original_data:
             values = struct.unpack(self._fmt_string, self._original_data)
-        if values:
-            processed = _process_data_values(values, self._decoders)
-            self._item = self._nt._make(processed)
+        if not values:
+            values = [None for f in self._fields]
+        processed = _process_data_values(values, self._decoders)
+        self._item = self._nt._make(processed)
 
     def data_size(self):
         return self._item_def_size
@@ -279,7 +284,6 @@ class _Codec:
         return new_obj
 
     def _replace(self, **kwargs):
-
         processed = {}
         for i, field in enumerate(self._fields):
             if field in kwargs:
@@ -298,6 +302,7 @@ class _Codec:
         return getattr(_item, name)
 
     def __repr__(self):
+        # return f'{self._item} ({self._item_def_size})'
         return f'{self._item}'
 
 class String:
@@ -648,8 +653,18 @@ class _Delta:
         else:
             return None
 
+    def lower_bound(self, nt):
+        if self.LOWER_BOUND:
+            lower = getattr(nt, self.LOWER_BOUND).decode()
+            return scale(lower, 1, self.TYPE.INT)
+        else:
+            return None
+
     def upper_bound_str(self, nt):
         return fmt(self.upper_bound(nt), self.TYPE.INT, self.TYPE.PRECISION)
+
+    def lower_bound_str(self, nt):
+        return fmt(self.lower_bound(nt), self.TYPE.INT, self.TYPE.PRECISION)
 
     def decode(self):
         return scale(self.delta(), self.TYPE.SF, self.TYPE.INT)
