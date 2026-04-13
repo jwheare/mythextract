@@ -371,6 +371,7 @@ def parse_reco_file(game_directory, reco_file):
     metaserver_stats = fetch_bagrada_stats(reco_file)
 
     return parse_timeline(
+        game_version,
         header, tags, data_map, game_data,
         game_param, reco, reco_data, metaserver_stats
     )
@@ -618,16 +619,19 @@ def setup_teams(game_data, game_param, palette, mesh_header):
     return (players, players_idx, teams, teams_idx, observers, computer_players)
 
 def get_trades(
+    game_version,
     tags, data_map, palette, mesh_header,
     level_name, game_param, game_type_choice, game_time,
     unit_counts, players_idx, captain
 ):  
-    game_type, game_type_units = mesh2trades.parse_game_type_units(
+    game_types, game_type_units = mesh2trades.parse_game_type_units(
+        game_version,
         tags, data_map, palette, mesh_header,
         level_name, game_param.difficulty_level, game_type_choice
-    )
+    )  
+    game_type = game_types[0]
 
-    mesh2trades.print_game_info(mesh_header, level_name, game_type, game_param.difficulty_level, game_time)
+    # mesh2trades.print_game_info(mesh_header, level_name, game_type, game_param.difficulty_level, game_time)
 
     (trade_info, units, mismatch) = mesh2trades.parse_game_teams(
         game_type, game_type_units,
@@ -688,6 +692,7 @@ def init_cmd_counters():
     }
 
 def parse_timeline(
+    game_version,
     reco_header, tags, data_map, game_data,
     game_param, reco, reco_data, metaserver_stats
 ):
@@ -802,6 +807,7 @@ def parse_timeline(
     for team_index, cap_id in enumerate(teams_idx):
         if cap_id is not None:
             (trade_info, units, team_markers) = get_trades(
+                game_version,
                 tags, data_map, palette, mesh_header,
                 level_name, game_param, game_type_choice, game_time,
                 [], players_idx, players[cap_id]
@@ -852,6 +858,7 @@ def parse_timeline(
                 (unit_adjust_flags, unit_count) = struct.unpack('>h h', command_data[:4])
                 unit_counts = codec.list_pack('unit_counts', unit_count, '>h')(command_data[4:])
                 (trade_info, units, team_markers) = get_trades(
+                    game_version,
                     tags, data_map, palette, mesh_header,
                     level_name, game_param, game_type_choice, game_time,
                     unit_counts, players_idx, player

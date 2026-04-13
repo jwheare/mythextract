@@ -607,4 +607,4 @@ def unit_stats(tags, data_map, tag_id):
     (mons_loc, mons_header, mons_data) = loadtags.get_tag_info(
         tags, data_map, 'mons', codec.decode_string(unit_tag.mons)
     )
-    return mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
+    return mons2stats.get_mons_dict(myth_headers.game_version(mons_header), tags, data_map, mons_header, mons_data, mons_loc)

@@ -20,27 +20,27 @@ def main(game_directory, level, plugin_names):
     try:
         if level:
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                parse_mesh_markers(tags, data_map, mesh_id)
+                parse_mesh_markers(game_version, tags, data_map, mesh_id)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_mesh_markers(tags, data_map, mesh_id):
+def parse_mesh_markers(game_version, tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    print_markers(mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans)
+    print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans)
 
-def print_markers(mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans):
+def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans):
     mismatched_unit_collections = {}
     for palette_type, p_list in palette.items():
         for palette_index, p_val in enumerate(p_list):
             tag_id = p_val['tag']
             tag_type = mesh_tag.Marker2Tag.get(palette_type)
             (location, tag_header) = loadtags.lookup_tag_header(tags, tag_type, tag_id)
-            mismatch_tree = collmismatch.check_unit_collection_mismatch(tags, data_map, tag_type, tag_id)
+            mismatch_tree = collmismatch.check_unit_collection_mismatch(game_version, tags, data_map, tag_type, tag_id)
             if mismatch_tree:
                 mismatched_unit_collections[tag_id] = mismatch_tree
             tag_header_print = f'[{tag_header.name}] ' if tag_header else ''

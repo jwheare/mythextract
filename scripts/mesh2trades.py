@@ -79,78 +79,80 @@ def main(game_directory, level, plugin_names):
                 if mesh_tag.MarkerType.UNIT not in palette:
                     continue
 
-                game_type, game_type_units = parse_game_type_units(
+                game_types, game_type_units = parse_game_type_units(
+                    game_version,
                     tags, data_map, palette, mesh_header,
                     level_name, DIFFICULTY, GAME_TYPE
                 )
 
-                if not CSV and not JSON:
-                    print_game_info(mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
+                for game_type in game_types:
+                    if not CSV and not JSON:
+                        print_game_info(mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
 
-                (trade_info, units, mismatch) = parse_game_teams(
-                    game_type, game_type_units,
-                    counts, team_choice=TEAM
-                )
-                (diffs, trade) = trade_info
-                (mismatch_team, mismatch_rows) = mismatch
-                if JSON:
-                    level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
-                    is_mismatch = False
-                    mismatch_info = None
-                    if mismatch_rows:
-                        is_mismatch = True
-                        mismatch_info = {'team_id': mismatch_team, 'rows': mismatch_rows}
-                    json_rows.append({
-                        'is_mismatch': is_mismatch,
-                        'mismatch_info': mismatch_info,
-                        'mesh_name': level_name,
-                        'trade': trade,
-                        'game_type': game_type,
-                        'difficulty': mesh_tag.difficulty(DIFFICULTY),
-                        'mesh_size': mesh_tag.mesh_size(mesh_header),
-                        'mesh_id': mesh_id,
-                        'mesh_plugin': mesh_tag_location,
-                        'plugin_version': PLUGIN_V,
-                        'plugin_tain_slug': PLUGIN_SLUG,
-                        'plugin_author': PLUGIN_AUTHOR,
-                        'plugin_group': PLUGIN_GROUP,
-                    })
-                elif CSV:
-                    level_name_strip = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
-                    for i, row in enumerate(trade):
-                        mismatch_str = ''
-                        if mismatch_rows is True:
-                            mismatch_str = 'mismatch'
-                        elif mismatch_rows and i in mismatch_rows:
-                            mismatch_str = ' / '.join(
-                                [f'{key}: {val1} -> {val2}' for (key, (val1, val2)) in mismatch_rows[i].items()]
-                            )
-                        csv_rows.append([
-                            mismatch_str,
-                            level_name_strip,
+                    (trade_info, units, mismatch) = parse_game_teams(
+                        game_type, game_type_units,
+                        counts, team_choice=TEAM
+                    )
+                    (diffs, trade) = trade_info
+                    (mismatch_team, mismatch_rows) = mismatch
+                    if JSON:
+                        level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
+                        is_mismatch = False
+                        mismatch_info = None
+                        if mismatch_rows:
+                            is_mismatch = True
+                            mismatch_info = {'team_id': mismatch_team, 'rows': mismatch_rows}
+                        json_rows.append({
+                            'is_mismatch': is_mismatch,
+                            'mismatch_info': mismatch_info,
+                            'mesh_name': level_name,
+                            'trade': trade,
+                            'game_type': game_type,
+                            'difficulty': mesh_tag.difficulty(DIFFICULTY),
+                            'mesh_size': mesh_tag.mesh_size(mesh_header),
+                            'mesh_id': mesh_id,
+                            'mesh_plugin': mesh_tag_location,
+                            'plugin_version': PLUGIN_V,
+                            'plugin_tain_slug': PLUGIN_SLUG,
+                            'plugin_author': PLUGIN_AUTHOR,
+                            'plugin_group': PLUGIN_GROUP,
+                        })
+                    elif CSV:
+                        level_name_strip = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
+                        for i, row in enumerate(trade):
+                            mismatch_str = ''
+                            if mismatch_rows is True:
+                                mismatch_str = 'mismatch'
+                            elif mismatch_rows and i in mismatch_rows:
+                                mismatch_str = ' / '.join(
+                                    [f'{key}: {val1} -> {val2}' for (key, (val1, val2)) in mismatch_rows[i].items()]
+                                )
+                            csv_rows.append([
+                                mismatch_str,
+                                level_name_strip,
 
-                            row['unit'],
-                            row['class'],
-                            row['count'],
-                            row['max'],
-                            row['cost'],
-                            row['value'],
-                            'Tradeable' if row['tradeable'] else 'Default',
+                                row['unit'],
+                                row['class'],
+                                row['count'],
+                                row['max'],
+                                row['cost'],
+                                row['value'],
+                                'Tradeable' if row['tradeable'] else 'Default',
 
-                            mesh_id,
-                            PLUGIN_V,
-                            mesh_tag_location,
-                            PLUGIN_AUTHOR,
-                            PLUGIN_GROUP,
-                            game_type,
-                            mesh_tag.difficulty(DIFFICULTY),
-                            mesh_tag.mesh_size(mesh_header),
-                            f"https://tain.totalcodex.net/items/show/{PLUGIN_SLUG}" if PLUGIN_SLUG else '',
-                        ])
-                else:
-                    print('\n'.join(trade))
-                    if not NO_TRADING:
-                        input_loop(game_type, units, diffs)
+                                mesh_id,
+                                PLUGIN_V,
+                                mesh_tag_location,
+                                PLUGIN_AUTHOR,
+                                PLUGIN_GROUP,
+                                game_type,
+                                mesh_tag.difficulty(DIFFICULTY),
+                                mesh_tag.mesh_size(mesh_header),
+                                f"https://tain.totalcodex.net/items/show/{PLUGIN_SLUG}" if PLUGIN_SLUG else '',
+                            ])
+                    else:
+                        print('\n'.join(trade))
+                        if not NO_TRADING:
+                            input_loop(game_type, units, diffs)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
             mesh_input = input('Choose a mesh id: ')
@@ -218,6 +220,7 @@ def auto_adjust_counts(units):
     return adjusted
 
 def parse_game_type_units(
+    game_version,
     tags, data_map, palette, mesh_header,
     level_name, difficulty, game_type_choice
 ):
@@ -240,7 +243,7 @@ def parse_game_type_units(
                 )
                 if not mons_data:
                     continue
-                mons_dict = mons2stats.get_mons_dict(tags, data_map, mons_header, mons_data, mons_loc)
+                mons_dict = mons2stats.get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
                 for netgame in netgame_info:
                     if netgame not in game_type_units:
                         game_type_units[netgame] = {}
@@ -297,18 +300,21 @@ def parse_game_type_units(
         included_game_types = list(game_type_units.keys())
     included_game_types.sort()
 
-    if game_type_choice not in included_game_types:
-        game_type_choice = None
+    if game_type_choice == 'all':
+        return included_game_types, game_type_units
+    else:
+        if game_type_choice not in included_game_types:
+            game_type_choice = None
 
-    if not game_type_choice:
-        game_type_nums = [
-            f'{i+1:>2}) {mesh_tag.NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
-        ]
-        print(f"\n{level_name}\n")
-        game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
-        game_type_choice = included_game_types[game_type_choice_i-1]
+        if not game_type_choice:
+            game_type_nums = [
+                f'{i+1:>2}) {mesh_tag.NetgameNames[gt]}' for i, gt in enumerate(included_game_types)
+            ]
+            print(f"\n{level_name}\n")
+            game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
+            game_type_choice = included_game_types[game_type_choice_i-1]
 
-    return game_type_choice, game_type_units
+        return [game_type_choice], game_type_units
 
 def parse_game_teams(
     game_type, game_type_units,
@@ -362,8 +368,7 @@ def parse_game_teams(
             team_choice = input("\nChoose team: ").strip().lower()
         else:
             team_choice = 0
-    else:
-        team_choice = int(team_choice)
+    team_choice = int(team_choice)
 
     final_merged_units = teams[team_choice]
     if team_choice in shared_units:
