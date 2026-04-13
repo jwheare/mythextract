@@ -20,7 +20,7 @@ const playerList = document.getElementById("playerList");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2025-08-03';
+const DATA_VERSION = '2026-04-12';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -139,6 +139,8 @@ function routeUrl () {
     initMWC25();
   } else if (TOURNEY_ID == '9-smo25') {
     initSmo25();
+  } else if (TOURNEY_ID == '13-mwc26') {
+    initMWC26();
   }
 
   if (GAME_ID) {
@@ -332,6 +334,9 @@ function renderHomeTourneys () {
   tournamentContainer.appendChild(
     stateLink('tournament/9-smo25', "'smo draft tournament 2025", 'tournamentLink')
   );
+  tournamentContainer.appendChild(
+    stateLink('tournament/13-mwc26', 'Myth World Cup 2026', 'tournamentLink')
+  );
 }
 
 function renderTournamentInfo () {
@@ -465,6 +470,28 @@ function initSmo25 () {
     'dantski': ['Dant', 'Dantski'],
     'homer': ['Homer', 'Homer'],
     'akira': ['Akira', 'Akira'],
+  };
+}
+
+function initMWC26 () {
+  // MWC 2026 specific
+  ROUND_MAP = new Map([
+    ['QR1', 'Qualifying Round 1'],
+    // ['QR2', 'Qualifying Round 2'],
+    // ['QR3', 'Qualifying Round 3'],
+    // ['DE1', 'Double Elimination 1'],
+    // ['DE2', 'Double Elimination 2'],
+    // ['DE3', 'Double Elimination 3'],
+    // ['BB Finals', 'Bottom Bracket Finals'],
+    // ['Grand Finals', 'Grand Finals'],
+  ]);
+  TEAM_MAP = {
+    'ag': ['AG', "Avon's Grove"],
+    'v3': ['V3', "Veni Vidi Vici"],
+    '4c': ['4C', "Canadian Calisthenic Club for Casuals"],
+    'cum': ['CUM', "Company of Unvanquished Mauls"],
+    'ti': ['TI', "Treasure Island"],
+    'tmf': ['TMF', "The Myth-Fits"],
   };
 }
 
@@ -628,13 +655,14 @@ function calculateTourneyStats (teamFilter) {
   let overallTeamStats = [];
   for (let [team, stats] of Object.entries(teamStats)) {
     if (!teamFilter || teamFilter == team) {
-      let teamLink = teamName(team);
+      let teamLink = dce('span', null, teamNameShort(team));
       if (!teamFilter) {
         teamLink = stateLink(
           `tournament/${TOURNEY_ID}/teams/${team}`,
-          teamName(team)
+          teamNameShort(team)
         );
       }
+      teamLink.title = teamName(team);
       overallTeamStats.push({
         Team: teamLink,
 

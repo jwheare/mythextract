@@ -62,8 +62,8 @@ def download_film(game_info, output_dir):
     return False
 
 def process_round_name(tourney_id, round_name):
-    if tourney_id == '7':
-        # MWC 2025
+    if tourney_id in ['7', '13']:
+        # MWC 2025/26
         if match := re.match(r'((?:.*Finals)|(?:DE 2)|\w+)\s(.*) vs (.*)', round_name):
             stage = match.group(1)
             team1 = match.group(2)
