@@ -13,6 +13,7 @@ import myth_projectile
 import mons_tag
 import loadtags
 import utils
+import dmap2info
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEAD_TAGS = (os.environ.get('DEAD_TAGS') == '1')

@@ -61,7 +61,7 @@ def print_tag(side, tag_header, data):
         f'{tag_header.signature} | '
         f'{tag_header.tag_type} | '
         f'{tag_header.tag_id} | '
-        f'{data_hash} | '
+        f'{data_hash} | {data[:32].hex()} | '
         f'{tag_header.name}'
     )
 

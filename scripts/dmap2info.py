@@ -7,7 +7,7 @@ import codec
 import myth_headers
 import utils
 
-DEBUG = (os.environ.get('DEBUG') == '1')
+DEBUG_DMAP = (os.environ.get('DEBUG_DMAP') == '1')
 
 MAX_DTEX_TAGS_PER_DMAP = 128
 DMAP_HEADER1_SIZE = 644
@@ -65,16 +65,16 @@ def parse_dmap_header1(data):
 def parse_dmap_header2(data):
     return myth_headers.parse_tag(DmapHeader2Fmt, data)
 
-def parse_dmap_tag(data):
-    tag_header = myth_headers.parse_header(data)
-    print(tag_header)
+def parse_dmap_header(tag_header, data):
     if tag_header.version == 1:
-        header = parse_dmap_header1(data)
-        area = header.width * header.height
-        print(header, area)
-        v_indices_start = DMAP_HEADER1_SIZE + myth_headers.TAG_HEADER_SIZE
-        v_indices_end = v_indices_start + area
-        v_indices = data[v_indices_start:v_indices_end]
+        return parse_dmap_header1(data)
+    elif tag_header.version == 2:
+        return parse_dmap_header2(data)
+    else:
+        return None
+
+def parse_dmap_entries(tag_header, header, data):
+    if tag_header.version == 1:
         entries = []
         for i, scale in enumerate(header.scales):
             if scale:
@@ -84,27 +84,44 @@ def parse_dmap_tag(data):
                     pixels_per_cell=scale-1
                 )
                 entries.append(entry)
-                print(entry)
-
-        print('v_indices', v_indices[:32].hex())
+        return entries
     elif tag_header.version == 2:
-        header = parse_dmap_header2(data)
-        area = header.width * header.height
-        print(header, area)
-
         entries = codec.list_codec(
             MAX_DTEX_TAGS_PER_DMAP, DmapEntryFmt,
             filter_fun=lambda _self, e: not codec.all_on(e.dtex_id) and not codec.all_off(e.dtex_id)
         )(data, offset=header.entries_offset)
-        for entry in entries:
-            if entry:
-                print(
-                    f'\x1b[48;2;{entry.r};{entry.g};{entry.b}m \x1b[0m '
-                    f'{codec.decode_string(entry.dtex_id)} '
-                    f'pixels_per_cell={entry.pixels_per_cell} '
-                    f'desc={entry.name}'
-                )
+        return entries
+    else:
+        return None
 
+def parse_dmap_tag(data):
+    tag_header = myth_headers.parse_header(data)
+    if DEBUG_DMAP:
+        print(tag_header)
+    if tag_header.version not in [1, 2]:
+        print('Invalid detail map version', tag_header.version)
+        sys.exit(1)
+
+    header = parse_dmap_header(tag_header, data)
+    entries = parse_dmap_entries(tag_header, header, data)
+    area = header.width * header.height
+
+    print(header, area)
+    for entry in entries:
+        if entry:
+            print(
+                f'\x1b[48;2;{entry.r};{entry.g};{entry.b}m \x1b[0m '
+                f'{codec.decode_string(entry.dtex_id)} '
+                f'pixels_per_cell={entry.pixels_per_cell} '
+                f'desc={entry.name}'
+            )
+
+    if tag_header.version == 1:
+        v_indices_start = DMAP_HEADER1_SIZE + myth_headers.TAG_HEADER_SIZE
+        v_indices_end = v_indices_start + area
+        v_indices = data[v_indices_start:v_indices_end]
+        print('v_indices', v_indices[:32].hex())
+    elif tag_header.version == 2:
         v_indices_start = header.v_indices_offset + myth_headers.TAG_HEADER_SIZE
         v_indices_end = v_indices_start + area
         v_indices = data[v_indices_start:v_indices_end]
@@ -114,9 +131,6 @@ def parse_dmap_tag(data):
         t_indices_end = t_indices_start + (area * 2)
         t_indices = data[t_indices_start:t_indices_end]
         print('t_indices', t_indices[:32].hex())
-    else:
-        print('Invalid detail map version', tag_header.version)
-        sys.exit(1)
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

@@ -6,6 +6,8 @@ import codec
 import myth_headers
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+DEBUG_MODEL = (os.environ.get('DEBUG_MODEL') == '1')
+DEBUG_GEOM = (os.environ.get('DEBUG_GEOM') == '1')
 
 ConnectorFmt = ('Connector', [
     ('L', 'flags'),
@@ -234,7 +236,7 @@ def parse_media(data):
 
 def parse_model(data):
     model = myth_headers.parse_tag(ModelFmt, data)
-    if DEBUG:
+    if DEBUG_MODEL:
         model_data = data[64:]
         value_data = model_data[model.data_offset:]
         print('actual model data size', len(model_data[model.data_offset:]))
@@ -262,7 +264,7 @@ def parse_model(data):
 
 def parse_geom(data):
     geom = myth_headers.parse_tag(GeomFmt, data)
-    if DEBUG:
+    if DEBUG_GEOM:
         geom_data = data[64:]
         value_data = geom_data[geom.data_offset:]
         
