@@ -107,7 +107,7 @@ def main(tourney_dir, game_directory, output_dir):
     }
 
     if prompt(base_path, tourney_path, len(tourney_rounds)):
-        for round_i, round_info in enumerate(tourney_info['rounds']):
+        for round_i, round_info in enumerate(reversed(tourney_info['rounds'])):
             winning_teams = None
             # Relies on tourney specific data
             if round_info.get('_processed'):
