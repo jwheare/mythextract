@@ -30,22 +30,41 @@ def main(game_directory, tag_type, tag_id, plugin_names):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
+def extract_tag(tag_data, extracted_tags, all_tag_data):
+    extracted_header = tag_data[0]
+    if extracted_header.tag_type not in extracted_tags:
+        extracted_tags[extracted_header.tag_type] = {}
+    extracted_tags[extracted_header.tag_type][extracted_header.tag_id] = True
+    all_tag_data.append(tag_data)
+
 def extract_tags(game_version, tag_type, input_tag_id, tags, data_map, plugin_names):
     all_tag_data = []
+    extracted_tags = {}
     tdg = TagDataGenerator(game_version, tags, data_map, plugin_names)
 
-    if input_tag_id == 'all':
-        output_dir = f'../output/tag2local/{tag_type}_all/local'
-        extracted_tags = {}
+    if len(input_tag_id) > 4 and ',' in input_tag_id:
+        input_tag_id_list = input_tag_id.split(',')
+        if len(plugin_names):
+            output_dir = f'../output/tag2local/{plugin_names[0]}/{tag_type}_{input_tag_id}/local'
+        else:
+            output_dir = f'../output/tag2local/{tag_type}_{input_tag_id}/local'
+        if tag_type in tags:
+            for tag_id in input_tag_id_list:
+                for td in tdg.get_tag_data(tag_type, codec.encode_string(tag_id)):
+                    extract_tag(td, extracted_tags, all_tag_data)
+    elif input_tag_id == 'all':
+        if len(plugin_names):
+            output_dir = f'../output/tag2local/{plugin_names[0]}/{tag_type}_all/local'
+        else:
+            output_dir = f'../output/tag2local/{tag_type}_all/local'
         if tag_type in tags:
             for tag_id, locations in tags[tag_type].items():
                 (location, header) = locations[-1]
-                for td in tdg.get_tag_data(tag_type, codec.encode_string(tag_id)):
-                    extracted_header = td[0]
-                    if extracted_header.tag_type not in extracted_tags:
-                        extracted_tags[extracted_header.tag_type] = {}
-                    extracted_tags[extracted_header.tag_type][extracted_header.tag_id] = True
-                    all_tag_data.append(td)
+                if not len(plugin_names) or location in plugin_names:
+                    for td in tdg.get_tag_data('.256', codec.encode_string('##p#')):
+                        extract_tag(td, extracted_tags, all_tag_data)
+                    for td in tdg.get_tag_data(tag_type, codec.encode_string(tag_id)):
+                        extract_tag(td, extracted_tags, all_tag_data)
         if DEAD_TAGS:
             dead_tags = {}
             for check_tag_type, tag_type_tags in tags.items():
@@ -61,7 +80,7 @@ def extract_tags(game_version, tag_type, input_tag_id, tags, data_map, plugin_na
             for dead_tag_type, dead_tag_tags in dead_tags.items():
                 for dead_tag_id, dead_tag_locations in dead_tag_tags.items():
                     (dead_tag_location, dead_tag_header) = dead_tag_locations[-1]
-                    if not plugin_names or dead_tag_location in plugin_names:
+                    if not len(plugin_names) or dead_tag_location in plugin_names:
                         print(f'Dead tag {dead_tag_type.upper()}.{dead_tag_id} {dead_tag_header.name}')
 
     else:
@@ -91,7 +110,7 @@ def extract_tags(game_version, tag_type, input_tag_id, tags, data_map, plugin_na
 
 def prompt(prompt_path):
     # return True
-    response = input(f"Write to: {prompt_path} [Y/n]: ").strip().lower()
+    response = input(f"Write to: \"{prompt_path}\" [Y/n]: ").strip().lower()
     return response in {"", "y", "yes"}
 
 class TagDataGenerator:
@@ -108,7 +127,7 @@ class TagDataGenerator:
             self.FETCHED[tag_type] = {}
         return tag_id in self.FETCHED[tag_type]
 
-    def get_tag_data(self, tag_type, tag_id, tree=[]):
+    def get_tag_data(self, tag_type, tag_id, tree=[], field=None):
         if self.fetched_check(tag_type, tag_id):
             return
         self.FETCHED[tag_type][tag_id] = True
@@ -131,6 +150,7 @@ class TagDataGenerator:
                 yield from self.get_tag_data('stli', mesh_header.picture_caption_string_list_tag)
                 yield from self.get_tag_data('stli', mesh_header.team_names_override_string_list_tag)
                 yield from self.get_tag_data('text', mesh_header.pregame_storyline_tag)
+                yield from self.get_tag_data('dmap', mesh_header.landscape_collection_tag)
                 yield from self.get_tag_data('.256', mesh_header.landscape_collection_tag)
                 yield from self.get_tag_data('.256', mesh_header.overhead_map_collection_tag)
                 yield from self.get_tag_data('.256', mesh_header.postgame_collection_tag)
@@ -234,7 +254,7 @@ class TagDataGenerator:
                 yield from self.get_tag_data('stli', mons.flavor_string_list_tag, tree)
                 yield from self.get_tag_data('prgr', mons.blocked_impact_projectile_group_tag, tree)
                 yield from self.get_tag_data('prgr', mons.absorbed_impact_projectile_group_tag, tree)
-                yield from self.get_tag_data('prgr', mons.ammunition_projectile_tag, tree)
+                yield from self.get_tag_data('proj', mons.ammunition_projectile_tag, tree, 'ammunition_projectile_tag')
                 yield from self.get_tag_data('prgr', mons.entrance_projectile_group_tag, tree)
                 yield from self.get_tag_data('lpgr', mons.local_projectile_group_tag, tree)
                 yield from self.get_tag_data('stli', mons.special_ability_string_list_tag, tree)
@@ -243,9 +263,10 @@ class TagDataGenerator:
                 for sound in mons.sound_tags:
                     if sound:
                         yield from self.get_tag_data('soun', sound, tree)
-                for attack in mons.attacks:
+                for attack_i in range(mons.number_of_attacks):
+                    attack = mons.attacks[attack_i]
                     if attack:
-                        yield from self.get_tag_data('proj', attack.projectile_tag, tree)
+                        yield from self.get_tag_data('proj', attack.projectile_tag, tree, f'attack[{attack_i}].projectile_tag')
 
             elif tag_header.tag_type == 'anim':
                 anim = myth_tags.parse_anim(tag_data)
@@ -303,7 +324,15 @@ class TagDataGenerator:
                 lightning = myth_projectile.parse_lightning(tag_data)
                 yield from self.get_tag_data('core', lightning.collection_reference_tag, tree)
 
-            if not self.plugin_names or location in self.plugin_names:
+            elif tag_header.tag_type == 'dmap':
+                if tag_header.version in [1, 2]:
+                    dmap_header = dmap2info.parse_dmap_header(tag_header, tag_data)
+                    dmap_entries = dmap2info.parse_dmap_entries(tag_header, dmap_header, tag_data)
+                    for entry in dmap_entries:
+                        if entry:
+                            yield from self.get_tag_data('dtex', entry.dtex_id, tree)
+
+            if not len(self.plugin_names) or location in self.plugin_names:
                 tree_path = ' > '.join([
                     f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
                     for (tree_loc, tree_header) in tree
@@ -311,14 +340,15 @@ class TagDataGenerator:
                 if DEBUG:
                     print(f'{location:<32} {tag_type.upper()}.{tag_header.tag_id} {tag_header.name:<32} {tree_path}')
                 yield (tag_header, tag_data)
-        else:
+        elif tag_type != 'dmap':
             tree_path = ' > '.join([
                 f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
                 for (tree_loc, tree_header) in tree
             ])
             missing_tag = f'{tag_type.upper()}.{codec.decode_string(tag_id)}'
 
-            print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}')
+            field_info = f' ({field})' if field else ''
+            print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}{field_info}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:
