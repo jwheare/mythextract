@@ -937,7 +937,7 @@ def parse_timeline(
                     )
                 if command_header.time > planning_ticks:
                     cmd = log_command(
-                        players, player_id, monsters, computer_markers, computer_monsters, trades,
+                        players, observers, player_id, monsters, computer_markers, computer_monsters, trades,
                         command_header, command_data, self_heal_kill_dmg, planning_ticks
                     )
                     if cmd:
@@ -955,6 +955,16 @@ def parse_timeline(
                             counters['engage']['team'][player.team_index] += 1
                             counters['engage']['overall'] += 1
 
+            elif command_header.verb == Commands.ADD_PLAYER:
+                add_player_data = player_headers.add_player(command_data)
+                if add_player_data.team_index == -1:
+                    observers[add_player_data.player_id] = add_player_data
+                if DEBUG_CMDS:
+                    print(
+                        f'{tick_to_time(pt, command_header.time)}: '
+                        f'{command_header.verb} '
+                        f'{add_player_data} '
+                    )
             else:
                 if DEBUG_CMDS:
                     print(
@@ -1259,9 +1269,16 @@ def parse_command_monsters(data, monsters, computer_markers, player=None):
     return (command_monsters, end)
 
 def log_command(
-    players, player_id, monsters, computer_markers, computer_monsters, trades,
+    players, observers, player_id, monsters, computer_markers, computer_monsters, trades,
     command_header, command_data, self_heal_kill_dmg, planning_ticks=0
 ):
+    if player_id not in players:
+        if DEBUG_CMDS:
+            if player_id in observers:
+                print('observer command', player_id, command_header)
+            else:
+                print('invalid player id', player_id, command_header)
+        return
     player = players[player_id]
     action = command_header.verb.name
     extra_data = {}

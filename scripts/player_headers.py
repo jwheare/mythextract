@@ -43,6 +43,19 @@ NewPlayerDataFmt = ('NewPlayerData', [
     ('84s', 'appearance', codec.codec(PlayerAppearanceFmt)),
 ])
 
+AddPlayerDataFmt = ('AddPlayerData', [
+    ('L', 'player_id'),
+    ('h', 'team_index'),
+
+    ('h', 'version'),
+    ('L', 'metaserver_player_id'),
+
+    ('84s', 'appearance', codec.codec(PlayerAppearanceFmt)),
+])
+
+def add_player(command_data):
+    return codec.codec(AddPlayerDataFmt)(command_data)
+
 def is_observer(player):
     return PlayerFlags.IS_OBSERVER in player.flags
 

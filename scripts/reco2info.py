@@ -25,7 +25,6 @@ def main(game_directory, reco_file):
         ) = reco_tag.parse_reco_file(game_directory, reco_file)
 
         reco_tag.print_metaserver_info(teams_idx, teams, players, game_stats)
-
         info = mesh_tag.get_game_info(mesh_header, level_name, game_type_choice, difficulty, game_time)
         print(info)
 
