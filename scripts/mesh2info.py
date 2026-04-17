@@ -17,11 +17,11 @@ def main(game_directory, level, plugin_names):
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
-        if level:
+        if not level or level == 'list':
+            mono2tag.print_entrypoint_map(entrypoint_map)
+        else:
             for mesh_id in mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 parse_mesh_tag(game_version, tags, data_map, mesh_id)
-        else:
-            mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
@@ -68,15 +68,17 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id):
     
     locations = [l for (l, th) in tags['mesh'][mesh_id]]
 
-    # print(mesh_id, mesh_header.mesh_size)
-    # print(f'[{mesh_id}] {f} {val} {locations}')
-
     print('data len', len(mesh_tag_data))
     print_header(mesh_header, mesh_id, locations)
 
-def print_header(mesh_header):
+    # editor_data = mesh_tag.parse_oak_editor_data(mesh_header, mesh_tag_data)
+    # import json
+    # print(json.dumps(editor_data, indent=1))
+
+def print_header(mesh_header, mesh_id, locations=None):
     for i, (f, val) in enumerate(mesh_header._asdict().items()):
         print(f'{f:<42} {utils.val_repr(val)}')
+        # print(f'[{mesh_id}] {f} {val} {locations}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

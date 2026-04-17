@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
 import enum
+import json
 import os
 import struct
 
@@ -187,8 +188,30 @@ MeshHeaderFmt = ('MeshHeader', [
     ('4s', 'team_names_override_string_list_tag'),
     ('32s', 'plugin_name'),
     ('L', 'extra_flags', ExtraFlags),
+    ('4s', 'win_narration_collection_tag'),
+    ('4s', 'loss_narration_collection_tag'),
+    ('4s', 'win_narration_storyline_tag_tag'),
+    ('4s', 'loss_narration_storyline_tag'),
+    ('4s', 'win_narration_caption_string_list_tag'),
+    ('4s', 'loss_narration_caption_string_list_tag'),
+    ('4s', 'win_narration_sound_tag'),
+    ('4s', 'loss_narration_sound_tag'),
     ('f', 'minimum_zoom_factor'),
-    ('468x', None),
+    ('406x', None), # unused
+
+    # runtime data - not valid on disk
+    ('2x', None), # connector_type;
+    ('2x', None), # map_description_string_index;
+    ('2x', None), # overhead_map_collection_index;
+    ('2x', None), # landscape_collection_index;
+    ('2x', None), # global_ambient_sound_index;
+    ('2x', None), # media_type;
+    ('2x', None), # hints_string_list_index;
+
+    ('4s', 'editor_data_cookie'),
+    ('L', 'editor_data_size'),
+    ('L', 'editor_data_offset'),
+    ('4x', None), # editor_data_unused
 ])
 
 MeshHeaderFmtTFL = ('MeshHeader', [
@@ -613,6 +636,14 @@ def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, g
     diff = difficulty(difficulty_level)
     size = mesh_size(mesh_header)
     return f"{game_type}: {level_name} [{diff}] ({size}){game_time_mins}"
+
+def parse_oak_editor_data(mesh_header, data):
+    if codec.decode_string(mesh_header.editor_data_cookie) == 'oake':
+        editor_data_start = get_offset(mesh_header.editor_data_offset)
+        editor_data_end = editor_data_start + mesh_header.editor_data_size
+        editor_data = data[editor_data_start:editor_data_end]
+        return json.loads(editor_data)
+    return None
 
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)
