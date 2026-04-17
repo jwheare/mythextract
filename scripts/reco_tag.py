@@ -1054,7 +1054,7 @@ def process_splits(game_stats, trades, splits, players_idx):
 
 def process_medal(medals, player_stats, stat_name, player_val):
     # Medal winners needs to have made at least 10 engagements in a game
-    if player_stats['actions_engage'] > 10:
+    if player_stats['actions_engage'] >= 5:
         if player_stats[stat_name] > medals[stat_name][0]:
             medals[stat_name] = (player_stats[stat_name], [player_val])
         elif player_stats[stat_name] == medals[stat_name][0]:
