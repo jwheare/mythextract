@@ -143,19 +143,25 @@ MonsterInitializerFmt = ('MonsterInitializer', [
 
 BAGRADA_MATCH = r'bagrada\d{4,4}_\d{2,2}_\d{2,2}__\d{2,2}_\d{2,2}_\d{2,2}_\d{2,3}.m2rec'
 
-def fetch_bagrada_stats(file_path):
+def fetch_bagrada_stats(file_path, bagrada_game=None):
     file_name = pathlib.Path(file_path).name
-    if not re.match(BAGRADA_MATCH, file_name):
+    if not bagrada_game and not re.match(BAGRADA_MATCH, file_name):
         return
+    # https://bagrada.net/rank-server/api/public/games/73403
     # https://bagrada.net/rank-server/api/public/games?recordingFileName=bagrada2025_06_22__20_39_32_13.m2rec
-    data = {
-        'recordingFileName': file_name,
-    }
     url = 'https://bagrada.net/rank-server/api/public/games'
+    data = {}
+    if bagrada_game:
+        url = f'{url}/{bagrada_game}'
+    else:
+        data['recordingFileName'] = file_name
     (status, headers, response_text) = utils.http_request(url, 'GET', data)
     result = json.loads(response_text)
-    if result and 'content' in result and len(result['content']) == 1:
-        return result['content'][0]
+    if result:
+        if bagrada_game and 'game' in result:
+            return result['game']
+        elif 'content' in result and len(result['content']) == 1:
+            return result['content'][0]
 
 def player_by_bagrada_id(bagrada_id, players):
     return next((
@@ -357,7 +363,7 @@ def parse_reco_head(game_directory, reco_file, head_only=False):
 
     return (header, reco_data, reco, game_param, game_data, save_game)
 
-def parse_reco_file(game_directory, reco_file):
+def parse_reco_file(game_directory, reco_file, bagrada_game=None):
     (header, reco_data, reco, game_param, game_data, save_game) = parse_reco_head(game_directory, reco_file)
 
     plugin_names = [codec.decode_string(p[0]) for p in game_param.plugin_data]
@@ -368,7 +374,7 @@ def parse_reco_file(game_directory, reco_file):
             sys.exit(1)
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
-    metaserver_stats = fetch_bagrada_stats(reco_file)
+    metaserver_stats = fetch_bagrada_stats(reco_file, bagrada_game)
 
     return parse_timeline(
         game_version,
@@ -395,13 +401,14 @@ def parse_mons_initializers(tags, data_map, reco, reco_data):
             f'{unit_header.name} / {mons_header.name}'
         )
 
-def print_teams(teams, players, players_idx):
+def print_teams(teams, players, players_idx, dropped_players=[]):
     print('Teams\n')
     for cap_id, team_players in teams.items():
         cap = players[cap_id]
         print(f'[{cap.team_index}] {utils.strip_format(cap.appearance.team_name)}')
         for p_i, player_id in enumerate(team_players):
             player = players[player_id]
+            dropped = ' (dropped)' if player_id in dropped_players else ''
             print(
                 f'{players_idx.index(player_id):>2}: '
                 f'{player_headers.colors(cap)[0]}'
@@ -409,6 +416,7 @@ def print_teams(teams, players, players_idx):
                 f'{"*" if cap_id == player.unique_identifier else " "} '
                 f'{player.unique_identifier:<2} '
                 f'{player_name(player)}'
+                f'{dropped}'
             )
         print('---')
 
@@ -804,6 +812,7 @@ def parse_timeline(
 
     monsters = {}
     trades = {}
+    dropped_players = []
     for team_index, cap_id in enumerate(teams_idx):
         if cap_id is not None:
             (trade_info, units, team_markers) = get_trades(
@@ -818,6 +827,9 @@ def parse_timeline(
                 print('trades', team_index, units.keys())
     if DEBUG:
         print_trades(teams_idx, trades)
+    
+    observer_count = len(observers)
+    player_count = len(players)
 
     prev_command_time = None
     while block_offset < len(reco_data):
@@ -854,6 +866,9 @@ def parse_timeline(
                 player = players[player_id]
                 if DEBUG_CMDS:
                     print(f'- player_id={player_id} (idx={player_idx}) team={player.team_index}')
+            if player_id in observers:
+                if DEBUG_CMDS:
+                    print(f'- player_id={player_id} (idx={player_idx}) (observer)')
             if command_header.verb == Commands.UNIT_ADJUSTMENT:
                 (unit_adjust_flags, unit_count) = struct.unpack('>h h', command_data[:4])
                 unit_counts = codec.list_pack('unit_counts', unit_count, '>h')(command_data[4:])
@@ -911,7 +926,14 @@ def parse_timeline(
             elif command_header.verb == Commands.CHAT:
                 (chat_flags,) = struct.unpack('>h', command_data[:2])
                 chat_message = codec.decode_string(command_data[2:])
-                chat_lines.append((pt, command_header.time, player, chat_flags, chat_message))
+                chat_lines.append({
+                    "header": command_header,
+                    "pt": pt,
+                    "player": player,
+                    "cap": players[player.team_captain_identifier],
+                    "flags": chat_flags,
+                    "message": chat_message
+                })
 
                 counters['chat']['player'][player_id] += 1
                 counters['chat']['team'][player.team_index] += 1
@@ -959,11 +981,43 @@ def parse_timeline(
                 add_player_data = player_headers.add_player(command_data)
                 if add_player_data.team_index == -1:
                     observers[add_player_data.player_id] = add_player_data
+                    observer_count += 1
+                else:
+                    player_count += 1
+                chat_lines.append({
+                    "header": command_header,
+                    "pt": pt,
+                    "player": add_player_data,
+                    "num_players": player_count,
+                    "num_observers": observer_count,
+                })
                 if DEBUG_CMDS:
                     print(
                         f'{tick_to_time(pt, command_header.time)}: '
                         f'{command_header.verb} '
-                        f'{add_player_data} '
+                        f'{add_player_data}'
+                    )
+            elif command_header.verb == Commands.DROP_PLAYER:
+                chat_line = {
+                    "header": command_header,
+                    "pt": pt,
+                }
+                dropped_players.append(player_id)
+                if player_id in observers:
+                    chat_line['player'] = observers[player_id]
+                    observer_count -= 1
+                else:
+                    chat_line['player'] = player
+                    chat_line['cap'] = players[player.team_captain_identifier]
+                    player_count -= 1
+
+                chat_line["num_players"] = player_count
+                chat_line["num_observers"] = observer_count
+                chat_lines.append(chat_line)
+                if DEBUG_CMDS:
+                    print(
+                        f'{tick_to_time(pt, command_header.time)}: '
+                        f'{command_header.verb}'
                     )
             else:
                 if DEBUG_CMDS:
@@ -990,8 +1044,9 @@ def parse_timeline(
     process_counters(game_stats, players, counters, self_heal_kill_dmg)
 
     return (
-        reco_header, players, players_idx, monsters, teams, teams_idx, game_param.plugin_data,
-        mesh_header, level_name, game_time, game_type_choice, game_param.difficulty_level,
+        reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
+        game_param.plugin_data, mesh_header, level_name,
+        game_time, game_type_choice, game_param.difficulty_level,
         overhead_map_data, chat_lines, trades, splits, game_stats
     )
 
@@ -1433,7 +1488,7 @@ def print_splits(players, players_idx, teams_idx, trades, splits):
             trades[team_index], players[teams_idx[team_index]], team_split, players, players_idx
         )
 
-def print_combined_stats(reco_header, players, players_idx, teams, teams_idx, game_stats):
+def print_combined_stats(reco_header, players, players_idx, teams, teams_idx, dropped_players, game_stats):
     print('Stats\n')
 
     # Ordered by team
@@ -1478,10 +1533,11 @@ def print_combined_stats(reco_header, players, players_idx, teams, teams_idx, ga
                 f'{format_stats(ps, ps.get('dmg_action'))} '
                 f'{effectiveness}{medals}'
             )
+            dropped = '!' if player_id in dropped_players else ' '
             print(
                 f'{player_headers.colors(cap)[0]}'
                 f'{player_headers.colors(player)[0]} '
-                f'{"*" if player.team_captain_identifier == player.unique_identifier else " "} '
+                f'{"*" if player.team_captain_identifier == player.unique_identifier else dropped} '
                 f'{player_name(player)[:12]:<14} | '
                 f'Actions: {ps.get('actions', 0):>5}/{ps.get('actions_engage', 0):>5} '
                 f'{player_stats}'
@@ -1506,16 +1562,25 @@ def format_stats(stats, dmg_action):
 
 def print_chat(chat_lines, players):
     print('Chat\n')
-    for (pt, chat_time, player, chat_flags, chat_message) in chat_lines:
-        whisper = '[whisper] ' if ChatFlags.PRIVATE in ChatFlags(chat_flags) else ''
-        cap = players[player.team_captain_identifier]
+    for line in chat_lines:
+        whisper = '[whisper] ' if 'flags' in line and ChatFlags.PRIVATE in ChatFlags(line['flags']) else ''
+        player = line['player']
+        player_color = player_headers.colors(player)[0]
+        name = player_name(player)
+        cap_color = player_headers.colors(line['cap'])[0] if 'cap' in line else player_color
+        chat_message = ''
+        if line['header'].verb == Commands.ADD_PLAYER:
+            chat_message = f" => joined {line['num_players']}/{line['num_observers']}"
+        if line['header'].verb == Commands.DROP_PLAYER:
+            chat_message = f" <= left {line['num_players']}/{line['num_observers']}"
+        elif line['header'].verb == Commands.CHAT:
+            chat_message = f" | {whisper} {utils.ansi_format(line['message'])}"
         print(
-            f'{tick_to_time(pt, chat_time)}: '
-            f'{player_headers.colors(cap)[0]}'
-            f'{player_headers.colors(player)[0]} '
-            f'{player_name(player)[:12]:<12} | '
-            f'{whisper}'
-            f'{utils.ansi_format(chat_message)}'
+            f'{tick_to_time(line['pt'], line['header'].time)}: '
+            f'{cap_color}'
+            f'{player_color} '
+            f'{name[:12]:<12} '
+            f'{chat_message}'
         )
     print('\n---\n')
 

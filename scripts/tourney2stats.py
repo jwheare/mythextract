@@ -133,10 +133,10 @@ def main(tourney_dir, game_directory, output_dir):
                     f'{game_info["game_path"]}/{film_name} ... ', end=''
                 )
                 (
-                    reco_header, players, players_idx, monsters, teams, teams_idx,
+                    reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
                     plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
                     overhead_map_data, chat_lines, trades, splits, game_stats
-                ) = reco_tag.parse_reco_file(game_directory, reco_file)
+                ) = reco_tag.parse_reco_file(game_directory, reco_file, game_info['bagrada_game'])
 
                 print('PARSED... ', end='')
 
