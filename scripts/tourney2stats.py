@@ -53,12 +53,14 @@ def cap2team(tourney_id, round_id, game_num, cap_id):
             96: "tmf", # sanglaine
             212: "ag", # swatacular
             34: "4c", # spy
-            103: "4c", # dantski
+            103: "4c2" if (round_id == 107 and game_num == 3) else "4c", # dantski
             13: "v3", # gkg
             51: "cum", # akira
             59: "4c", # overdose
             86: "ti", # ribfeast
             1657: "ti", # ymir
+            28: "ag", # bran
+            327: "cum2" if (round_id == 107 and game_num == 3) else "cum", # east wind (noolook)
         }
     }
     return teams.get(int(tourney_id), {}).get(int(cap_id))

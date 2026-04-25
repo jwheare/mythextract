@@ -20,7 +20,7 @@ const playerList = document.getElementById("playerList");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-04-12';
+const DATA_VERSION = '2026-04-19';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -477,7 +477,7 @@ function initMWC26 () {
   // MWC 2026 specific
   ROUND_MAP = new Map([
     ['QR1', 'Qualifying Round 1'],
-    // ['QR2', 'Qualifying Round 2'],
+    ['QR2', 'Qualifying Round 2'],
     // ['QR3', 'Qualifying Round 3'],
     // ['DE1', 'Double Elimination 1'],
     // ['DE2', 'Double Elimination 2'],
@@ -489,7 +489,9 @@ function initMWC26 () {
     'ag': ['AG', "Avon's Grove"],
     'v3': ['V3', "Veni Vidi Vici"],
     '4c': ['4C', "Canadian Calisthenic Club for Casuals"],
+    '4c2': ['4C', "Canadian Calisthenic Club for Casuals", "4c"],
     'cum': ['CUM', "Company of Unvanquished Mauls"],
+    'cum2': ['CUM', "Company of Unvanquished Mauls", "cum"],
     'ti': ['TI', "Treasure Island"],
     'tmf': ['TMF', "The Myth-Fits"],
   };
@@ -548,6 +550,7 @@ function calculateTourneyStats (teamFilter) {
   TOURNEY_DATA.rounds.forEach(r => {
     r.games.forEach(g => {
       for (let [teamSlug, team] of Object.entries(g.teams)) {
+        teamSlug = teamSlugMap(teamSlug);
         if (!teamFilter || teamFilter == teamSlug) {
           for (let [bagrada_player, player] of Object.entries(team.players)) {
             if (player.stats.actions) {
@@ -887,6 +890,9 @@ function teamName (name) {
 }
 function teamNameShort (name) {
   return TEAM_MAP ? TEAM_MAP[name.toLowerCase()][0] : name;
+}
+function teamSlugMap (slug) {
+  return TEAM_MAP ? TEAM_MAP[slug][2] || slug : slug;
 }
 
 function renderTournmamentStats () {
