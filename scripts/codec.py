@@ -56,7 +56,9 @@ def value_pack(fmt, value):
         fmt = f'{fmt[:-1]}s'
     if value is not None:
         return struct.pack(f'>{fmt}', value)
-    return b''
+    if fmt.endswith('s'):
+        return struct.pack(f'>{fmt}', b'')
+    return struct.pack(f'>{fmt}', 0)
 
 def value_encoder(
     fmt, value_index=None, encoder=None, decoder=None,
@@ -65,7 +67,7 @@ def value_encoder(
     if value_index is not None:
         if encoder:
             return lambda values, data: value_pack(fmt, encoder(values[value_index]))
-        elif decoder in [int, float]:
+        elif type(decoder) in [int, float]:
             return lambda values, data: value_pack(fmt, round(values[value_index] * decoder))
         elif decoder:
             return lambda values, data: value_pack(fmt, conditional_value(values[value_index]))
