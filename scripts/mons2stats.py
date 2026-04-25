@@ -7,7 +7,6 @@ import sys
 import codec
 import loadtags
 import mons_tag
-import myth_headers
 import myth_projectile
 import myth_collection
 import utils
@@ -48,20 +47,7 @@ def get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc
     )
     obje_tag = mons_tag.parse_obje(obje_data)
 
-    spelling_default = [str(mons_header.name), str(mons_header.name)]
-    if codec.all_on(mons.spelling_string_list_tag) or codec.all_off(mons.spelling_string_list_tag):
-        spellings = spelling_default
-    else:
-        spelling_data = loadtags.get_tag_data(
-            tags, data_map, 'stli', codec.decode_string(
-                mons.spelling_string_list_tag
-            )
-        )
-        if spelling_data:
-            (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-            spellings = [codec.decode_string(s) for s in spelling_text.split(b'\r')]
-        else:
-            spellings = spelling_default
+    (spellings, _) = mons_tag.get_spellings(tags, data_map, mons, mons_header)
 
     can_block = mons.sequence_indexes[5] > -1
     heal_kills = mons.healing_fraction == 0
@@ -290,16 +276,25 @@ def mons_stats(mons_dict):
         vit_range = f'{round(mons_dict['max_vitality'], 2)}'
     else:
         vit_range = f'{round(mons_dict['min_vitality'], 2)} - {round(mons_dict['max_vitality'], 2)}'
-    lines.append(graph('vitality ', round(mons_dict['max_vitality']*2), 10, 20, f" {vit_range}"))
+    vit_dots = round(mons_dict['max_vitality']*2)
+    if mons_dict['stone']:
+        stone_dots = round(vit_dots/4)
+        rest_dots = 3*stone_dots
+        stone_graph = stone_dots * '◼︎'
+        rest_graph = graph(f'vitality {stone_graph}', rest_dots, 7.5, 15, f" {vit_range} (turns to stone if hit below 25%)")
+        lines.append(rest_graph)
+    else:
+        lines.append(graph('vitality ', round(mons_dict['max_vitality']*2), 10, 20, f" {vit_range}"))
     for attack in mons_dict['attacks']:
         special = " (special)" if attack['special'] else ""
         aoe = " (aoe)" if attack['aoe'] else ""
         ammo = f" ({attack['ammo']} ammo)" if attack['ammo'] else ""
         sets_fire = " (sets on fire)" if attack['sets_fire'] else ""
         paralysis = " (paralyses)" if attack['paralysis'] else ""
+        unblockable = " (unblockable)" if (attack['unblockable'] and attack['melee']) else ""
         dud_rate = f" (dud rate: {round(100*attack['promotion_chance'])}%)" if attack['promotion_chance'] and attack['promotion_proj'] else ""
         attack_type = "melee" if attack['melee'] else "ranged"
-        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{sets_fire}{paralysis}{dud_rate}{ammo}"
+        attack_details = f" [{utils.cap_title(attack['type'].name)} - {attack_type}] {attack['name']}{special}{aoe}{sets_fire}{paralysis}{unblockable}{dud_rate}{ammo}"
         if attack['dps']:
             recov = ''
             if attack['mana_cost'] > 0:
@@ -310,7 +305,7 @@ def mons_stats(mons_dict):
                 if attack['vet_recovery'] > 0:
                     vet = f" - reduction: {round(attack['vet_recovery'], 2)}s per kill / max {attack['vet_max']}"
                 recov = f' (recovery: {round(attack['recovery'], 2)}s total_time: {round(attack['attack_time'], 2)}s{vet})'
-            lines.append(graph('     dmg ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
+            lines.append(graph('  damage ', round(attack['dmg']*2), 1.2, 4, f" {round(attack['dmg'], 2)}{attack_details}"))
             lines.append(graph('     dps ', round(attack['dps']*2), 1.2, 4, f" {round(attack['dps'], 2)}{recov}"))
             attack_details = ''
         throw = ' (throw)' if attack['throw'] else ''
@@ -330,13 +325,18 @@ def mons_stats(mons_dict):
     if mons_dict['heal_kills']:
         lines.append(f'{indent}\x1b[91mkilled by heal\x1b[0m')
     mods = mons_dict['modifiers']._asdict()
-    puss_dur = mods['paralysis_duration']
-    if puss_dur == 0:
-        lines.append(f'{indent}\x1b[92mimmune\x1b[0m to puss')
-    elif puss_dur > 1:
-        lines.append(f'{indent}weak to puss: (\x1b[91m+{round((puss_dur-1)*100)}%\x1b[0m duration)')
-    elif puss_dur < 1:
-        lines.append(f'{indent}resistant to puss: (\x1b[92m-{round((1-puss_dur)*100)}%\x1b[0m duration)')
+    paralysis_mod = mods['paralysis_duration']
+    paralysis_min = round(7 * paralysis_mod)
+    paralysis_max = round(14 * paralysis_mod)
+    paralysis_range = f'{paralysis_min}-{paralysis_max}s'
+    paralysis_dur = f'{indent}paralysis time: {paralysis_range}'
+    if paralysis_mod == 0:
+        paralysis_dur = f'{indent}\x1b[92mimmune\x1b[0m to paralysis'
+    elif paralysis_mod > 1:
+        paralysis_dur = f'{paralysis_dur} (\x1b[91m+{round((paralysis_mod-1)*100)}%\x1b[0m)'
+    elif paralysis_mod < 1:
+        paralysis_dur = f'{paralysis_dur} (\x1b[92m-{round((1-paralysis_mod)*100)}%\x1b[0m)'
+    lines.append(paralysis_dur)
 
     for dmg in ['slashing', 'kinetic', 'explosive', 'electric', 'fire']:
         damage = mods[f'{dmg}_damage']

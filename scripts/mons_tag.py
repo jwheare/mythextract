@@ -583,6 +583,41 @@ def parse_unit(data):
 def parse_obje(data):
     return myth_headers.parse_tag(ObjeTagFmt, data)
 
+def get_spellings(tags, data_map, mons, mons_header):
+    spelling_default = ([str(mons_header.name), str(mons_header.name)], None)
+    if codec.all_on(mons.spelling_string_list_tag) or codec.all_off(mons.spelling_string_list_tag):
+        spellings = spelling_default
+    else:
+        spelling_data = loadtags.get_tag_data(
+            tags, data_map, 'stli', codec.decode_string(
+                mons.spelling_string_list_tag
+            )
+        )
+        if spelling_data:
+            (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
+            spellings = ([codec.decode_string(s) for s in spelling_text.split(b'\r')], mons.spelling_string_list_tag)
+        else:
+            spellings = spelling_default
+    return spellings
+
+def get_names(tags, data_map, mons, mons_header):
+    name_default = ([], None)
+    if codec.all_on(mons.names_string_list_tag) or codec.all_off(mons.names_string_list_tag):
+        return name_default
+    else:
+        name_data = loadtags.get_tag_data(
+            tags, data_map, 'stli', codec.decode_string(
+                mons.names_string_list_tag
+            )
+        )
+        if name_data:
+            (name_header, name_text) = myth_headers.parse_text_tag(name_data)
+            names = ([codec.decode_string(s) for s in name_text.split(b'\r')], mons.names_string_list_tag)
+        else:
+            names = name_default
+    return names
+
+
 def parse_tag(game_version, data):
     return myth_headers.parse_tag(MonsTagFmt if game_version == 2 else MonsTagFmtTFL, data)
 
