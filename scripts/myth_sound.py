@@ -32,11 +32,33 @@ SoundHeaderFmt = ('SoundHeader', [
     ('L', 'permutation_count'),
     ('L', 'permutations_offset'),
     ('L', 'permutations_size'),
-    ('I', 'd6'),
-    ('I', 'd7'),
-    ('I', 'd8'),
-    ('I', 'd9'),
+    ('16x', None),
 ])
+
+def create_sound(subtitle_stli, subtitle_stli_idx):
+    SoundHeader = codec.codec(SoundHeaderFmt)
+    SoundHeaderT = codec.make_nt(SoundHeaderFmt)
+    sound_header_values = SoundHeaderT(
+        flags=0,
+        loudness=1,
+        play_fraction=-1,
+        external_frequency_modifier=256,
+        pitch_lower_bound=256,
+        pitch_delta=0,
+        volume_lower_bound=256,
+        volume_delta=0,
+        first_subtitle_within_string_list_index=subtitle_stli_idx,
+        sound_offset=SOUN_HEADER_SIZE,
+        sound_size=0,
+        subtitle_string_list_tag=subtitle_stli,
+        subtitle_string_list_index=0,
+        unused=0,
+        permutation_count=0,
+        permutations_offset=SOUN_HEADER_SIZE,
+        permutations_size=0,
+    )
+    sound_header = SoundHeader(values=sound_header_values)
+    return sound_header
 
 PERM_DESC_SIZE = 32
 PermDescFmt = """>

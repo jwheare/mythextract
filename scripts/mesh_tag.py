@@ -175,7 +175,7 @@ MeshHeaderFmt = ('MeshHeader', [
     ('f', 'reverb_decay_time'),
     ('f', 'reverb_damping'),
     ('L', 'connector_count'),
-    ('L', 'connectors_offset'),
+    ('l', 'connectors_offset'),
     ('L', 'connectors_size'),
     ('4x', None), # runtime: connectors_ptr
     ('64s', 'cutscene_file_pregame', codec.String),
@@ -638,11 +638,15 @@ def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, g
     return f"{game_type}: {level_name} [{diff}] ({size}){game_time_mins}"
 
 def parse_oak_editor_data(mesh_header, data):
-    if codec.decode_string(mesh_header.editor_data_cookie) == 'oake':
-        editor_data_start = get_offset(mesh_header.editor_data_offset)
-        editor_data_end = editor_data_start + mesh_header.editor_data_size
-        editor_data = data[editor_data_start:editor_data_end]
+    editor_data_start = get_offset(mesh_header.editor_data_offset)
+    editor_data_end = editor_data_start + mesh_header.editor_data_size
+    editor_data = data[editor_data_start:editor_data_end]
+    if mesh_header.editor_data_cookie == b'oake':
         return json.loads(editor_data)
+    elif mesh_header.editor_data_cookie == b'oak\0':
+        return editor_data.hex()
+        # import cbor2
+        # return cbor2.loads(editor_data)
     return None
 
 def parse_markers(mesh_header, data):
@@ -706,6 +710,21 @@ def parse_marker_head(mhead, palette):
         'pos': (mhead.pos_x, mhead.pos_y, mhead.pos_z)
     }
     return (marker, palette_item)
+
+def build_action_backrefs(actions):
+    backrefs = {}
+    for (action_id, action) in actions.items():
+        for param_i, param in enumerate(action['parameters']):
+            for elem_i, element in enumerate(param['elements']):
+                if param['type'] == ParamType.ACTION_IDENTIFIER:
+                    if element in actions:
+                        if element not in backrefs:
+                            backrefs[element] = []
+                        backrefs[element].append((action_id, param['name'], param_i, elem_i))
+    return backrefs
+
+def action_param_is_activator(param):
+    return param in ['acoa', 'acoe', 'acof', 'acos', 'acot', 'acod', 'acer', 'acin', 'acmp', 'trsi']
 
 def encode_map_action_param(game_version, param):
     param_type = param['type']
@@ -781,23 +800,19 @@ def encode_map_action_data(game_version, actions):
         for param in action['parameters']:
             param_data += encode_map_action_param(game_version, param)
 
-        action_type = codec.encode_string_none(action['type'])
-
-        action_data += codec.encode_data(
-            ActionHeadFmt,
-            (
-                action_id,
-                action['expiration_mode'],
-                action_type,
-                action['flags'],
-                action['trigger_time_lower_bound'],
-                action['trigger_time_delta'],
-                num_params,
-                len(param_data),
-                param_offset,
-                action['indent']
-            )
+        this_action_data = (
+            action_id,
+            action['expiration_mode'],
+            action['type'],
+            action['flags'],
+            action['trigger_time_lower_bound'],
+            action['trigger_time_delta'],
+            num_params,
+            len(param_data),
+            param_offset,
+            action['indent']
         )
+        action_data += codec.encode_data(ActionHeadFmt, this_action_data)
         all_param_data += param_data
 
         param_offset = param_offset + len(param_data)
@@ -817,13 +832,22 @@ def rewrite_action_data(map_action_count, map_action_data, current_mesh_tag_data
     )
     mesh_data_size = len(new_mesh_data)
 
-    # Adjust sizes and offsets
-    map_action_buffer_size = len(map_action_data)
-    map_action_size_diff = map_action_buffer_size - mesh_header.map_action_buffer_size
+    # Adjust following sizes and offsets
 
-    media_coverage_region_offset = mesh_header.media_coverage_region_offset + map_action_size_diff
-    mesh_LOD_data_offset = mesh_header.mesh_LOD_data_offset + map_action_size_diff
-    connectors_offset = mesh_header.connectors_offset + map_action_size_diff
+    # Actions
+    map_action_buffer_size = len(map_action_data)
+
+    # Media coverage
+    media_coverage_region_offset = mesh_header.map_actions_offset + map_action_buffer_size
+
+    # Mesh LOD
+    mesh_LOD_data_offset = media_coverage_region_offset + mesh_header.media_coverage_region_size
+
+    # Connectors
+    connectors_offset = mesh_LOD_data_offset + mesh_header.mesh_LOD_data_size
+
+    # Editor data
+    editor_data_offset = connectors_offset + mesh_header.connectors_size
 
     new_mesh_header = mesh_header._replace(
         data_size=mesh_data_size,
@@ -832,6 +856,7 @@ def rewrite_action_data(map_action_count, map_action_data, current_mesh_tag_data
         media_coverage_region_offset=media_coverage_region_offset,
         mesh_LOD_data_offset=mesh_LOD_data_offset,
         connectors_offset=connectors_offset,
+        editor_data_offset=editor_data_offset
     )
     new_mesh_header_data = new_mesh_header.value
     new_mesh_header_size = len(new_mesh_header_data)

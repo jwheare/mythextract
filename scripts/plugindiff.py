@@ -5,7 +5,6 @@ import struct
 import pathlib
 import hashlib
 
-import codec
 import myth_headers
 import mono2tag
 import loadtags
@@ -73,18 +72,18 @@ def diff_tag_harder(tag_header_1, tag_data_1, tag_header_2, tag_data_2):
         print(f'{tag_header_1.tag_type}.{tag_header_1.tag_id}')
         print(f"< [{stli_header_1.tag_id}] {stli_header_1.name}")
         print(f"> [{stli_header_2.tag_id}] {stli_header_2.name}")
-        stli_set_1 = set(stli_text_1.split(b'\r'))
-        stli_set_2 = set(stli_text_2.split(b'\r'))
-        stli_diff_r = stli_set_1 - stli_set_2
-        stli_diff_a = stli_set_2 - stli_set_1
+        stli_1 = myth_headers.parse_stli(stli_text_1)
+        stli_2 = myth_headers.parse_stli(stli_text_2)
+        stli_diff_r = [el for el in stli_1 if el not in stli_2]
+        stli_diff_a = [el for el in stli_2 if el not in stli_1]
         if len(stli_diff_r) > 0:
             print("Items removed:")
             for i, s in enumerate(stli_diff_r):
-                print(f"{i:>3} {codec.decode_string(s)}")
+                print(f"{i:>3} {s}")
         if len(stli_diff_a) > 0:
             print("Items added:")
             for i, s in enumerate(stli_diff_a):
-                print(f"{i:>3} {codec.decode_string(s)}")
+                print(f"{i:>3} {s}")
     else:
         return
 

@@ -3,6 +3,7 @@ import enum
 from collections import namedtuple
 
 import codec
+import utils
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
@@ -161,7 +162,7 @@ SBHeader = codec.codec(SBHeaderFmt)
 def tfl2sb(tfl_header, tag_content):
     SBHeaderT = codec.make_nt(SBHeaderFmt)
     sb_header_values = SBHeaderT(
-        identifier=-1,
+        identifier=0,
         flags=0,
         type=ArchiveType.TAG.value,
         name=tfl_header.name.value,
@@ -171,12 +172,40 @@ def tfl2sb(tfl_header, tag_content):
         tag_data_size=len(tag_content),
         user_data=tfl_header.user_data,
         version=tfl_header.version,
-        destination=-1,
+        destination=0,
         owner_index=-1,
         signature=b'mth2'
     )
     sb_header = SBHeader(values=sb_header_values)
     return normalise_tag_header(sb_header).value + tag_content
+
+def create_tag_header(tag_type, tag_id, tag_name, content_length):
+    HeaderT = codec.make_nt(SBHeaderFmt)
+    header_values = HeaderT(
+        identifier=0,
+        flags=0,
+        type=ArchiveType.TAG.value,
+        name=tag_name,
+        tag_type=tag_type,
+        tag_id=tag_id,
+        tag_data_offset=TAG_HEADER_SIZE,
+        tag_data_size=content_length,
+        user_data=0,
+        version=1,
+        destination=0,
+        owner_index=-1,
+        signature=b'mth2'
+    )
+    return SBHeader(values=header_values)
+
+def generate_tag_id(tag_name):
+    slug = utils.slugify(tag_name).replace('-', '')[:4]
+    while len(slug) < 4:
+        slug += '0'
+    return slug.encode('ascii')
+
+def increment_tag_id(tag_id):
+    return (int.from_bytes(tag_id)+1).to_bytes(4)
 
 def parse_gor_header(header):
     header_data = header[:GOR_HEADER_SIZE]
@@ -296,6 +325,40 @@ def parse_text_tag(data):
 
     return (header, text)
 
+def parse_stli(tag_text):
+    strings = []
+    current = bytearray()
+    for char in tag_text:
+        if char in [b'\0'[0], b'\n'[0], b'\r'[0]]:
+            if len(current):
+                strings.append(codec.decode_string(bytes(current)))
+                current = bytearray()
+        else:
+            current.append(char)
+    if len(current):
+        strings.append(codec.decode_string(bytes(current)))
+    return strings
+
+def update_stli(tag_text, target_idx, new_content):
+    updated = bytearray()
+    current = bytearray()
+    idx = 0
+    for char in tag_text:
+        if char in [b'\0'[0], b'\n'[0], b'\r'[0]]:
+            updated.append(char)
+            if len(current):
+                current = bytearray()
+                idx += 1
+        else:
+            if idx == target_idx:
+                if not len(current):
+                    current = bytearray(new_content)
+                    updated += current
+            else:
+                current.append(char)
+                updated.append(char)
+    return bytes(updated)
+
 def game_version(header):
     if header.signature == 'myth':
         return 1
@@ -305,9 +368,9 @@ def game_version(header):
 def normalise_tag_header(header, **kwargs):
     return header._replace(
         tag_data_offset=TAG_HEADER_SIZE,
-        identifier=-1,
+        identifier=0,
         type=0,
-        destination=-1,
+        destination=0,
         owner_index=-1,
         **kwargs
     )

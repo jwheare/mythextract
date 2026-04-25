@@ -85,6 +85,13 @@ def main(game_directory, plugin_names):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
+def unique_tag_id(tags, tag_type, tag_id):
+    if tag_type not in tags:
+        return tag_id
+    while tag_id.decode('ascii') in tags[tag_type]:
+        tag_id = myth_headers.increment_tag_id(tag_id)
+    return tag_id
+
 def lookup_tag_header(tags, tag_type, tag_id):
     if tag_type in tags and tag_id in tags[tag_type]:
         return tags[tag_type][tag_id][-1]
@@ -167,19 +174,22 @@ def build_tag_map(files):
 
     return (game_version, tags, entrypoint_map, data_map)
 
-def append_tags_from_archive(tags, data, mono_header, name):
+def append_tag_header(tags, tag_header, filename):
+    tag_type_tags = tags.get(tag_header.tag_type, {})
+
+    if tag_header.tag_id in tag_type_tags:
+        tag_id_list = tag_type_tags[tag_header.tag_id]
+    else:
+        tag_id_list = []
+
+    tag_id_list.append((filename, tag_header))
+
+    tag_type_tags[tag_header.tag_id] = tag_id_list
+    tags[tag_header.tag_type] = tag_type_tags
+
+def append_tags_from_archive(tags, data, mono_header, filename):
     for tag_header in myth_headers.get_mono_tags(data, mono_header):
-        tag_type_tags = tags.get(tag_header.tag_type, {})
-
-        if tag_header.tag_id in tag_type_tags:
-            tag_id_list = tag_type_tags[tag_header.tag_id]
-        else:
-            tag_id_list = []
-
-        tag_id_list.append((name, tag_header))
-
-        tag_type_tags[tag_header.tag_id] = tag_id_list
-        tags[tag_header.tag_type] = tag_type_tags
+        append_tag_header(tags, tag_header, filename)
 
 def debug_include(mono_header, include, order):
     if DEBUG:

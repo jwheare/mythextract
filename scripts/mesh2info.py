@@ -73,7 +73,7 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id):
 
     # editor_data = mesh_tag.parse_oak_editor_data(mesh_header, mesh_tag_data)
     # import json
-    # print(json.dumps(editor_data, indent=1))
+    # print('editor_data', json.dumps(editor_data, indent=1))
 
 def print_header(mesh_header, mesh_id, locations=None):
     for i, (f, val) in enumerate(mesh_header._asdict().items()):

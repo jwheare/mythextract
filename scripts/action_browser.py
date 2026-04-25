@@ -86,18 +86,6 @@ def parse_mesh_actions(tags, data_map, mesh_tag_data):
 
     return actions_tree(actions, palette, tags, action_help)
 
-def build_backrefs(actions):
-    backrefs = {}
-    for (action_id, action) in actions.items():
-        for param_i, param in enumerate(action['parameters']):
-            for elem_i, element in enumerate(param['elements']):
-                if param['type'] == mesh_tag.ParamType.ACTION_IDENTIFIER:
-                    if element in actions:
-                        if element not in backrefs:
-                            backrefs[element] = []
-                        backrefs[element].append((action_id, param_i, elem_i))
-    return backrefs
-
 def build_action_vars(action):
     action_vars = []
     if len(action['parameters']):
@@ -113,7 +101,7 @@ def build_action_vars(action):
 
 def build_backref_node(actions, action_id, backrefs, indent_space, action_help):
     backref_children = []
-    for (ref_action, pi, vi) in backrefs[action_id]:
+    for (ref_action, ptype, pi, vi) in backrefs[action_id]:
         param = actions[ref_action]['parameters'][pi]
         if actions[ref_action]['type']:
             suffix = f' {actions[ref_action]['type'].upper()}-{param['name']}'
@@ -283,7 +271,7 @@ def action_type_help(action_help, act):
 
 def actions_tree(actions, palette, tags, action_help):
     nodes = []
-    backrefs = build_backrefs(actions)
+    backrefs = mesh_tag.build_action_backrefs(actions)
     for (action_id, act) in actions.items():
         indent_space = act['indent'] * '  '
         bold = mesh_tag.ActionFlag.INITIALLY_ACTIVE in act['flags']
