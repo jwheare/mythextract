@@ -61,6 +61,7 @@ def cap2team(tourney_id, round_id, game_num, cap_id):
             1657: "ti", # ymir
             28: "ag", # bran
             327: "cum2" if (round_id == 107 and game_num == 3) else "cum", # east wind (noolook)
+            31: "v3", # asmodian
         }
     }
     return teams.get(int(tourney_id), {}).get(int(cap_id))
@@ -119,7 +120,7 @@ def main(tourney_dir, game_directory, output_dir):
 
             if not len(round_info['games']):
                 if winning_teams:
-                    forfeit_winner = FORFEIT_WINNERS.get(tourney_id).get(round_info['bagrada_round'])
+                    forfeit_winner = FORFEIT_WINNERS.get(tourney_id, {}).get(round_info['bagrada_round'])
                     if forfeit_winner:
                         winning_teams[forfeit_winner[0]] = forfeit_winner[1]
                         round_info['forfeit'] = (

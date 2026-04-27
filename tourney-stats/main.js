@@ -478,7 +478,7 @@ function initMWC26 () {
   ROUND_MAP = new Map([
     ['QR1', 'Qualifying Round 1'],
     ['QR2', 'Qualifying Round 2'],
-    // ['QR3', 'Qualifying Round 3'],
+    ['QR3', 'Qualifying Round 3'],
     // ['DE1', 'Double Elimination 1'],
     // ['DE2', 'Double Elimination 2'],
     // ['DE3', 'Double Elimination 3'],
