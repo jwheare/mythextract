@@ -47,13 +47,25 @@ See [docs/256TagCollectionFormat.txt](docs/256TagCollectionFormat.txt) and the s
 
 ## [scripts/tag2font.py](scripts/tag2font.py)
 
-Extracts and lists glyph information from `font` tag files.
+Extracts and lists glyph information from `font` tag files and saves a test render bitmap.
 
-    Usage: python3 tag2font.py <input_file>
+    Usage: python3 tag2font.py <input_file> [<text>]
 
 * `input_file`: path to individual tag file extracted from monolithic tag container (with `mono2tag.py`)
+* `text`: **optional** - if specified, prepends the text to the test render
 
 See [docs/FontTagFormat.txt](docs/FontTagFormat.txt) and the source code for detailed notes on the binary format.
+
+## [scripts/font2tag.py](scripts/font2tag.py)
+
+Loads a font fromt the filesystem and converts to to a tag file.
+
+    Usage: python3 font2tag.py <font_name_or_file> [<output_file>]
+
+* `font_name_or_file`: if this is a path to an existing file, use it as the font, otherwise look up in system fonts
+* `output_file`: **optional** — defaults to `./output/font2tag/<font_name>`
+
+ **requires `freetype` and `matplotlib` python dependencies**
 
 ## [scripts/loadtags.py](scripts/loadtags.py)
 
@@ -150,7 +162,7 @@ Fixes plugin entrypoints by looking up the description tag from the level mesh
     Usage: python3 fixentrypoints.py <mono_file> [<output_path>]
 
 * `mono_file`: path to monolithic tag container (plugin file)
-* `output_file`: **optional** — defaults to `./output/fixed_entrypoints/<mono_file_name>`
+* `output_path`: **optional** — defaults to `./output/fixed_entrypoints/<mono_file_name>`
 
 ## [scripts/tflmeshtext2sb.py](scripts/tflmeshtext2sb.py)
 

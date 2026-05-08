@@ -7,7 +7,6 @@ import pathlib
 import codec
 import myth_headers
 import font_tag
-import utils
 
 # PYTHON-DEPENDENCIES
 import freetype
@@ -131,9 +130,9 @@ def make_font(font_name, font_path, output_path, font_size, font_style, font_wei
         b'font', tag_id, codec.encode_string(tag_name), len(font_data)
     )
     if not output_path:
-        output_path = pathlib.Path(sys.path[0], '../output/tag2font').resolve()
+        output_path = pathlib.Path(sys.path[0], '../output/font2tag').resolve()
     tag_path = (
-        output_path / f'{utils.local_folder(tag_header)}/{tag_name}'
+        output_path / tag_name
     )
     pathlib.Path(tag_path.parent).mkdir(parents=True, exist_ok=True)
     if not tag_path.is_file() or prompt(tag_path, '🚨 File exists. '):
