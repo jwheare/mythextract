@@ -62,6 +62,8 @@ def cap2team(tourney_id, round_id, game_num, cap_id):
             28: "ag", # bran
             327: "cum2" if (round_id == 107 and game_num == 3) else "cum", # east wind (noolook)
             31: "v3", # asmodian
+            65: "cum", # clank
+            53: "cum", # yamnti
         }
     }
     return teams.get(int(tourney_id), {}).get(int(cap_id))
@@ -133,15 +135,15 @@ def main(tourney_dir, game_directory, output_dir):
                 print(
                     f'{(round_i+1):>2}/{len(tourney_rounds)}: round_id={round_info['bagrada_round']} '
                     f'game {game_info['game_num']} ({game_info['bagrada_game']}): '
-                    f'{game_info["game_path"]}/{film_name} ... ', end=''
+                    f'{game_info["game_path"]}/{film_name} ... ', end='', flush=True
                 )
                 (
                     reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
                     plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
-                    overhead_map_data, chat_lines, trades, splits, game_stats
+                    overhead_map_data, cmap_bitmap, chat_lines, movement_data, trades, splits, game_stats
                 ) = reco_tag.parse_reco_file(game_directory, reco_file, game_info['bagrada_game'])
 
-                print('PARSED... ', end='')
+                print('PARSED... ', end='', flush=True)
 
                 # Add path, tourney, round and film info to game_stats
                 stats_game = game_stats['header']['game']
@@ -172,20 +174,30 @@ def main(tourney_dir, game_directory, output_dir):
                 with open(reco_stats_out_path, 'w') as reco_stats_out_file:
                     json.dump(game_stats, reco_stats_out_file, separators=(',', ':'))
 
-                print('STATS... ', end='')
+                print('STATS... ', end='', flush=True)
 
                 # Extract overhead map
                 overhead_bitmaps = myth_collection.parse_sequence_bitmaps(overhead_map_data)
                 if len(overhead_bitmaps):
+                    overhead_out_path = game_dir / 'overhead.png'
                     (
                         overhead_name, overhead_width, overhead_height, overhead_rows
                     ) = overhead_bitmaps[0]['bitmaps'][0]
-                    png = tag2png.make_png(overhead_width, overhead_height, overhead_rows)
-                    overhead_out_path = game_dir / 'overhead.png'
+                    overhead_png = tag2png.make_png(overhead_width, overhead_height, overhead_rows)
                     with open(overhead_out_path, 'wb') as png_file:
-                        png_file.write(png)
+                        png_file.write(overhead_png)
+                    print('OVERHEAD... ', end='', flush=True)
 
-                print('MAP... ', end='')
+                if cmap_bitmap:
+                    cmap_out_path = game_dir / 'cmap.png'
+                    if not cmap_out_path.is_file():
+                        (cmap_width, cmap_height, cmap_rows) = cmap_bitmap
+                        cmap_png = tag2png.make_png(cmap_width, cmap_height, cmap_rows)
+                        with open(cmap_out_path, 'wb') as png_file:
+                            png_file.write(cmap_png)
+                        print('CMAP... ', end='', flush=True)
+                    else:
+                        print('CMAP EXISTS... ', end='', flush=True)
 
                 # game_info written to stats, now add extra info from
                 # game_stats/stats_game into game_info. this gets saved

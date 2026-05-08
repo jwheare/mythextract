@@ -89,10 +89,13 @@ class TreeNavigator:
             self.update_visible_nodes()
         elif node.parent and node.parent != self.root:
             # Find the parent's index and move there
-            parent_index = next((i for i, (n, _) in enumerate(self.visible_nodes) if n == node.parent), self.cursor_index)
+            parent_index = next(
+                (i for i, (n, _) in enumerate(self.visible_nodes) if n == node.parent),
+                self.cursor_index
+            )
             node.parent.expanded = False
-            self.update_visible_nodes()
             self.set_index(parent_index)
+            self.update_visible_nodes()
 
     def fully_collapse_node_tree(self):
         """ Fully collapses tree path for the current node"""

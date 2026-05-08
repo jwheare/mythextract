@@ -8,18 +8,19 @@
     "preview": "vite preview --host --base /",
     "test": "eslint main.js",
     "archive-full": "tar --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats-full.tar.gz dist",
-    "archive": "tar --exclude='tournament' --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist"
+    "archive": "tar --exclude='tournament' --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist",
+    "build-archive": "npm run build && npm run archive-full"
   },
   "author": "James Wheare",
   "license": "MIT",
   "description": "Display player and team stats and graphs for Myth Tournaments",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.2.1",
-    "globals": "^17.5.0"
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0"
   },
   "dependencies": {
     "@observablehq/plot": "^0.6.17",
-    "vite": "^8.0.10"
+    "vite": "^8.0.11"
   }
 }

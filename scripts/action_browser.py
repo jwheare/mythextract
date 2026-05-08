@@ -3,7 +3,6 @@ import sys
 import os
 import struct
 
-import codec
 import myth_headers
 import mesh_tag
 import mesh2info
@@ -40,8 +39,8 @@ def build_action_help(tags, data_map):
     action_help = {}
     for action_type in tags['temp'].keys():
         action_template_data = loadtags.get_tag_data(tags, data_map, 'temp', action_type)
-        action_template = action_template_data[myth_headers.TAG_HEADER_SIZE:]
-        template_lines = [codec.decode_string(tpl_line) for tpl_line in action_template.split(b'\r')]
+        (action_template_header, action_template) = myth_headers.parse_text_tag(action_template_data)
+        template_lines = myth_headers.parse_stli(action_template)
         params = {}
         for param in template_lines[2:]:
             if param.strip():

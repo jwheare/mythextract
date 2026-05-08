@@ -22,6 +22,7 @@ import player_headers
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_CMDS = (os.environ.get('DEBUG_CMDS') == '1')
+DEBUG_MOVEMENT = (os.environ.get('DEBUG_MOVEMENT') == '1')
 DEBUG_PICKUP = (os.environ.get('DEBUG_PICKUP') == '1')
 
 HEADER_SIZE = 2606
@@ -724,12 +725,16 @@ def parse_timeline(
         )
     )
 
+    cmap_bitmap = mesh_tag.export_colormap(tags, data_map, mesh_header)
+
     (ambients, ambient_monsters) = get_ambients(tags, data_map, palette)
     (computer_markers, computer_monsters) = get_computers(tags, data_map, palette, mesh_header)
     
     game_type_choice = mesh_tag.NetgameFlagInfo[game_param.scoring]
     game_time = game_param.time_limit/30/60
     planning_ticks = game_param.pregame_time_limit
+
+    locations = mesh_tag.netgame_locations(mesh_header, game_type_choice, game_param.difficulty_level, palette, tags, data_map)
 
     # Set up teams
     (
@@ -756,8 +761,11 @@ def parse_timeline(
         'time_limit': game_param.time_limit,
         'game_type': mesh_tag.NetgameNames[game_type_choice],
         'map_name': mesh_tag.get_level_name(mesh_header, tags, data_map, True),
+        'plugins': game_headers.plugin_details(game_param.plugin_data, True),
         'difficulty': mesh_tag.difficulty(game_param.difficulty_level),
         'host': None,
+        'locations': locations,
+        'dimensions': list(mesh_tag.mesh_dimensions(mesh_header)),
         'stats': {}
     }
     metaserver_player_stats = {}
@@ -813,6 +821,7 @@ def parse_timeline(
     monsters = {}
     trades = {}
     dropped_players = []
+    movement_data = []
     for team_index, cap_id in enumerate(teams_idx):
         if cap_id is not None:
             (trade_info, units, team_markers) = get_trades(
@@ -957,10 +966,31 @@ def parse_timeline(
                         f'{tick_to_time(pt, command_header.time)}: '
                         f'{command_header.verb} '
                     )
+
+                position = None
+                if command_header.verb == Commands.MOVEMENT:
+                    if player:
+                        (
+                            movement_command, command_monsters, waypoints, centerpoint
+                        ) = parse_movement(command_data, monsters, computer_markers, player)
+                        if len(waypoints):
+                            wp = waypoints[-1]
+                            position = [wp.x, wp.y]
+                            movement_data.append({
+                                "header": command_header,
+                                "pt": pt,
+                                "player": player,
+                                "team": player.team_index,
+                                "movement": movement_command,
+                                "monsters": command_monsters,
+                                "centerpoint": centerpoint,
+                                "waypoints": waypoints
+                            })
                 if command_header.time > planning_ticks:
                     cmd = log_command(
-                        players, observers, player_id, monsters, computer_markers, computer_monsters, trades,
-                        command_header, command_data, self_heal_kill_dmg, planning_ticks
+                        mesh_header, players, observers, player_id, monsters,
+                        computer_markers, computer_monsters, trades,
+                        command_header, command_data, position, self_heal_kill_dmg, planning_ticks
                     )
                     if cmd:
                         if cmd.get('self_heal_kill'):
@@ -1047,7 +1077,7 @@ def parse_timeline(
         reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
         game_param.plugin_data, mesh_header, level_name,
         game_time, game_type_choice, game_param.difficulty_level,
-        overhead_map_data, chat_lines, trades, splits, game_stats
+        overhead_map_data, cmap_bitmap, chat_lines, movement_data, trades, splits, game_stats
     )
 
 def validate_self_heal_kill_dmg(self_heal_kill_dmg, players_idx, monsters, trades):
@@ -1323,9 +1353,50 @@ def parse_command_monsters(data, monsters, computer_markers, player=None):
 
     return (command_monsters, end)
 
+class MovementFlags(enum.Flag):
+    LOOP = enum.auto()
+    LOOP_BACK_AND_FORTH = enum.auto()
+    PRESERVES_TARGET_INDEX = enum.auto()
+    FORMATION = enum.auto()
+    FINAL_FACING = enum.auto()
+    RUN = enum.auto()
+    LAST_WAYPOINT_IS_CENTERPOINT = enum.auto()
+    USES_184_MATCHING = enum.auto()
+
+MovementCommandFmt = ('MovementCommand', [
+    ('h', 'flags', MovementFlags),
+    ('h', 'formation_index'),
+    ('h', 'final_facing', codec.Angle),
+    ('2x', None)
+])
+
+def parse_movement(command_data, monsters, computer_markers, player):
+    movement_command = codec.codec(MovementCommandFmt)(command_data[:8])
+
+    (command_monsters, offset) = parse_command_monsters(
+        command_data[8:], monsters, computer_markers, player
+    )
+
+    waypoint_data = command_data[offset+8:]
+    (waypoint_count,) = struct.unpack('>h', waypoint_data[:2])
+    waypoint_end = 2 + (waypoint_count * 8)
+    waypoints = codec.list_codec(waypoint_count, codec.WorldPoint2DFmt)(waypoint_data[2:waypoint_end])
+    centerpoint = None
+    if MovementFlags.USES_184_MATCHING in movement_command.flags:
+        centerpoint = codec.codec(codec.WorldPoint2DFmt)(waypoint_data[waypoint_end:])
+    if DEBUG_MOVEMENT:
+        formation = '-'
+        if MovementFlags.FORMATION in movement_command.flags:
+            formation = movement_command.formation_index
+        wp = ' '.join([f'{i}={w.x:07.3f},{w.y:07.3f}' for i, w in enumerate(waypoints)])
+        center = f'c={centerpoint.x:07.3f},{centerpoint.y:07.3f}' if centerpoint else ''
+        print(f'{formation} {waypoint_count} {wp} {center}')
+    return movement_command, command_monsters, waypoints, centerpoint
+
 def log_command(
-    players, observers, player_id, monsters, computer_markers, computer_monsters, trades,
-    command_header, command_data, self_heal_kill_dmg, planning_ticks=0
+    mesh_header, players, observers, player_id, monsters,
+    computer_markers, computer_monsters, trades,
+    command_header, command_data, position, self_heal_kill_dmg, planning_ticks=0
 ):
     if player_id not in players:
         if DEBUG_CMDS:
@@ -1359,6 +1430,7 @@ def log_command(
             (target_monsters, _offset2) = parse_command_monsters(command_data[offset+2:], monsters, computer_markers)
         case Commands.ATTACK_LOCATION:
             (attack_location_flags, x, y, z) = struct.unpack('>h 2x L L L', command_data[:16])
+            position = [codec.World(x), codec.World(y)]
             attack_location_flags = AttackLocationFlags(attack_location_flags)
             (command_monsters, _offset) = parse_command_monsters(command_data[16:], monsters, computer_markers, player)
             if AttackLocationFlags.SPECIAL_ABILITY in attack_location_flags:
@@ -1423,6 +1495,8 @@ def log_command(
                     mesh2trades.unit_name(target_unit, 1)
                 ] = count
         extra_data['targets'] = expanded_target_monsters
+    if position:
+        extra_data['position'] = mesh_tag.normalise_position(mesh_header, position)
     return {
         'time': command_header.time - planning_ticks,
         'player': player_id,

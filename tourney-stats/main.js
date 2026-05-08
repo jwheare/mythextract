@@ -15,12 +15,13 @@ const clickGraph = document.getElementById("graph");
 const graphFilter = document.getElementById("filter");
 const actionLegend = document.getElementById('actionLegend');
 const summaryGraph = document.getElementById("summary");
+const heatmap = document.getElementById("heatmap");
 const playerList = document.getElementById("playerList");
 
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-04-19';
+const DATA_VERSION = '2026-05-03';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -37,6 +38,7 @@ let ROUND_DATA = null;
 let GAME_DATA = null;
 let PLAYER_GROUPS = null;
 let FILTERED_PLAYER = null;
+let FILTERED_TEAM = null;
 let UNIT_FILTER = null;
 
 function dce (element, className, textContent) {
@@ -57,6 +59,7 @@ const ROUTES = {
   team: /^tournament\/([^/]+)\/teams\/([^/]+)/,
   round: /^tournament\/([^/]+)\/rounds\/([^/]+)/,
   tournament_stats: /^tournament\/([^/]+)\/stats/,
+  tournament_all: /^tournament\/([^/]+)\/all/,
   tournament: /^tournament\/([^/]+)/,
   home: /^tournament/,
   info: /^info/,
@@ -209,6 +212,7 @@ function resetPage () {
   GAME_DATA = null;
   PLAYER_GROUPS = null;
   FILTERED_PLAYER = null;
+  FILTERED_TEAM = null;
   UNIT_FILTER = null;
 
   // Only blank out parts that won't be refilled
@@ -223,6 +227,7 @@ function resetPage () {
   gameList.innerHTML = '';
   playerList.innerHTML = '';
   summaryGraph.innerHTML = '';
+  heatmap.innerHTML = '';
   clickGraph.innerHTML = '';
   graphFilter.innerHTML = '';
   actionLegend.innerHTML = '';
@@ -258,6 +263,10 @@ async function renderTournament() {
     renderTournamentTeamTitle();
     renderTournamentTeamInfo();
     renderTournamentTeam();
+  } else if (ROUTE_NAME == 'tournament_all') {
+    renderTournamentTitle();
+    renderTournamentInfo();
+    renderTournamentRoundsAll();
   } else {
     renderTournamentTitle();
     renderTournamentInfo();
@@ -272,11 +281,12 @@ async function renderRound () {
 
   processRounds();
   renderRoundTitle();
-  renderRoundInfo();
+  renderRoundHead(ROUND_DATA);
+  renderRoundInfo(ROUND_DATA, subtitleHead);
   if (ROUTE_NAME == 'round_stats') {
     console.log('round stats');
   } else {
-    renderRoundContents();
+    renderRoundContents(ROUND_DATA, roundContainer);
   }
 }
 
@@ -299,6 +309,7 @@ async function renderGame () {
   renderUnitFilter();
   renderGameInfo();
   renderSummary();
+  renderHeatmap();
 }
 
 function renderInfoInfo () {
@@ -323,8 +334,6 @@ function renderHomeInfo () {
   titleHead.textContent = 'Myth Stats / Tournaments';
 
   captionHead.appendChild(bagradaLink);
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
 }
 
 function renderHomeTourneys () {
@@ -345,16 +354,23 @@ function renderTournamentInfo () {
   bagradaLink.textContent = 'bagrada.net';
   bagradaLink.href = `https://bagrada.net/webui/tournaments/${TOURNEY_DATA.bagrada_tournament}`;
 
-
   titleHead.textContent = ` / ${TOURNEY_DATA.name}`;
   let allTourney = stateLink('tournament/', 'Tournaments');
   titleHead.prepend(allTourney);
 
   captionHead.appendChild(bagradaLink);
+
+
+  if (ROUTE_NAME == 'tournament_all') {
+    captionHead.append(' / ');
+    captionHead.append(stateLink(TOURNEY_DATA.path, 'summary'));
+  } else {
+    captionHead.append(' / ');
+    captionHead.append(stateLink(TOURNEY_DATA.path + '/all', 'all games'));
+  }
+
   captionHead.append(' / ');
-  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', ' overall stats'));
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
+  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
 }
 function renderTournamentTeamInfo () {
   let bagradaLink = dce('a');
@@ -371,11 +387,9 @@ function renderTournamentTeamInfo () {
 
   captionHead.appendChild(bagradaLink);
   captionHead.append(' / ');
-  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'overall stats'));
+  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
 }
 function renderTournamentPlayerInfo () {
   let bagradaLink = dce('a');
@@ -391,11 +405,9 @@ function renderTournamentPlayerInfo () {
 
   captionHead.appendChild(bagradaLink);
   captionHead.append(' / ');
-  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'overall stats'));
+  captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
 }
 function renderTournamentStatsInfo () {
   let bagradaLink = dce('a');
@@ -411,8 +423,6 @@ function renderTournamentStatsInfo () {
   captionHead.appendChild(bagradaLink);
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
 }
 
 function processGames () {
@@ -479,6 +489,7 @@ function initMWC26 () {
     ['QR1', 'Qualifying Round 1'],
     ['QR2', 'Qualifying Round 2'],
     ['QR3', 'Qualifying Round 3'],
+    ['QR4', 'Qualifying Round 4'],
     // ['DE1', 'Double Elimination 1'],
     // ['DE2', 'Double Elimination 2'],
     // ['DE3', 'Double Elimination 3'],
@@ -693,14 +704,38 @@ function calculateTourneyStats (teamFilter) {
     }
   }
   let overallPlayerStats = [];
+  const ranked = [];
+  for (let [playerId, stats] of Object.entries(playerStats)) {
+    augmentMedals(stats);
+    ranked.push([playerId, stats.medals]);
+  };
+  ranked.sort((a, b) => {
+    return b[1] - a[1];
+  });
+  const rankLookup = {};
+  ranked.forEach(([playerId, ], i) => {
+    rankLookup[playerId] = i;
+  });
+
   for (let [playerId, stats] of Object.entries(playerStats)) {
     let player = playerData[playerId];
     let teamSlug = avgMode(player.teams);
     let playerColor = avgMode(player.colors);
+
+
     let playerLink = stateLink(
       `tournament/${TOURNEY_ID}/players/${playerId}`,
       stripFormat(stripOrder(avgMode(player.names)))
     );
+
+    if (!teamFilter) {
+      const rank = pos2Rank(rankLookup[playerId], ranked.length, stats.medals);
+      const rankIcon = dce('span', 'rankIcon');
+      rankIcon.style.backgroundImage = `url(${BASE_URL}img/rank/${rank}.png)`;
+      playerLink.prepend(rankIcon);
+      tooltip(rankIcon, RANK_NAMES[rank]);
+    }
+
     playerLink.style.borderLeft = `8px solid ${playerColor}`;
     let teamLink = teamNameShort(avgMode(player.teams));
     if (!teamFilter) {
@@ -750,6 +785,69 @@ function tableClass (name) {
   return name.replace(/[\n\s]+/g, '_').replace(/[^\w]/g, '');
 }
 
+const RANK_NAMES = [
+  "Dagger",
+  "Double Dagger", // Dagger with Hilt
+  "Triple Dagger", // Kris Knife
+  "Sword and Dagger",
+  "Crossed Swords",
+  "Crossed Axes",
+  "Shield",
+  "Shield Crossed Swords",
+  "Shield Crossed Axes",
+  "Prince", // Simple Crown
+  "Lord", // Crown
+  "Emperor", // Nice Crown
+  "Crescent Moon", // Eclipsed Moon
+  "Moon",
+  "Eclipse", // Eclipsed Sun
+  "Sun",
+  "Comet",
+];
+const RANK_PERCENTAGES = [
+  0.01,
+  0.03,
+  0.07,
+  0.13,
+  0.21,
+  0.31,
+  0.43,
+  0.57,
+  0.73,
+];
+
+function pos2Rank (pos, total, medals) {
+  // Celestials
+  if (pos == 0) {
+    return 16;
+  } else if (pos == 1) {
+    return 15;
+  } else if (pos == 2) {
+    return 14;
+  } else if (pos == 3) {
+    return 13;
+  } else if (pos == 4) {
+    return 12;
+  }
+  // Plebs
+  const numRanks = RANK_PERCENTAGES.length;
+  for (let i = 0; i < numRanks; i++) {
+    let pc = (pos - 5) / (total - 5);
+    // debugger;
+    if (pc < RANK_PERCENTAGES[i]) {
+      return (numRanks - i) + 2;
+    }
+  }
+  // Noobs
+  if (medals < 1) {
+    return 0;
+  }
+  if (medals < 2) {
+    return 1;
+  }
+  return 2;
+}
+
 function makeTable (headers, values, types, className, tooltips) {
   let table = dce('table', 'dataTable');
   if (className) {
@@ -776,11 +874,11 @@ function makeTable (headers, values, types, className, tooltips) {
   values.forEach((row, i) => {
     let valueRow = dce('tr');
     valueRow.append(dce('td', 'dataTablePos', i+1));
-    row.forEach((v, i) => {
-      if (v && (!types || !types[i] || !types[i] == 'number')) {
+    row.forEach((v, rowI) => {
+      if (v && (!types || !types[rowI] || !types[rowI] == 'number')) {
         v = v.toLocaleString();
       }
-      let valueCell = dce('td', `dataTable__${tableClass(headers[i])}`);
+      let valueCell = dce('td', `dataTable__${tableClass(headers[rowI])}`);
       valueCell.append(v);
       valueRow.append(valueCell);
     });
@@ -922,7 +1020,7 @@ function aggregatePlayerStats (stats) {
     'Games\nLost': stats.game_losses,
     'Games\nTied': stats.game_ties,
     '🔹 Cap': stats.captains,
-    '🎖️ Medals': stats.medals + Math.max(0, stats.game_wins - stats.game_losses),
+    '🎖️ Medals': stats.medals,
   };
 }
 
@@ -981,6 +1079,7 @@ function renderPlayerStats (bagrada_player) {
     });
   });
   let stats = playerStats[bagrada_player];
+  augmentMedals(stats);
   let teamSlug = avgMode(playerData.teams);
   let playerColor = avgMode(playerData.colors);
   let playerName = stripFormat(stripOrder(avgMode(playerData.names)));
@@ -1012,10 +1111,16 @@ function renderPlayerStats (bagrada_player) {
   renderPlayerGraph(stats, 'dmg_cost_ratio', 'Efficiency', "Efficiency Index (Damage / Unit value held vs average)");
 }
 
+function augmentMedals (stats) {
+  stats.medals = stats.medals + Math.max(0, stats.game_wins - stats.game_losses);
+}
+
 function renderPlayerGraph (stats, stat, label, title) {
   let graph = Plot.plot({
     width: 1200,
     height: 80,
+    marginBottom: 10,
+    className: 'playerGraph__plot',
     x: {
       axis: false,
     },
@@ -1043,9 +1148,7 @@ function renderPlayerGraph (stats, stat, label, title) {
         },
         fontSize: 11,
         title: (d, i) => {
-          if (d[stat]) {
-            return `${stats.round_data[i].round_name}: Game ${stats.game_data[i].game_num}\n${stats.game_data[i].game_type}\n${stats.game_data[i].map_name}\n${label}: ${d[stat]}`
-          }
+          return `${stats.round_data[i].round_name}: Game ${stats.game_data[i].game_num}\n${stats.game_data[i].game_type}\n${stats.game_data[i].map_name}\n${label}: ${d[stat]}`
         },
         tip: {
           dy: 5,
@@ -1072,6 +1175,49 @@ function renderTournamentTeam () {
   }
 }
 
+function renderTournamentRoundsAll () {
+  tournamentContainer.innerHTML = '';
+  if (!TOURNEY_DATA.rounds || !TOURNEY_DATA.rounds.length) {
+    return;
+  }
+  if (ROUND_MAP && PROCESSED_ROUNDS) {
+    let groupedRoundContainer = dce('div', 'tournamentAllRounds');
+    for (const [roundStage, ] of ROUND_MAP) {
+      let roundContainer = dce('div', 'tournamentAllRounds__stage');
+
+      let roundList = dce('div', 'tournamentAllRounds__list');
+
+      let hasRounds = false;
+      PROCESSED_ROUNDS[roundStage].forEach(round => {
+        hasRounds = true;
+        const subtitleHead = dce('h2', 'subtitle');
+        renderRoundInfo(round, subtitleHead);
+        const roundContainer = dce('div', 'tournamentAllRounds__round');
+        renderRoundContents(round, roundContainer);
+        roundList.append(subtitleHead);
+        roundList.append(roundContainer);
+      });
+
+      if (hasRounds) {
+        roundContainer.appendChild(roundList);
+        groupedRoundContainer.appendChild(roundContainer);
+      }
+    }
+    tournamentContainer.appendChild(groupedRoundContainer);
+  } else {
+    let roundList = dce('ul', 'tournamentRounds');
+    TOURNEY_DATA.rounds.forEach(round => {
+      let roundItem = dce('li', 'tournamentRounds__round');
+      
+      let roundLink = stateLink(round.round_path, round.round_name);
+      roundItem.appendChild(roundLink);
+
+      roundList.appendChild(roundItem);
+    });
+    tournamentContainer.appendChild(roundList);
+  }
+}
+
 function renderTournamentRounds () {
   tournamentContainer.innerHTML = '';
   if (!TOURNEY_DATA.rounds || !TOURNEY_DATA.rounds.length) {
@@ -1094,7 +1240,7 @@ function renderTournamentRounds () {
   }
 }
 
-function renderRounds(rounds, teamFilter) {
+function renderRounds (rounds, teamFilter) {
   let groupedRoundContainer = dce('div', 'tournamentGroupedRounds');
   for (const [roundStage, roundStageFull] of ROUND_MAP) {
     let roundContainer = dce('div', 'tournamentGroupedRounds__group');
@@ -1103,7 +1249,7 @@ function renderRounds(rounds, teamFilter) {
 
     let roundList = dce('ul', 'tournamentGroupedRounds__rounds');
     let hasRounds = false;
-    PROCESSED_ROUNDS[roundStage].forEach(round => {
+    rounds[roundStage].forEach(round => {
       if (!teamFilter || round.team1 == teamFilter || round.team2 == teamFilter) {
         hasRounds = true;
         let roundItem = dce('li',  'tournamentGroupedRounds__round');
@@ -1136,7 +1282,6 @@ function renderRounds(rounds, teamFilter) {
             roundGameLink.className = 'tournamentGroupedRounds__game';
             roundGameLinks.appendChild(roundGameLink);
           });
-
           roundItem.appendChild(roundGameLinks);
         } else if (round.forfeit) {
           let roundGameForfeit = dce('div', 'tournamentGroupedRounds__forfeit');
@@ -1168,62 +1313,62 @@ function renderRounds(rounds, teamFilter) {
   return groupedRoundContainer;
 }
 
-function renderRoundInfo () {
+function renderRoundHead (round_data) {
+  titleHead.textContent = ` / ${round_data.round_name}`;
+  let tourneyLink = stateLink(round_data.tournament.path, round_data.tournament.name);
+  titleHead.prepend(tourneyLink);
+
   let bagradaLink = dce('a');
   bagradaLink.target = '_blank';
   bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments/${ROUND_DATA.tournament.bagrada_tournament}/rounds/${ROUND_DATA.bagrada_round}`;
+  bagradaLink.href = `https://bagrada.net/webui/tournaments/${round_data.tournament.bagrada_tournament}/rounds/${round_data.bagrada_round}`;
   captionHead.appendChild(bagradaLink);
   captionHead.append(' / ');
-  captionHead.append(stateLink(ROUND_DATA.tournament.path + '/stats', 'overall stats'));
-  captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
+  captionHead.append(stateLink(round_data.tournament.path + '/stats', 'tournament stats'));
+}
 
-  titleHead.textContent = ` / ${ROUND_DATA.round_name}`;
-  let tourneyLink = stateLink(ROUND_DATA.tournament.path, ROUND_DATA.tournament.name);
-  titleHead.prepend(tourneyLink);
-
+function renderRoundInfo (round_data, subtitle) {
   let result, team1, team2;
-  if (ROUND_DATA._processed) {
-    let partSuffix = ROUND_DATA.part ? `(${ROUND_DATA.part})` : ''
-    subtitleHead.textContent = ' vs ';
-    team1 = dce('span', 'round__team', teamName(ROUND_DATA.team1));
-    team2 = dce('span', 'round__team', teamName(ROUND_DATA.team2));
+  if (round_data._processed) {
+    let partSuffix = round_data.part ? `(${round_data.part})` : ''
+    subtitle.textContent = ' vs ';
+    team1 = dce('span', 'round__team', teamName(round_data.team1));
+    team2 = dce('span', 'round__team', teamName(round_data.team2));
     let suffix = dce('span', 'round__suffix', partSuffix);
     result = dce('span', 'round__result');
-    subtitleHead.prepend(team1);
-    subtitleHead.appendChild(team2);
-    subtitleHead.append(' ');
-    subtitleHead.append(suffix);
-    subtitleHead.append(' ');
-    subtitleHead.append(result);
+    subtitle.prepend(team1);
+    subtitle.appendChild(team2);
+    subtitle.append(' ');
+    subtitle.append(suffix);
+    subtitle.append(' ');
+    subtitle.append(result);
 
-    let subtitleStage = dce('span', 'round__stage', `${ROUND_MAP.get(ROUND_DATA.stage)}: `);
-    subtitleHead.prepend(subtitleStage);
+    let subtitleStage = dce('span', 'round__stage', `${ROUND_MAP.get(round_data.stage)}: `);
+    subtitle.prepend(subtitleStage);
   } else {
-    subtitleHead.textContent = ROUND_DATA.round_name;
+    subtitle.textContent = round_data.round_name;
   }
 
   if (result && team1 && team2) {
-    result.textContent = `${ROUND_DATA.winning_teams[ROUND_DATA.team1]} - ${ROUND_DATA.winning_teams[ROUND_DATA.team2]}`;
-    if (ROUND_DATA.round_winner == ROUND_DATA.team1) {
+    result.textContent = `${round_data.winning_teams[round_data.team1]} - ${round_data.winning_teams[round_data.team2]}`;
+    if (round_data.round_winner == round_data.team1) {
       team1.classList.add('tournamentGroupedRounds__team--winner');
       team2.classList.add('tournamentGroupedRounds__team--loser');
-    } else if (ROUND_DATA.round_winner == ROUND_DATA.team2) {
+    } else if (round_data.round_winner == round_data.team2) {
       team1.classList.add('tournamentGroupedRounds__team--loser');
       team2.classList.add('tournamentGroupedRounds__team--winner');
     }
   }
 }
 
-function renderRoundContents () {
-  if (ROUND_DATA.games.length) {
-    let gameList = renderRoundGames(ROUND_DATA.games);
-    roundContainer.appendChild(gameList);
-  } else if (ROUND_DATA.forfeit) {
-    roundContainer.textContent = `${teamName(ROUND_DATA.forfeit)} forfeit`;
+function renderRoundContents (round_data, container) {
+  if (round_data.games.length) {
+    let gameList = renderRoundGames(round_data.games);
+    container.appendChild(gameList);
+  } else if (round_data.forfeit) {
+    container.textContent = `${teamName(round_data.forfeit)} forfeit`;
   } else {
-    roundContainer.textContent = `No games`;
+    container.textContent = `No games`;
   }
 }
 
@@ -1319,7 +1464,7 @@ const ACTION_COLORS = [
   // "white",
 ];
 
-function fiterUnits (d) {
+function filterUnits (d) {
   if (UNIT_FILTER && UNIT_FILTER.length) {
     if (d.monsters && Object.keys(d.monsters).some(monster => UNIT_FILTER.includes(monster))) {
       return true;
@@ -1341,6 +1486,14 @@ function renderPlots () {
   // Marks with opacity based on FILTERED_PLAYER
 
   const marks = Array.from(PLAYER_GROUPS, ([bagradaPlayer, points]) => {
+    const [teamSlug, ,] = findBagradaPlayerTeam(bagradaPlayer);
+    let filtered = true;
+    if (FILTERED_PLAYER && bagradaPlayer != FILTERED_PLAYER) {
+      filtered = false;
+    }
+    if (FILTERED_TEAM && teamSlug != FILTERED_TEAM) {
+      filtered = false;
+    }
     return [
       Plot.line(points, {
         x: "time",
@@ -1351,40 +1504,41 @@ function renderPlots () {
         z: null,
         stroke: "yellow",
         strokeWidth: 3,
-        filter: fiterUnits,
-        opacity: FILTERED_PLAYER ? (bagradaPlayer == FILTERED_PLAYER ? 1 : 0.1) : 1,
+        filter: filterUnits,
+        opacity: filtered ? 1 : 0.1,
       }),
       Plot.dot(points, {
         x: "time",
         y: (d, i) => i,
         stroke: "action",
-        r: FILTERED_PLAYER ? (bagradaPlayer == FILTERED_PLAYER ? 3 : 2) : 2,
+        r: filtered ? 3 : 2,
         fill: "action",
-        opacity: FILTERED_PLAYER ? (bagradaPlayer == FILTERED_PLAYER ? 1 : 0.05) : 1,
+        opacity: filtered ? 1 : 0.05,
         filter: (d) => {
           if (d.action == 'MOVEMENT') {
             return false;
           }
-          return fiterUnits(d);
+          return filterUnits(d);
         },
       }),
     ]
   }).flat();
 
+  const isFiltered = FILTERED_PLAYER || FILTERED_TEAM;
   let tip = Plot.tip(GAME_DATA.commands, Plot[FILTERED_PLAYER ? 'pointerX' : 'pointer']({
     x: 'time',
     y: 'index',
-    maxRadius: FILTERED_PLAYER ? 200 : 40,
+    maxRadius: isFiltered ? 200 : 40,
     filter: (d) => {
       if (d.action == 'MOVEMENT') {
         return false;
       }
-      if (!FILTERED_PLAYER) {
-        return fiterUnits(d);
+      if (!isFiltered) {
+        return filterUnits(d);
       }
-      let [player, ] = findPlayer(d.player);
-      if (player.bagrada_player == FILTERED_PLAYER) {
-        return fiterUnits(d);
+      let [player, teamSlug] = findPlayer(d.player);
+      if (player.bagrada_player == FILTERED_PLAYER || teamSlug == FILTERED_TEAM) {
+        return filterUnits(d);
       }
       return false;
     },
@@ -1409,7 +1563,7 @@ function renderPlots () {
       }
       let [player, teamSlug] = findPlayer(d.player);
       let teamName = teamNameShort(teamSlug);
-      let playerLine = `[${teamName}] ${stripOrder(player.name)} → ${ACTION_MAP[d.action] || d.action}`;
+      let playerLine = `[${teamName}] ${stripFormat(stripOrder(player.name))} → ${ACTION_MAP[d.action] || d.action}`;
       if (targetOwner) {
         playerLine += `: ${targetOwner}`;
       }
@@ -1436,7 +1590,6 @@ function renderPlots () {
           const secs = Math.floor(seconds % 60);
           return `${mins}:${secs.toString().padStart(2, "0")}`;
         }
-
     },
     y: {
       label: "Commands",
@@ -1603,7 +1756,7 @@ function summarizeTargets (targets, self) {
       if (playerId == self) {
         owner = 'self';
       } else if (player) {
-        owner = stripOrder(player.name);
+        owner = stripFormat(stripOrder(player.name));
       }
     }
   }
@@ -1614,6 +1767,16 @@ function findPlayer (playerId) {
   for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
     if (playerId in team.players) {
       return [team.players[playerId], teamSlug];
+    }
+  }
+}
+
+function findBagradaPlayerTeam (bagradaPlayer) {
+  for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
+    for (const player of Object.values(team.players)) {
+      if (player.bagrada_player == bagradaPlayer) {
+        return [teamSlug, team, player];
+      }
     }
   }
 }
@@ -1756,32 +1919,46 @@ function renderPlayerList () {
   statsHeadRow.append(dce('td', 'playerListLeftSpacer'));
 
   let playerListHead = dce('td', 'playerListHead');
-  playerListHead.colSpan = 2;
+  playerListHead.colSpan = 3;
+
+  let showDetails = dce('span', 'playerList__show_details_button');
+  let showDetailsGraphs = dce('span', 'playerList__show_details_graphs', '📈 show graphs');
+  let showDetailsHeatmaps = dce('span', 'playerList__show_details_heatmap', '🔥 show heatmap');
+  showDetails.appendChild(showDetailsGraphs);
+  showDetails.appendChild(showDetailsHeatmaps);
+  showDetails.addEventListener('click', () => {
+    if (showingHeatmap()) {
+      document.getElementById('columns').classList.remove('show-heatmap');
+    } else {
+      document.getElementById('columns').classList.add('show-heatmap');
+    }
+  });
+  playerListHead.appendChild(showDetails);
+
   let showStats = dce('span', 'playerList__show_stats_button');
   let showStatsShow = dce('span', 'playerList__show_stats_show', 'show stats');
   let showStatsHide = dce('span', 'playerList__show_stats_hide', 'hide stats');
   showStats.appendChild(showStatsShow);
   showStats.appendChild(showStatsHide);
-  showStats.addEventListener('click', () => {
-    if (showingStats()) {
-      document.getElementById('columns').classList.remove('show-stats');
-    } else {
-      document.getElementById('columns').classList.add('show-stats');
-    }
-    renderPlots();
-    renderSummary();
-  });
+  showStats.addEventListener('click', toggleStats);
   playerListHead.appendChild(showStats);
-  statsHeadRow.appendChild(playerListHead);
 
-  statsHeadRow.append(dce('td', 'playerListRightSpacer'));
+  statsHeadRow.appendChild(playerListHead);
 
   statsHead.appendChild(statsHeadRow);
 
   let statsBody = dce('tbody');
   for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
     // Team stat line
+    let teamTopSpacer = dce('tr', 'playerListTopSpacerTeamRow');
+    teamTopSpacer.append(dce('td', 'playerListTopSpacerTeam'));
+    statsBody.append(teamTopSpacer);
+
     let teamRow = dce('tr', 'playerStats__team');
+    if (FILTERED_TEAM == teamSlug) {
+      teamRow.classList.add('playerStats__team--selected');
+    }
+    teamRow.dataset.team_slug = teamSlug;
 
     for ([col, ] of STAT_COLS) {
       let statCell = dce('td', `statTeam statCell statCell__${col}`, colCalc(col, team.stats));
@@ -1798,6 +1975,10 @@ function renderPlayerList () {
     teamRow.append(teamLeftSpacer);
 
     let teamHead = dce('td', 'playerSelect__team', teamName(teamSlug));
+    teamHead.addEventListener('click', (e) => {
+      e.preventDefault();
+      selectTeam(teamRow);
+    });
     if (team.winner) {
       teamHead.append(' ');
       let winner = dce('span', 'playerSelect__winner', '🏆');
@@ -1837,7 +2018,7 @@ function renderPlayerList () {
       playerLeftSpacer.append(playerLeftColor);
       playerRow.append(playerLeftSpacer);
 
-      const playerItem = dce("td", 'playerSelect__player', stripOrder(player.name));
+      const playerItem = dce("td", 'playerSelect__player', stripFormat(stripOrder(player.name)));
       if (player.captain) {
         playerItem.append(' ');
         let captain = dce('span', 'playerSelect__captain', '🔹');
@@ -1855,7 +2036,7 @@ function renderPlayerList () {
       }
       playerItem.dataset.bagrada_player = bagradaPlayer;
 
-      playerItem.addEventListener("click", (e) => {
+      playerItem.addEventListener('click', (e) => {
         e.preventDefault();
         selectPlayer(playerRow);
       });
@@ -1888,28 +2069,6 @@ function renderGameInfo() {
 
   let subtitle = `${GAME_DATA.header.game.game_type} on ${stripFormat(GAME_DATA.header.game.map_name)} (${GAME_DATA.header.game.difficulty}) - ${Math.round(GAME_DATA.header.game.time_limit/30/60)} mins`;
 
-  // let host;
-  // if ('host' in GAME_DATA.header.game) {
-  //   host = stripOrder(GAME_DATA.header.game.host.name);
-  // }
-
-  // let start = new Date(GAME_DATA.header.game.start);
-  // let end = new Date(GAME_DATA.header.game.end);
-  // let timeRange = `${start.toDateString()} - ${start.toLocaleTimeString('en-gb', {
-  //   hour: '2-digit',
-  //   minute: '2-digit',
-  //   hour12: true,
-  // })} - ${end.toLocaleTimeString('en-gb', {
-  //   timeZoneName: 'short',
-  //   hour: '2-digit',
-  //   minute: '2-digit',
-  //   hour12: true,
-  // })}`;
-  // let caption = `${timeRange} `;
-  // if (host) {
-  //   caption += `(Host: ${stripFormat(host)}) - `;
-  // }
-
   let bagradaLink = dce('a');
   bagradaLink.target = '_blank';
   bagradaLink.textContent = 'bagrada.net';
@@ -1933,19 +2092,57 @@ function renderGameInfo() {
   overhead.innerHTML = '';
   overhead.appendChild(overheadMap);
 
-  captionHead.append(bagradaLink);
-  captionHead.append(' / ');
+  if (GAME_DATA.header.game.plugins && GAME_DATA.header.game.plugins.length) {
+    const plugin = GAME_DATA.header.game.plugins[0];
+    let plug = plugin.name;
+    if (plugin.tain_url) {
+      let plugLink = dce('a');
+      plugLink.target = '_blank';
+      plugLink.textContent = plug;
+      plugLink.href = plugin.tain_url;
+      plug = plugLink;
+    }
+    captionHead.append('plugin: ');
+    captionHead.append(plug);
+    captionHead.append(' / ');
+  }
   captionHead.append(filmLink);
   captionHead.append(' / ');
-  captionHead.append(stateLink(GAME_DATA.header.tournament.path + '/stats', 'overall stats'));
+
+  captionHead.append(bagradaLink);
   captionHead.append(' / ');
-  captionHead.append(stateLink('info', 'info'));
+
+  captionHead.append(stateLink(GAME_DATA.header.tournament.path + '/stats', 'tournament stats'));
+
+  let start = new Date(GAME_DATA.header.game.start);
+  let startDate = start.toDateString();
+  let end = new Date(GAME_DATA.header.game.end);
+  let timeRange = `${startDate} - ${start.toLocaleTimeString('en-gb', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour24: true,
+  })} - ${end.toLocaleTimeString('en-gb', {
+    timeZoneName: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour24: true,
+  })}`;
+  let gameDate = `${timeRange} `;
+  // let gameDate = `${startDate} `;
+  let host;
+  if ('host' in GAME_DATA.header.game) {
+    host = stripFormat(stripOrder(GAME_DATA.header.game.host.name));
+  }
+  if (host) {
+    gameDate += `(Host: ${host})`;
+  }
+  captionHead.append(dce('br'), gameDate);
 }
 
 function stateLink (href, textContent, className) {
   let link = dce('a', className, textContent);
   link.href = `${BASE_URL}${href}`;
-  link.addEventListener("click", (e) => {
+  link.addEventListener('click', (e) => {
     e.preventDefault();
     history.pushState({}, "", link.href);
     routeUrl();
@@ -1953,8 +2150,194 @@ function stateLink (href, textContent, className) {
   return link;
 }
 
+function showingHeatmap () {
+  return document.getElementById('columns').classList.contains('show-heatmap');
+}
+
 function showingStats () {
   return document.getElementById('columns').classList.contains('show-stats');
+}
+
+function toggleStats () {
+  if (showingStats()) {
+    document.getElementById('columns').classList.remove('show-stats');
+  } else {
+    document.getElementById('columns').classList.add('show-stats');
+  }
+  renderPlots();
+  renderSummary();
+  renderHeatmap();
+}
+
+function renderHeatmap () {
+  heatmap.innerHTML = '';
+
+  const heatmapHead = dce('h4', 'heatmap-head', 'Heatmap');
+  const heatmapImage = dce('div', 'heatmap-image');
+  heatmapImage.addEventListener('click', toggleStats);
+
+  const [locWidth, locHeight] = GAME_DATA.header.game.dimensions;
+  const aspect = locWidth / locHeight;
+
+  let cMap = dce('img', 'heatmap-base');
+  cMap.src = `${PAGE_URL}/cmap.png`;
+  cMap.style.aspectRatio = aspect;
+  heatmapImage.appendChild(cMap);
+
+  if (FILTERED_TEAM != null) {
+    const teamLink = stateLink(
+      `tournament/${TOURNEY_ID}/teams/${FILTERED_TEAM}`,
+      teamName(FILTERED_TEAM)
+    );
+    heatmapHead.innerText = `Heatmap: ${teamNameShort(FILTERED_TEAM)} - `;
+    heatmapHead.append(teamLink);
+  } else if (FILTERED_PLAYER != null) {
+    const [teamSlug, , player] = findBagradaPlayerTeam(FILTERED_PLAYER);
+    const playerLink = stateLink(
+      `tournament/${TOURNEY_ID}/players/${FILTERED_PLAYER}`,
+      stripFormat(stripOrder(player.name))
+    );
+    heatmapHead.innerText = `Heatmap: ${teamNameShort(teamSlug)} - `;
+    heatmapHead.append(playerLink);
+  } else {
+    heatmapHead.innerText = "Heatmap: All";
+  }
+
+  if (GAME_DATA.header.game.locations) {
+    const positions = [];
+    GAME_DATA.commands.forEach(c => {
+      if (c.position) {
+        let [player, teamSlug] = findPlayer(c.player);
+        positions.push({
+          x: c.position[0],
+          y: locHeight-c.position[1],
+          teamSlug: teamSlug,
+          teamName: teamName(teamSlug),
+          bagradaPlayer: player.bagrada_player,
+        });
+      }
+    });
+    const densityPlot = Plot.plot({
+      className: "densityPlot",
+      width: locWidth,
+      height: locHeight,
+      x: {
+        axis: false,
+        domain: [0, locWidth],
+      },
+      y: {
+        axis: false,
+        domain: [0, locHeight],
+      },
+      marks: [
+        Plot.density(positions, {
+          x: "x",
+          y: "y",
+          bandwidth: 1,
+          fill: "density",
+          weight: d => {
+            let filtered = true;
+            let sameTeam = false;
+            if (FILTERED_PLAYER && d.bagradaPlayer != FILTERED_PLAYER) {
+              filtered = false;
+              const [teamSlug, ,] = findBagradaPlayerTeam(FILTERED_PLAYER)
+              if (teamSlugMap(teamSlug) == teamSlugMap(d.teamSlug)) {
+                sameTeam = true;
+              }
+            }
+            if (FILTERED_TEAM && d.teamSlug != FILTERED_TEAM) {
+              filtered = false;
+            }
+            return filtered ? 1 : (sameTeam ? 0.3 : 0.1);
+          },
+          opacity: 0.2,
+        }),
+      ]
+    });
+    heatmapImage.append(densityPlot);
+
+    const dotPlot = Plot.plot({
+      color: {
+        domain: [teamName(GAME_DATA.header.round.team1), teamName(GAME_DATA.header.round.team2)],
+        range: ["crimson", "orange"],
+        legend: true,
+        swatchSize: 10,
+        marginLeft: 0,
+      },
+      className: "densityPlot",
+      width: locWidth,
+      height: locHeight,
+      x: {
+        axis: false,
+        domain: [0, locWidth],
+      },
+      y: {
+        axis: false,
+        domain: [0, locHeight],
+      },
+      marks: [
+        Plot.dot(positions, {
+          x: "x", y: "y",
+          fill: (d) => d.teamName,
+          r: 0.8,
+          opacity: d => {
+            let filtered = true;
+            if (FILTERED_PLAYER && d.bagradaPlayer != FILTERED_PLAYER) {
+              filtered = false;
+            }
+            if (FILTERED_TEAM && d.teamSlug != FILTERED_TEAM) {
+              filtered = false;
+            }
+            return filtered ? 0.5 : 0;
+          },
+        }),
+      ]
+    });
+    heatmapImage.append(dotPlot);
+
+    GAME_DATA.header.game.locations.forEach(loc => {
+      if (loc.position) {
+        let x = loc.position[0] / locWidth;
+        let y = loc.position[1] / locHeight;
+        let type = 'location';
+        if (loc.observer) {
+          type = 'spawn';
+        }
+        if (loc.target) {
+          type = `target mapLocation-${loc.type}`;
+        }
+        const mapLoc = dce('div', `mapLocation mapLocation-${type}`);
+        if (loc.target && loc.flag_number) {
+          mapLoc.innerText = loc.flag_number;
+
+        }
+        if (loc.team != null) {
+          if (loc.observer) {
+            mapLoc.classList.add('mapLocation--hidden');
+          }
+          for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
+            const teamColor = teamSlugMap(teamSlug) == GAME_DATA.header.round.team1 ? 'crimson' : 'orange';
+            if (team.team_index == loc.team) {
+              if (loc.observer || GAME_DATA.header.game.game_type != 'Stampede') {
+                mapLoc.innerText = teamNameShort(teamSlug);
+              }
+              mapLoc.style.backgroundColor = teamColor;
+              mapLoc.classList.remove('mapLocation--hidden');
+            }
+          }
+          if (GAME_DATA.header.game.game_type == 'Capture the Flag' && loc.observer) {
+            mapLoc.classList.add('mapLocation--hidden');
+          }
+        }
+        mapLoc.style.top = `${y*100}%`;
+        mapLoc.style.left = `${x*100}%`;
+        heatmapImage.append(mapLoc);
+      }
+    });
+  }
+
+  heatmap.appendChild(heatmapHead);
+  heatmap.appendChild(heatmapImage);
 }
 
 function renderSummary () {
@@ -1987,10 +2370,10 @@ function renderSummary () {
       ticks: Plot.numberInterval(1800),
       grid: true,
       tickFormat: ticks => {
-          let seconds = (GAME_DATA.header.game.time_limit - ticks) / 30;
-          const mins = Math.floor(seconds / 60);
-          const secs = Math.floor(seconds % 60);
-          return `${mins}:${secs.toString().padStart(2, "0")}`;
+        let seconds = (GAME_DATA.header.game.time_limit - ticks) / 30;
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, "0")}`;
       }
     },
     y: {
@@ -2020,55 +2403,94 @@ function renderSummary () {
 function stripFormat (name) {
   // The private use symbol (often the apple symbol) \uF8FF is sometimes used
   // but isn't displayable in game without interface changes (e.g. JINN) Just strip it
-  return name.replace(/[|\\][bip]/i, '').replace(/\uF8FF/g, '');
+  return name.replace(/[|\\][bip]/gi, '').replace(/[\r\n]/gi, '').replace(/\uF8FF/g, '');
 }
 
 function stripBrackets (name) {
-  return name.replace(/\s+\([^)]+\)/i, '');
+  return name.replace(/\s+\([^)]+\)/gi, '');
 }
 
 function stripOrder (name) {
   return name.replace(/\s{3,}.*/, '');
 }
 
-function selectPlayer (playerEl) {
+function resetSelection () {
   document.querySelectorAll('.playerStats__player').forEach((el) => {
     el.classList.remove('playerStats__player--selected');
   });
-  let bagradaPlayer = playerEl.dataset.bagrada_player;
+  document.querySelectorAll('.playerStats__team').forEach((el) => {
+    el.classList.remove('playerStats__team--selected');
+  });
+}
+
+function resetHeatmap () {
+  document.querySelector('.heatmap-head').innerText = "Heatmap: All";
+}
+
+function selectPlayerOrTeam (playerTeamEl) {
+  if (playerTeamEl.classList.contains('playerStats__player')) {
+    selectPlayer(playerTeamEl);
+  } else if (playerTeamEl.classList.contains('playerStats__team')) {
+    selectTeam(playerTeamEl);
+  }
+}
+
+function selectPlayer (playerEl) {
+  resetSelection();
+  const bagradaPlayer = playerEl.dataset.bagrada_player;
+  FILTERED_TEAM = null;
   if (FILTERED_PLAYER == bagradaPlayer) {
     FILTERED_PLAYER = null;
+    resetHeatmap();
   } else {
     FILTERED_PLAYER = bagradaPlayer;
     playerEl.classList.add('playerStats__player--selected');
   }
   renderPlots();
+  renderHeatmap();
+}
+
+function selectTeam (teamEl) {
+  resetSelection();
+  let teamSlug = teamEl.dataset.team_slug;
+  FILTERED_PLAYER = null;
+  if (FILTERED_TEAM == teamSlug) {
+    FILTERED_TEAM = null;
+    resetHeatmap();
+  } else {
+    FILTERED_TEAM = teamSlug;
+    teamEl.classList.add('playerStats__team--selected');
+  }
+
+  renderPlots();
+  renderHeatmap();
 }
 
 document.addEventListener('keydown', (e) => {
-  if (FILTERED_PLAYER != null) {
-    let listPlayers = document.querySelectorAll('.playerStats__player');
-    let selected = document.querySelector('.playerStats__player--selected');
+  if (FILTERED_PLAYER != null || FILTERED_TEAM != null) {
+    let listPlayers = document.querySelectorAll('.playerStats__player, .playerStats__team');
+    let selected = document.querySelector('.playerStats__player--selected, .playerStats__team--selected');
+    // debugger;
     let index = Array.prototype.indexOf.call(listPlayers, selected);
     if (e.key == 'ArrowDown') {
       e.preventDefault();
       let next = listPlayers[index+1];
       if (next) {
-        selectPlayer(next);
+        selectPlayerOrTeam(next);
       } else {
-        selectPlayer(listPlayers[0]);
+        selectPlayerOrTeam(listPlayers[0]);
       }
     } else if (e.key == 'ArrowUp') {
       e.preventDefault();
       let prev = listPlayers[index-1];
       if (prev) {
-        selectPlayer(prev);
+        selectPlayerOrTeam(prev);
       } else {
-        selectPlayer(listPlayers[listPlayers.length-1]);
+        selectPlayerOrTeam(listPlayers[listPlayers.length-1]);
       }
     } else if (e.key == 'Enter') {
       e.preventDefault();
-      selectPlayer(selected);
+      selectPlayerOrTeam(selected);
     }
   }
 });

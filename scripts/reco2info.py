@@ -21,7 +21,7 @@ def main(game_directory, reco_file, bagrada_game):
         (
             reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
             plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
-            overhead_map_data, chat_lines, trades, splits, game_stats
+            overhead_map_data, cmap_bitmap, chat_lines, movement_data, trades, splits, game_stats
         ) = reco_tag.parse_reco_file(game_directory, reco_file, bagrada_game)
 
         reco_tag.print_metaserver_info(teams_idx, teams, players, game_stats)

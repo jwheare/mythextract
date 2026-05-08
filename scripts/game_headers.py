@@ -137,3 +137,15 @@ def print_plugins(plugins, find=False):
                 print(f'- Tain: {tain_url}')
             else:
                 print('- Tain: NOT_FOUND')
+
+def plugin_details(plugins, find=False):
+    details = []
+    for p in plugins:
+        d = {'name': codec.decode_string(p[0])}
+        tain_url = None
+        if find:
+            tain_url = find_plugin(p)
+        if tain_url:
+            d['tain_url'] = tain_url
+        details.append(d)
+    return details

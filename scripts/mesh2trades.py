@@ -12,6 +12,7 @@ import mons2stats
 import mono2tag
 import loadtags
 import mons_tag
+import myth_tags
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -42,6 +43,9 @@ def csv_header():
         'Cost',
         'Value',
         'Tradeable',
+        'Targets',
+        'May Vet',
+        'Must Vet',
 
         'Mesh ID',
         'Version',
@@ -84,6 +88,8 @@ def main(game_directory, level, plugin_names):
                     tags, data_map, palette, mesh_header,
                     level_name, DIFFICULTY, GAME_TYPE
                 )
+
+                detect_flag_issues(game_types, game_type_units, palette, tags, data_map)
 
                 for game_type in game_types:
                     if not CSV and not JSON:
@@ -138,6 +144,9 @@ def main(game_directory, level, plugin_names):
                                 row['cost'],
                                 row['value'],
                                 'Tradeable' if row['tradeable'] else 'Default',
+                                row['targets'],
+                                'Vettable' if row['may_use_vet'] else 'Unvettable',
+                                'Max if vet only' if row['must_use_vet'] else 'Count only',
 
                                 mesh_id,
                                 PLUGIN_V,
@@ -176,6 +185,134 @@ def main(game_directory, level, plugin_names):
             if csvfile.tell() == 0:
                 csvwriter.writerow(csv_header())
             csvwriter.writerows(csv_rows)
+
+def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
+    game_type_items = {}
+    if mesh_tag.MarkerType.SCENERY in palette:
+        for scenery in palette[mesh_tag.MarkerType.SCENERY]:
+            tag_id = scenery['tag']
+            (location, tag_header, tag_data) = loadtags.get_tag_info(tags, data_map, 'scen', tag_id)
+            scen_tag = myth_tags.parse_scenery(tag_data) if tag_data else None
+            if scen_tag:
+                scen_game_types = mesh_tag.netgame_flag_info(scenery['netgame_flags'])
+                for marker_id, marker in scenery['markers'].items():
+                    scen_tag_info = myth_tags.scen_netgame_info(scen_tag)
+                    if scen_tag_info:
+                        scoring_type, flag_number = scen_tag_info
+                        scoring_key = mesh_tag.netgame_scoring_key(scoring_type)
+                        if scoring_key not in game_type_items:
+                            game_type_items[scoring_key] = []
+                        game_type_items[scoring_key].append({
+                            'game_types': scen_game_types,
+                            'min_difficulty': marker['min_difficulty'],
+                            'flag_number': flag_number,
+                            'team': scenery['team_index'],
+                        })
+    for gt in ['fr', 'scav']:
+        # Check only one item of each number, and at least one item total
+        if 'all' in game_types or gt in game_types:
+            test_difficulty = False
+            flag_counts = {}
+            max_flag_num = 0
+            for item in game_type_items.get(gt, []):
+                if 'all' in item['game_types'] or gt in item['game_types']:
+                    if item['min_difficulty'] > 0:
+                        test_difficulty = True
+                    max_flag_num = max(max_flag_num, item['flag_number'])
+                    if item['flag_number'] not in flag_counts:
+                        flag_counts[item['flag_number']] = 0
+                    flag_counts[item['flag_number']] += 1
+            target = mesh_tag.netgame_location_type(gt, True)
+            if not len(flag_counts):
+                print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: No {target}s -\x1b[0m")
+            else:
+                for flag_num in range(1, max_flag_num + 1):
+                    count = flag_counts.get(flag_num, 0)
+                    if count != 1:
+                        print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: {target} {flag_num} unexpected count: {count} -\x1b[0m")
+
+            if test_difficulty:
+                print('TODO check difficulties')
+
+    for gt in ['ctf', 'balls']:
+        # Check only one item for each team
+        if 'all' in game_types or gt in game_types:
+            team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
+            test_difficulty = False
+            flag_counts = {}
+            for item in game_type_items.get(gt, []):
+                if 'all' in item['game_types'] or gt in item['game_types']:
+                    if item['min_difficulty'] > 0:
+                        test_difficulty = True
+                    if item['team'] not in flag_counts:
+                        flag_counts[item['team']] = 0
+                    flag_counts[item['team']] += 1
+            target = mesh_tag.netgame_location_type(gt, True)
+            for team in team_ids:
+                count = flag_counts.get(team, 0)
+                if count != 1:
+                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} unexpected {target} count: {count} -\x1b[0m")
+
+            if test_difficulty:
+                print('TODO check difficulties')
+
+    for gt in ['stb', 'lmoth', 'koth']:
+        # Check only one item total
+        if 'all' in game_types or gt in game_types:
+            team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
+            test_difficulty = False
+            count = 0
+            for item in game_type_items.get(gt, []):
+                if 'all' in item['game_types'] or gt in item['game_types']:
+                    if item['min_difficulty'] > 0:
+                        test_difficulty = True
+                    count += 1
+            target = mesh_tag.netgame_location_type(gt, True)
+            if count != 1:
+                print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Unexpected {target} count: {count} -\x1b[0m")
+
+    for gt in ['terries', 'caps']:
+        # Check at least one item total
+        if 'all' in game_types or gt in game_types:
+            team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
+            test_difficulty = False
+            count = 0
+            for item in game_type_items.get(gt, []):
+                if 'all' in item['game_types'] or gt in item['game_types']:
+                    if item['min_difficulty'] > 0:
+                        test_difficulty = True
+                    count += 1
+            target = mesh_tag.netgame_location_type(gt, True)
+            if count < 1:
+                print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Unexpected {target} count: {count} -\x1b[0m")
+
+    for gt in ['stamp']:
+        # Check same items per team
+        if 'all' in game_types or gt in game_types:
+            team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
+            test_difficulty = False
+            flag_counts = {}
+            for item in game_type_items.get(gt, []):
+                if 'all' in item['game_types'] or gt in item['game_types']:
+                    if item['min_difficulty'] > 0:
+                        test_difficulty = True
+                    if item['team'] not in flag_counts:
+                        flag_counts[item['team']] = 0
+                    flag_counts[item['team']] += 1
+            neutral_count = flag_counts.get(-1, 0)
+            team_counts = []
+            for team in team_ids:
+                count = flag_counts.get(team, 0)
+                team_counts.append(count)
+                if not neutral_count and not count:
+                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} missing flags -\x1b[0m")
+            if min(team_counts) != max(team_counts):
+                for team in team_ids:
+                    count = flag_counts.get(team, 0)
+                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} mismatched flags: {count} -\x1b[0m")
+
+            if test_difficulty:
+                print('TODO check difficulties')
 
 def parse_mesh_header(tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
@@ -225,8 +362,8 @@ def parse_game_type_units(
     level_name, difficulty, game_type_choice
 ):
     game_type_units = OrderedDict()
-    has_stampede_targets = False
-    has_assassin_target = False
+    team_has_stampede_targets = {}
+    team_has_assassin_targets = {}
 
     if mesh_tag.MarkerType.UNIT in palette:
         for unit in palette[mesh_tag.MarkerType.UNIT]:
@@ -243,6 +380,16 @@ def parse_game_type_units(
                 )
                 if not mons_data:
                     continue
+
+                if mesh_tag.MarkerPaletteFlag.UNCONTROLLABLE in unit['flags']:
+                    continue
+                if mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags']:
+                    all_invisible = True
+                    for marker in unit['markers'].values():
+                        if mesh_tag.MarkerFlag.IS_INVISIBLE not in marker['flags']:
+                            all_invisible = False
+                    if all_invisible:
+                        continue
                 mons_dict = mons2stats.get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
                 for netgame in netgame_info:
                     if netgame not in game_type_units:
@@ -257,11 +404,14 @@ def parse_game_type_units(
                             'count': 0,
                             'max': 0,
                             'min': 0,
-                            'target': False,
+                            'targets': 0,
                             'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
+                            'may_use_vet': mesh_tag.MarkerPaletteFlag.MAY_USE_VETERANS in unit['flags'],
+                            'must_use_vet': mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags'],
                         }
                     visible_count = 0
                     invisible_count = 0
+                    target_count = 0
                     for marker_id, marker in unit['markers'].items():
                         game_type_units[netgame][team][tag_id]['palette_index'] = marker['palette_index']
                         if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
@@ -272,11 +422,12 @@ def parse_game_type_units(
                             else:
                                 visible_count += 1
                             is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
-                            game_type_units[netgame][team][tag_id]['target'] = is_target
+                            if is_target:
+                                target_count += 1
                             if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
-                                has_stampede_targets = True
+                                team_has_stampede_targets[team] = True
                             if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
-                                has_assassin_target = True
+                                team_has_assassin_targets[team] = True
 
                     if mesh_tag.is_single_player(mesh_header):
                         count = visible_count + invisible_count
@@ -287,21 +438,21 @@ def parse_game_type_units(
                     game_type_units[netgame][team][tag_id]['initial_count'] += count
                     game_type_units[netgame][team][tag_id]['count'] += count
                     game_type_units[netgame][team][tag_id]['max'] += max_count
+                    game_type_units[netgame][team][tag_id]['targets'] += target_count
                     if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
                         game_type_units[netgame][team][tag_id]['min'] = game_type_units[netgame][team][tag_id]['max']
 
+    enabled_game_types = mesh_tag.enabled_netgames(mesh_header)
     if 'all' in game_type_units:
-        included_game_types = list(mesh_tag.NetgameFlagInfo.values())
-        if not has_stampede_targets:
-            included_game_types.remove('stamp')
-        if not has_assassin_target:
-            included_game_types.remove('ass')
+        included_game_types = enabled_game_types
     else:
-        included_game_types = list(game_type_units.keys())
+        included_game_types = [k for k in game_type_units.keys() if k in enabled_game_types]
+
     included_game_types.sort()
 
+    game_types = []
     if game_type_choice == 'all':
-        return included_game_types, game_type_units
+        game_types = included_game_types
     else:
         if game_type_choice not in included_game_types:
             game_type_choice = None
@@ -314,7 +465,20 @@ def parse_game_type_units(
             game_type_choice_i = int(input(f"{'\n'.join(game_type_nums)}\n\nChoose game type: ").strip().lower())
             game_type_choice = included_game_types[game_type_choice_i-1]
 
-        return [game_type_choice], game_type_units
+        game_types = [game_type_choice]
+
+    if 'stamp' in game_types:
+        stamp_units = game_type_units.get('stamp', game_type_units.get('all', {}))
+        for team in stamp_units.keys():
+            if not team_has_stampede_targets.get(team):
+                print(f'\x1b[91m- Team {team} Missing stampede units -\x1b[0m')
+    if 'ass' in game_types:
+        ass_units = game_type_units.get('ass', game_type_units.get('all', {}))
+        for team in ass_units.keys():
+            if not team_has_assassin_targets.get(team):
+                print(f'\x1b[91m- Team {team} Missing assassin targets -\x1b[0m')
+
+    return game_types, game_type_units
 
 def parse_game_teams(
     game_type, game_type_units,
@@ -347,9 +511,9 @@ def parse_game_teams(
                     for i, row in enumerate(first_trade):
                         if row != trade[i]:
                             mismatch_keys = {}
-                            for col in ['count', 'max']:
-                                if (row[col] != trade[i][col]):
-                                    mismatch_keys[col] = (row[col], trade[i][col])
+                            for col, val in row.items():
+                                if (val != trade[i][col]):
+                                    mismatch_keys[col] = (val, trade[i][col])
                             mismatch_rows.append((i, mismatch_keys))
                     mismatch = (team_id, dict(mismatch_rows))
             else:
@@ -357,7 +521,7 @@ def parse_game_teams(
             break
 
     if mismatch[1] is not None:
-        print('\x1b[91m- Asymmetric teams -\x1b[0m')
+        print(f'\x1b[91m- Asymmetric teams [{game_type}] -\x1b[0m')
 
     if team_choice is None:
         if mismatch[1] is not None:
@@ -399,43 +563,48 @@ def input_loop(game_type, unit_dict, diffs):
             unit = int(match.group(1) or 0) - 1
             if unit < 0:
                 unit = None
+            unit_set = unit is not None
+            valid_unit = unit_set and unit < len(units)
             op = match.group(2)
             if op == '-':
-                if unit is not None:
+                if valid_unit:
                     count = units[unit]['count'] - 1
             elif op == '--':
-                if unit is None:
+                if not unit_set:
                     all_units = 'min'
-                else:
+                elif valid_unit:
                     count = 0
             elif op == '+':
-                if unit is not None:
+                if valid_unit:
                     count = units[unit]['count'] + 1
             elif op == '++':
-                if unit is None:
+                if not unit_set:
                     all_units = 'max'
-                else:
+                elif valid_unit:
                     count = units[unit]['max']
             elif op == '=':
-                if unit is None:
+                if not unit_set:
                     unit = next((idx for idx, diff in enumerate(diffs) if diff != 0), None)
-                if unit is not None:
+                elif valid_unit:
                     count = units[unit]['count'] + diffs[unit]
         elif adjust in ['x','q']:
             sys.exit(0)
-
+        valid_input = count is not None and valid_unit
         if all_units:
             for u in units:
                 u['count'] = u[all_units]
-        elif count is not None and unit is not None:
-            units[unit]['count'] = max(min(count, units[unit]['max']), units[unit]['min'])
+        elif valid_input:
+            if units[unit]['tradeable']:
+                units[unit]['count'] = max(min(count, units[unit]['max']), units[unit]['min'])
+            else:
+                valid_input = False
 
         (diffs, trade) = team_trade_parts(game_type, unit_dict)
         # Move cursor up
         print(f"\x1b[{len(trade)+2}A", end='')
         for line in trade:
             print(f"\n\x1b[K{line}", end='')
-        if unit is not None and count is not None:
+        if valid_input:
             print(f"\x1b[K{units[unit]['spellings'][1]} -> {units[unit]['count']}")
         else:
             print("\x1b[K")
@@ -445,7 +614,7 @@ def unit_class_name(unit):
     if unit['class'] == mons_tag.MonsClass.MISSILE:
         dmgs = [attack['dmg'] for attack in unit['attacks'] if attack['dmg'] is not None]
         if len(dmgs):
-            # Assassin targets don't have attacks
+            # Some units (e.g. some assassin/stampede targets) don't have attacks
             max_dmg = max([attack['dmg'] for attack in unit['attacks'] if attack['dmg'] is not None])
             if max_dmg >= 3:
                 class_name = 'artillery'
@@ -456,17 +625,19 @@ def unit_class_name(unit):
 def team_trade_parts_export(game_type, units):
     rows = []
     for i, (palette_index, u) in enumerate(units.items()):
-        if u['target'] and game_type in ['ass', 'stamp']:
-            pass
-        elif u['tradeable'] or u['count']:
+        if u['tradeable'] or u['count']:
+            u_name = unit_name(u)
             rows.append({
-                'unit': unit_name(u),
+                'unit': u_name,
                 'class': unit_class_name(u),
                 'count': u['count'],
                 'max': u['max'],
                 'cost': u['cost'],
                 'value': u['cost'] * u['count'],
-                'tradeable': u['tradeable']
+                'tradeable': u['tradeable'],
+                'targets': u['targets'],
+                'may_use_vet': u['may_use_vet'],
+                'must_use_vet': u['must_use_vet'],
             })
 
     return ([], rows)
@@ -486,9 +657,7 @@ def team_trade_parts(game_type, units):
     max_points = sum(u['cost']*u['initial_count'] for u in units.values())
     diff = max_points - total
     for i, (palette_index, u) in enumerate(units.items()):
-        if u['target'] and game_type in ['ass', 'stamp']:
-            afford = 0
-        elif u['tradeable']:
+        if u['tradeable']:
             unit_class = unit_class_name(u)
             if unit_class not in class_distribution:
                 class_distribution[unit_class] = 0
@@ -518,6 +687,8 @@ def team_trade_parts(game_type, units):
                 f"{diff_amount} "
                 f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
             )
+            if u['targets']:
+                trades.append(f"{' ':>9}* Target: {mesh_tag.NetgameNames[game_type]} ({u['targets']})")
             if STATS:
                 trades += mons2stats.mons_stats(u)
                 trades.append(64*'-')
@@ -538,6 +709,8 @@ def team_trade_parts(game_type, units):
                 " "
                 f"{u['count']*'◼︎'}{(u['max'] - u['count'])*'◻︎'}"
             )
+            if u['targets']:
+                untradeable.append(f"{' ':>9}* Target: {mesh_tag.NetgameNames[game_type]} ({u['targets']})")
             if STATS:
                 untradeable += mons2stats.mons_stats(u)
                 untradeable.append(64*'-')
@@ -576,7 +749,7 @@ def team_trade_parts(game_type, units):
 
 def unit_name(u, count=None, with_class=False, with_tag=False):
     u_name = u['spellings'][0]
-    if (count is None or count > 1) and len(u['spellings']) > 1:
+    if (count is None or count > 1) and len(u['spellings']) > 1 and u['spellings'][1]:
         u_name = u['spellings'][1]
     if with_class:
         u_name += f' ({unit_class_name(u)})'

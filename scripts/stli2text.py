@@ -17,7 +17,7 @@ def main(tag_path, index):
     try:
         (stli_header, stli_text) = myth_headers.parse_text_tag(data)
         print(f"[{stli_header.tag_id}] {stli_header.name}")
-        for i, s in enumerate(stli_text.split(b'\r')):
+        for i, s in enumerate(myth_headers.parse_stli(stli_text)):
             if index in [None, i]:
                 print(f"{i:>3} {codec.decode_string(s)}")
     except UnicodeDecodeError as e:

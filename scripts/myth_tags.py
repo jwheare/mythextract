@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import enum
 import struct
 import os
 
@@ -198,8 +199,30 @@ AnimFmt = ('Anim', [
 
 MAX_SCENERY_PRGR = 4
 MAX_SCENERY_SEQ = 6
+
+class SceneryFlag(enum.Flag):
+    IS_SOLID = enum.auto()
+    HAS_RANDOM_FACING = enum.auto()
+    IS_LARGE_OBJECT = enum.auto()
+    IS_NETGAME_FLAG = enum.auto()
+    RESPECTS_MONSTER_VISIBILITY = enum.auto()
+    ADJUSTS_MODEL_PERMUTATION = enum.auto()
+    ANIMATES = enum.auto()
+    MARKS_TERRAIN_IMPASSABLE = enum.auto()
+    VITALITY_AFFECTS_MODEL_ANIMATION = enum.auto()
+    DESTRUCTION_STARTS_MODEL_ANIMATION = enum.auto()
+
+def scen_netgame_info(scenery):
+    if SceneryFlag.IS_NETGAME_FLAG in scenery.flags:
+        fn = scenery.netgame_flag_number
+        return (
+            scenery.valid_netgame_scoring_type,
+            fn + 1 if fn >= 0 else fn
+        )
+    return None
+
 SceneryFmt = ('Scenery', [
-    ('L', 'flags'),
+    ('L', 'flags', SceneryFlag),
     ('4s', 'collection_reference_tag'),
     ('4s', 'object_tag'),
     ('4s', 'projectile_tag'),

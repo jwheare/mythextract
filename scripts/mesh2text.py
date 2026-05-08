@@ -27,7 +27,8 @@ def main(game_directory, level, plugin_name, plugin_output):
     """
     Load Myth game tags and plugins and output basic text and html for the intro to a mesh
     """
-    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, [plugin_name])
+    plugin_names = [plugin_name] if plugin_name else []
+    (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
         if level:
@@ -133,7 +134,7 @@ def output_text(
     if desc_data:
         (desc_header, desc_text) = myth_headers.parse_text_tag(desc_data)
         desc_tag_values = (desc_header.tag_id, desc_header.name)
-        level_name = codec.decode_string(desc_text.split(b'\r')[0])
+        level_name = myth_headers.parse_stli(desc_text)[0]
 
     # Extract caption
     caption = ''
@@ -141,7 +142,7 @@ def output_text(
     if caption_data:
         (caption_header, caption_text) = myth_headers.parse_text_tag(caption_data)
         caption_tag_values = (caption_header.tag_id, caption_header.name)
-        caption = codec.decode_string(caption_text.split(b'\r')[0])
+        caption = myth_headers.parse_stli(caption_text)[0]
 
     if DEBUG:
         print(level, intro_tag_values, desc_tag_values, caption_tag_values, level_name)

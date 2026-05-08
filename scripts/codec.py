@@ -117,6 +117,16 @@ def make_nt(data_format):
     nt = namedtuple(name, fields)
     return nt
 
+def input_codec(data_format, **values):
+    nt = make_nt(data_format)
+    cd = codec(data_format)
+    cd_values = nt(**values)
+    return cd(values=cd_values)
+
+def data_size(data_format):
+    (name, fmt_string, decoders, encoders, fields) = _data_format(data_format)
+    return struct.calcsize(fmt_string)
+
 class _ListPacker:
     # Required attributes Populated dynamically by list_pack
     MAX_ITEMS = None
@@ -622,6 +632,9 @@ class AngularVelocity(Angle):
 class World(Simple):
     SF = WORLD_POINT_SF
 
+    def __format__(self, format_spec):
+        return format(self.decode(), format_spec)
+
 class Time(Simple):
     SF = TIME_SF
 
@@ -749,3 +762,8 @@ def all_on(val):
 
 def all_off(val):
     return val == b'\x00' * len(val)
+
+WorldPoint2DFmt = ('WorldPoint2D', [
+    ('L', 'x', World),
+    ('L', 'y', World),
+])

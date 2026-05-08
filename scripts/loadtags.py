@@ -143,8 +143,10 @@ def get_tag_data(tags, data_map, tag_type, tag_id):
 
 def get_tag_info(tags, data_map, tag_type, tag_id):
     (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)
-    (tag_header, tag_data) = locate_tag_data(tags, data_map, tag_type, tag_id, location)
-    return (location, tag_header, tag_data)
+    if location and tag_header:
+        (tag_header, tag_data) = locate_tag_data(tags, data_map, tag_type, tag_id, location)
+        return (location, tag_header, tag_data)
+    return (None, None, None)
 
 def build_tag_map(files):
     tags = {}

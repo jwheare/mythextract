@@ -194,7 +194,7 @@ h1#title {
 #subhead {
   position: relative;
 }
-h2#subtitle {
+h2.subtitle {
   margin: 18px 0 8px 0;
   font-weight: normal;
   font-size: 26px;
@@ -203,11 +203,12 @@ h3#caption {
   margin: 8px 0;
   font-weight: normal;
   font-size: 18px;
+  line-height: 1.5;
   color: #aaa;
 }
 #overhead {
   position: absolute;
-  top: 0;
+  top: -7px;
   right: 0;
 }
 #overhead img {
@@ -219,6 +220,71 @@ h3#caption {
   gap: 10px;
   margin: 0 auto;
 }
+
+.mapLocation {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  white-space: nowrap;
+  background-color: blue;
+  border-radius: 10px;
+  border: 1px solid #fff;
+  text-align: left;
+  vertical-align: middle;
+  text-indent: 20px;
+  line-height: 10px;
+  font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+.mapLocation-target {
+  z-index: 1;
+  background-color: yellow;
+  border-color: #000;
+}
+.mapLocation-spawn {
+  z-index: 2;
+}
+.mapLocation--hidden {
+  display: none;
+}
+.mapLocation-player {
+  width: 5px;
+  height: 5px;
+  border-radius: 5px;
+  background-color: black;
+  opacity: 0.3;
+}
+
+#heatmap {
+  display: none;
+  width: 900px;
+}
+.heatmap-head {
+  margin: -5px 0 10px 0;
+}
+.show-heatmap #graphs {
+  display: none;
+}
+.show-heatmap #heatmap {
+  display: block;
+}
+
+.heatmap-image {
+  width: 100%;
+  position: relative;
+  cursor: pointer;
+}
+
+.heatmap-image img {
+  width: 100%;
+}
+.densityPlot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
 #graphs {
   width: 900px;
 }
@@ -309,6 +375,15 @@ footer {
   cursor: pointer;
 }
 
+.rankIcon {
+  margin: 0 3px -3px 0;
+  display: inline-block;
+  width: 25px;
+  height: 17px;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 .dataTable {
   width: 1260px;
   margin-bottom: 20px;
@@ -335,7 +410,11 @@ footer {
 td.dataTable__Player,
 td.dataTableHead__Player {
   width: 200px;
+  max-width: 200px;
   text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .teamDataTable td.dataTable__Team,
 td.dataTable__Player {
@@ -397,6 +476,7 @@ td.sorthead.desc::before {
   opacity: 0;
   transition: opacity 0.2s;
   position: absolute;
+  z-index: 100;
   top: -1000px;
   left: -1000px;
   background-color: #2B4965;
@@ -416,7 +496,8 @@ td.sorthead.desc::before {
   cursor: help;
 }
 
-.show-stats #graphs {
+.show-stats #graphs,
+.show-stats #heatmap {
   width: 550px;
 }
 .show-stats #sidebar {
@@ -437,20 +518,32 @@ td.sorthead.desc::before {
   color: #aaa;
   font-size: 15px;
 }
-.playerList__show_stats_button {
+.playerList__show_stats_button,
+.playerList__show_details_button {
   cursor: pointer;
   color: #ddd;
 }
-.playerList__show_stats_button:hover {
+.playerList__show_details_button {
+  float: right;
+  text-align: right;
+}
+.playerList__show_stats_button:hover,
+.playerList__show_details_button:hover {
   color: #fff;
 }
 .playerList__show_stats_hide,
-.show-stats .playerList__show_stats_show {
+.show-stats .playerList__show_stats_show,
+.playerList__show_details_graphs,
+.show-heatmap .playerList__show_details_heatmap {
   display: none;
 }
 .playerList__show_stats_show,
 .show-stats .playerList__show_stats_hide {
   display: list-item;
+}
+.playerList__show_details_heatmap,
+.show-heatmap .playerList__show_details_graphs {
+  display: inline-block;
 }
 .col_stat,
 .statCell {
@@ -472,6 +565,9 @@ figure {
 
 .playerGraph__head {
   margin-top: 30px;
+  margin-bottom: 30px;
+}
+.playerGraph__plot {
   margin-bottom: 30px;
 }
 
@@ -520,8 +616,8 @@ figure {
 }
 
 .playerStats__team td {
-  padding-top: 22px;
-  padding-bottom: 8px;
+  padding-top: 10px;
+  padding-bottom: 10px;
 }
 .playerStats__player td {
   padding-top: 8px;
@@ -544,14 +640,15 @@ figure {
   color: #aaa;
 }
 
+tr.playerListTopSpacerTeamRow {
+  height: 5px;
+}
+
 td.playerListLeftSpacer {
   padding: 0 10px 0 0;
 }
 .show-stats td.playerListLeftSpacer {
   padding-left: 10px;
-}
-td.playerListLeftSpacerTeam {
-  padding-top: 15px;
 }
 td.playerListRightSpacer {
   padding: 0 0 0 10px;
@@ -609,17 +706,25 @@ td.playerListRightSpacer {
   color: #eee;
   font-weight: normal;
 }
+
+.tournamentAllRounds__round {
+  margin: 20px 0 40px 0;
+}
+
 .tournamentGroupedRounds__round_link:hover,
 .tournamentGroupedRounds__game:hover,
 .tournamentRounds__round a:hover,
 .roundGames__link:hover,
 .playerStats__player:hover,
+.playerStats__team:hover,
 .gameSelect__game:hover,
 .tournamentLink:hover {
   background-color: #08f;
 }
 .playerStats__player--selected,
 .playerStats__player--selected:hover,
+.playerStats__team--selected,
+.playerStats__team--selected:hover,
 .gameSelect__game--selected,
 .gameSelect__game--selected:hover {
   background-color: #09a;

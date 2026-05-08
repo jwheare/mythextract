@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>mesh2map</title>
+    <style>
+body {
+  font-family: system-ui;
+  background-color: #1C2C3B;
+  color: #fff;
+  line-height: 1.2;
+}
+a {
+  color: #ddd;
+}
+a:hover {
+  color: #fff;
+}
+#container {
+  /*width: 1210px;*/
+  margin: 0 auto;
+}
+
+.mapLocations {
+  display: none;
+}
+.mapLocations--show {
+  display: block;
+}
+.gtLink {
+  padding: 3px 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.gtLink--active,
+.gtLink--active:hover {
+  background: #fff;
+  color: #000;
+}
+
+.mapLocation {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  white-space: nowrap;
+  background-color: blue;
+  border-radius: 10px;
+  border: 1px solid #fff;
+  text-align: left;
+  vertical-align: middle;
+  text-indent: 20px;
+  line-height: 10px;
+  font-weight: bold;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+.mapLocation-target {
+  z-index: 9;
+  background-color: yellow;
+  border-color: #000;
+}
+.mapLocation-spawn {
+  z-index: 10;
+}
+.mapLocation--hidden {
+  display: none;
+}
+.mapLocation-player {
+  width: 5px;
+  height: 5px;
+  border-radius: 5px;
+  background-color: black;
+  opacity: 0.3;
+}
+
+#heatmap {
+  /*width: 900px;*/
+}
+.heatmap-head {
+  font-weight: normal;
+  margin: -5px 0 10px 0;
+  line-height: 1.5;
+}
+
+.heatmap-image {
+  width: 100%;
+  position: relative;
+}
+
+.heatmap-image img {
+  width: 100%;
+}
+    </style>
+</head>
+<body>
+  <div id="container">
+    <div id="heatmap"></div>
+  </div>
+<script>
+function dce (element, className, textContent) {
+  let el = document.createElement(element);
+  if (className) {
+    el.className = className;
+  }
+  if (textContent != null) {
+    el.textContent = textContent;
+  }
+  return el;
+}
+
+function fetchMap () {
+  fetch('./data.json').then(response => {
+    response.text().then(txt => {
+      meshData = JSON.parse(txt);
+      buildMap(meshData);
+    });
+  });
+}
+
+function selectGameType (game_type) {
+  document.querySelectorAll('.mapLocations').forEach((el) => {
+    el.classList.remove('mapLocations--show');
+  });
+  document.querySelector(`.mapLocations-${game_type}`).classList.add('mapLocations--show');
+  document.querySelectorAll('.gtLink').forEach((el) => {
+    el.classList.remove('gtLink--active');
+  });
+  document.querySelector(`.gtLink-${game_type}`).classList.add('gtLink--active');
+}
+
+function buildMap (meshData) {
+  const heatmap = document.getElementById("heatmap");
+
+  const heatmapTitle = dce('h2', 'heatmap-map', `${meshData.name}`);
+  const heatmapHead = dce('h4', 'heatmap-head');
+
+  const aspect = meshData.width / meshData.height;
+
+  const heatmapImage = dce('div', 'heatmap-image');
+  let cMap = dce('img', 'heatmap-base');
+  cMap.src = './cmap.png';
+  cMap.style.aspectRatio = aspect;
+  heatmapImage.appendChild(cMap);
+
+  heatmap.appendChild(heatmapTitle);
+  heatmap.appendChild(heatmapHead);
+  heatmap.appendChild(heatmapImage);
+
+  meshData.game_types.forEach((gt, i) => {
+    const gtMarkers = dce('div', `mapLocations mapLocations-${gt.game_type}`);
+    const gtLink = dce('a', `gtLink gtLink-${gt.game_type}`, gt.game_type_long);
+    gtLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      selectGameType(gt.game_type);
+    });
+
+    if (i > 0) {
+      heatmapHead.append(' • ');
+    }
+    heatmapHead.append(gtLink);
+    gt.locations.forEach(loc => {
+      if (loc.position) {
+        let x = loc.position[0] / meshData.width;
+        let y = loc.position[1] / meshData.height;
+        let type = 'location';
+        if (loc.observer) {
+          type = 'spawn';
+        }
+        if (loc.target) {
+          type = `target mapLocation-${loc.type}`;
+        }
+        const mapLoc = dce('div', `mapLocation mapLocation-${type}`);
+        if (loc.target && loc.flag_number) {
+          mapLoc.innerText = loc.flag_number;
+
+        }
+        if (loc.team != null) {
+          if (loc.observer || gt.game_type != 'stamp') {
+            mapLoc.innerText = `Team ${loc.team+1}`;
+          }
+          if (gt.game_type == 'ctf' && loc.observer) {
+            mapLoc.classList.add('mapLocation--hidden');
+          }
+        }
+        mapLoc.style.top = `${y*100}%`;
+        mapLoc.style.left = `${x*100}%`;
+        gtMarkers.append(mapLoc);
+      }
+      heatmapImage.append(gtMarkers);
+    });
+  });
+
+  selectGameType(meshData.game_types[0].game_type);
+}
+
+fetchMap();
+
+</script>
+</body>
+</html>

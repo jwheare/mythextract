@@ -69,7 +69,7 @@ Mismatching entries that need fixing are marked with an x
             desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data, mono_header)
             if desc_data:
                 (_, desc_text) = myth_headers.parse_text_tag(desc_data)
-                level_name = codec.decode_string(desc_text.split(b'\r')[0])
+                level_name = myth_headers.parse_stli(desc_text)[0]
                 correct = ''
                 if level_name != entry_long_name:
                     correct = 'x'

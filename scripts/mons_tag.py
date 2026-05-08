@@ -595,7 +595,7 @@ def get_spellings(tags, data_map, mons, mons_header):
         )
         if spelling_data:
             (spelling_header, spelling_text) = myth_headers.parse_text_tag(spelling_data)
-            spellings = ([codec.decode_string(s) for s in spelling_text.split(b'\r')], mons.spelling_string_list_tag)
+            spellings = (myth_headers.parse_stli(spelling_text), mons.spelling_string_list_tag)
         else:
             spellings = spelling_default
     return spellings
@@ -612,7 +612,7 @@ def get_names(tags, data_map, mons, mons_header):
         )
         if name_data:
             (name_header, name_text) = myth_headers.parse_text_tag(name_data)
-            names = ([codec.decode_string(s) for s in name_text.split(b'\r')], mons.names_string_list_tag)
+            names = (myth_headers.parse_stli(name_text), mons.names_string_list_tag)
         else:
             names = name_default
     return names

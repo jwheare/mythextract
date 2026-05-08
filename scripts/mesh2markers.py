@@ -6,6 +6,7 @@ import struct
 import mesh_tag
 import mesh2info
 import mono2tag
+import myth_tags
 import loadtags
 import collmismatch
 
@@ -39,7 +40,10 @@ def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_m
         for palette_index, p_val in enumerate(p_list):
             tag_id = p_val['tag']
             tag_type = mesh_tag.Marker2Tag.get(palette_type)
-            (location, tag_header) = loadtags.lookup_tag_header(tags, tag_type, tag_id)
+            (location, tag_header, tag_data) = loadtags.get_tag_info(tags, data_map, tag_type, tag_id)
+            if tag_type and not tag_data:
+                print(palette_index, tag_type, tag_id, p_val)
+            scen_tag = myth_tags.parse_scenery(tag_data) if tag_type == 'scen' and tag_data else None
             mismatch_tree = collmismatch.check_unit_collection_mismatch(game_version, tags, data_map, tag_type, tag_id)
             if mismatch_tree:
                 mismatched_unit_collections[tag_id] = mismatch_tree
@@ -54,6 +58,7 @@ def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_m
                 f'team={p_val['team_index']} '
                 f'{flags}'
                 f'{netgame}'
+                f'count={len(p_val['markers'])}'
             )
 
             for marker_id, marker in p_val['markers'].items():
@@ -62,12 +67,20 @@ def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_m
                 flags = f'(flags={'/'.join(flag_info)}) ' if len(flag_info) else ''
 
                 difficulty = f'(diff={mesh_tag.difficulty(marker['min_difficulty']).lower()}) ' if marker['min_difficulty'] else ''
+
+                scen_info = ''
+                if scen_tag:
+                    scen_tag_info = myth_tags.scen_netgame_info(scen_tag)
+                    if scen_tag_info:
+                        scen_info = f'({mesh_tag.netgame_scoring_name(scen_tag_info[0])}: {scen_tag_info[1]}) '
+
                 print(
                     f'{palette_type} {palette_index:<2} '
                     f'[{tag_id}] {tag_header_print}'
                     f'- {marker_id:<5} '
                     f'{flags}'
                     f'{difficulty}'
+                    f'{scen_info}'
                     f'facing={marker['facing']:06.2f} '
                     f'pos={[round(po, 2) for po in marker['pos']]} '
                 )
@@ -77,17 +90,17 @@ def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_m
 
     if orphans['count']:
         print('---')
-        print('ORPHANS')
+        print(f'ORPHANS [{mesh_tag_header.tag_id}] {mesh_tag_header.name} ({mesh_tag_location})')
         for marker_type, type_orphans in orphans['markers'].items():
             if len(type_orphans):
                 for marker_id, orphan_info in type_orphans.items():
                     print(
                         f'O.{marker_type} {orphan_info['palette_index']:<2} - '
                         f'- {marker_id:<5} '
-                        # f'flags={orphan_info['flags']} '
-                        f'min_diff={orphan_info['min_difficulty']} '
-                        # f'facing={orphan_info['facing']:06.2f} '
-                        # f'pos={[round(po, 2) for po in orphan_info['pos']]} '
+                        f'flags={orphan_info['flags']} '
+                        f'min_difficulty={orphan_info['min_difficulty']} '
+                        f'facing={orphan_info['facing']:06.2f} '
+                        f'pos={[round(po, 2) for po in orphan_info['pos']]} '
                     )
 
 if __name__ == "__main__":

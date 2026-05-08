@@ -4,11 +4,13 @@ import enum
 import json
 import os
 import struct
+import tag2png
 
 import codec
 import myth_headers
 import loadtags
 import utils
+import myth_tags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
@@ -447,8 +449,11 @@ NetgameNames = OrderedDict({
     'kotm': 'King of the Map',
 })
 
+def netgame_scoring_key(scoring):
+    return NetgameFlagInfo[utils.flag(NetgameFlag)(scoring)]
+
 def netgame_scoring_name(scoring):
-    return NetgameNames[NetgameFlagInfo[utils.flag(NetgameFlag)(scoring)]]
+    return NetgameNames[netgame_scoring_key(scoring)]
 
 def netgame_flag_info(flag):
     actual_flag = flag
@@ -463,6 +468,78 @@ def netgame_flag_info(flag):
         return ['all']
     else:
         return [info for f, info in NetgameFlagInfo.items() if f in actual_flag]
+
+def enabled_netgames(mesh_header):
+    netgames = [
+        v for k, v in NetgameFlagInfo.items()
+        if MeshFlags(k.value) in mesh_header.flags
+    ]
+    if 'koth' in netgames:
+        netgames.append('koth_tfl')
+    if 'terries' in netgames:
+        netgames.append('kotm')
+    return netgames
+
+def normalise_position(mesh_header, position):
+    norm = list(position)
+    width, height = mesh_dimensions(mesh_header)
+    norm[0] = width-norm[0]
+    return [float(p) for p in norm]
+
+def mesh_dimensions(mesh_header):
+    return (
+        mesh_header.submesh_width * 32,
+        mesh_header.submesh_height * 32
+    )
+
+def netgame_location_type(game_type, title_case=False):
+    target = 'Target'
+    if game_type in ['lmoth', 'fr', 'ctf', 'terries', 'koth', 'stamp', 'koth_tfl', 'kotm']:
+        target = 'Flag'
+    if game_type in ['stb', 'scav', 'balls', 'caps']:
+        target = 'Ball'
+    if not title_case:
+        target = target.lower()
+    return target
+
+def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_map):
+    items = []
+    if MarkerType.OBSERVER in palette:
+        for observer in palette[MarkerType.OBSERVER]:
+            for marker_id, marker in observer['markers'].items():
+                items.append({
+                    'observer': True,
+                    'team': observer['team_index'],
+                    'position': normalise_position(mesh_header, marker['pos']),
+                })
+    if MarkerType.SCENERY in palette:
+        for scenery in palette[MarkerType.SCENERY]:
+            tag_id = scenery['tag']
+            (location, tag_header, tag_data) = loadtags.get_tag_info(tags, data_map, 'scen', tag_id)
+            scen_tag = myth_tags.parse_scenery(tag_data) if tag_data else None
+            if scen_tag:
+                scen_game_types = netgame_flag_info(scenery['netgame_flags'])
+                gt = game_type
+                if gt == 'kotm':
+                    gt = 'terries'
+                if gt == 'koth_tfl':
+                    gt = 'koth'
+                if 'all' in scen_game_types or gt in scen_game_types:
+                    for marker_id, marker in scenery['markers'].items():
+                        scen_tag_info = myth_tags.scen_netgame_info(scen_tag)
+                        if scen_tag_info:
+                            scoring_type, flag_number = scen_tag_info
+                            scoring_key = netgame_scoring_key(scoring_type)
+                            if scoring_key == gt and difficulty >= marker['min_difficulty']:
+                                items.append({
+                                    'target': True,
+                                    'type': netgame_location_type(gt),
+                                    'flag_number': flag_number if flag_number > 0 else None,
+                                    'team': scenery['team_index'] if scenery['team_index'] >= 0 else None,
+                                    'neutral': scenery['team_index'] < 0,
+                                    'position': normalise_position(mesh_header, marker['pos']),
+                                })
+    return items
 
 class MarkerFlag(enum.Flag):
     IS_INVISIBLE = enum.auto()
@@ -622,11 +699,38 @@ def get_level_name(mesh_header, tags, data_map, strip_format=False):
     if not level_name_data:
         return ''
     (level_name_header, level_name_text) = myth_headers.parse_text_tag(level_name_data)
-    level_name = codec.decode_string(level_name_text.split(b'\r')[0])
+    level_name = myth_headers.parse_stli(level_name_text)[0]
     if strip_format:
         return utils.strip_format(level_name)
     else:
         return utils.ansi_format(level_name)
+
+def export_colormap(tags, data_map, mesh_header):
+    SUBMESH_TEXTURE_WIDTH = 256
+
+    pixel_width = mesh_header.submesh_width * SUBMESH_TEXTURE_WIDTH
+    pixel_height = mesh_header.submesh_height * SUBMESH_TEXTURE_WIDTH
+    
+    cmap_data = loadtags.get_tag_data(
+        tags, data_map, '.256', codec.decode_string(
+            mesh_header.landscape_collection_tag
+        )
+    )
+    if cmap_data:
+        (_, _, cmap_bitmaps) = tag2png.parse_256_tag(cmap_data)
+
+        final_rows = []
+        for submesh_y in range(mesh_header.submesh_height):
+            for y in range(SUBMESH_TEXTURE_WIDTH):
+                pixel_row = []
+                for submesh_x in range(mesh_header.submesh_width - 1, -1, -1):
+                    bitmap_index = ((submesh_y * mesh_header.submesh_width) + submesh_x) * 2
+                    (name, width, height, rows) = cmap_bitmaps[bitmap_index]
+                    for x in range(len(rows[y]) - 1, -1, -1):
+                        pixel_row.append(rows[y][x])
+                final_rows.append(pixel_row)
+
+        return (pixel_width, pixel_height, final_rows)
 
 def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''
@@ -645,6 +749,7 @@ def parse_oak_editor_data(mesh_header, data):
         return json.loads(editor_data)
     elif mesh_header.editor_data_cookie == b'oak\0':
         return editor_data.hex()
+        # PYTHON-DEPENDENCIES
         # import cbor2
         # return cbor2.loads(editor_data)
     return None

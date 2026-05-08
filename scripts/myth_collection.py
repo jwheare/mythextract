@@ -2,7 +2,6 @@
 import enum
 import os
 import struct
-import sys
 
 import codec
 import myth_headers
@@ -343,7 +342,7 @@ def parse_bitmaps(data, coll_header, color_table):
             bitref.size, bitmap_head_start, data
         )
 
-        rows = decode_bitmap(bitdata, bitmap_data, color_table)
+        rows = decode_bitmap(coll_header, bitdata, bitmap_data, color_table)
 
         if DEBUG_COLL:
             print(
@@ -453,7 +452,7 @@ def parse_bitmap_data(total_size, start, data):
 
     return (bitmap_meta, bitmap_data)
 
-def decode_bitmap(bitdata, bitmap_data, color_table=None):
+def decode_bitmap(coll_header, bitdata, bitmap_data, color_table=None):
     if bitdata.encoding == ExtendedEncoding.EXT_R8G8B8A5H:
         return decode_bitmap_64(bitmap_data, bitdata.width, bitdata.height)
     elif bitdata.encoding == ExtendedEncoding.EXT_ARGB_8888_32:
@@ -462,18 +461,41 @@ def decode_bitmap(bitdata, bitmap_data, color_table=None):
         return decode_compressed_bitmap(
             color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags
         )
+    elif BitmapFlags.TRANSPARENCY_ENCODED_4BIT in bitdata.flags:
+        return decode_4bit_transparent_raw_bitmap(coll_header, color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags)
     else:
-        return decode_raw_bitmap(color_table, bitmap_data, bitdata.width, bitdata.height)
+        return decode_raw_bitmap(coll_header, color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags)
 
-def decode_raw_bitmap(color_table, bitmap_data, width, height):
+def decode_4bit_transparent_raw_bitmap(coll_header, color_table, bitmap_data, width, height, flags):
+    rows = []
+    for row_i in range(height):
+        row_start = row_i * width * 2
+        row_end = row_start + (width * 2)
+        row = []
+        row_data = bitmap_data[row_start:row_end]
+        for i in range(0, len(row_data), 2):
+            alpha, b_ix = row_data[i:i+2]
+            (r, g, b, _) = color_table[b_ix]
+            row.append((r, g, b, decode_alpha(alpha)))
+        rows.append(row)
+    return rows
+
+def decode_raw_bitmap(coll_header, color_table, bitmap_data, width, height, flags):
     rows = []
     for row_i in range(height):
         row_start = row_i * width
         row_end = row_start + width
         row = []
-        for b_ix in bytearray(bitmap_data[row_start:row_end]):
-            (r, g, b, _) = color_table[b_ix]
-            alpha = 255 if b_ix else 0
+        row_data = bitmap_data[row_start:row_end]
+        for b_ix in bytearray(row_data):
+            if b_ix < len(color_table):
+                if b_ix > 0 or (coll_header and UserDataFlags.IS_COLOR_MAP in coll_header.user_data):
+                    alpha = 255
+                else:
+                    alpha = 0
+                (r, g, b, _) = color_table[b_ix]
+            else:
+                r = g = b = alpha = 255
             row.append((r, g, b, alpha))
         rows.append(row)
     return rows
@@ -694,7 +716,7 @@ def parse_d256_bitmaps(data, head):
             print(f'{ref.name:<64} {ref.width:>3}x{ref.height:<3} orig={ref.original_width:>2}x{ref.original_height:<2} {ref.flags}')
         bitmap_meta_start = head_end + ref.offset
         (bitmap_meta, bitmap_data) = parse_bitmap_data(ref.size, bitmap_meta_start, data)
-        rows = decode_bitmap(bitmap_meta, bitmap_data)
+        rows = decode_bitmap(None, bitmap_meta, bitmap_data)
         if DEBUG_COLL:
             print(bitmap_meta, 'datalen:', len(bitmap_data))
             render_terminal(rows)

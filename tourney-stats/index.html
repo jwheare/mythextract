@@ -13,7 +13,7 @@
       <div id="gameList"></div>
       <div id="subhead">
         <div id="overhead"></div>
-        <h2 id="subtitle"></h2>
+        <h2 id="subtitle" class="subtitle"></h2>
         <h3 id="caption"></h3>
       </div>
     </header>
@@ -37,7 +37,8 @@
         <li><b>Efficiency Index</b>: damage dealt divided by the cost of units held, compared to all other players in the game. This can indicate how well you make use of the units available to you.</li>
       </ul>
       <p>The player with the highest score across these stats as well as raw damage is awarded a 🎖️ medal for that game, as long as they issued at least 5 engagement commands during the game.</p>
-      <p>Players are also awarded a medal for each positive game and round win difference.</p>
+      <p>Busyness medals don't count towards the overall leaderboard.</p>
+      <p>Players are also awarded extra medals for each positive game win difference, with team medals awarded for positive round win difference.</p>
       <p>Engagement commands are: attack, ground attack, special attack, ground special. Heals and instant specials (dropping satchels, warlock ring of fire) are not counted.</p>
       <p>All commands issued by players during a game are analyzed from the film data. Films track which commands were <i>issued</i> but not necessarily those that are carried out. The film has to be replayed in the game engine to determine the outcome. This can lead to overcounting if actions are repeatedly issued but are only successful once.</p>
       <p>The engagements graphs on game pages count total engagement commands issued within 3 second intervals.</p>
@@ -46,7 +47,8 @@
     </div>
     <div id="tournament"></div>
     <div id="round"></div>
-    <div id="columns" class="show-stats">
+    <div id="columns" class="show-stats show-heatmap">
+      <div id="heatmap"></div>
       <div id="graphs">
         <div id="summary"></div>
         <div id="actionLegend"></div>
@@ -59,7 +61,7 @@
         <div id="playerList"></div>
       </div>
     </div>
-    <footer>Website by © James Wheare</footer>
+    <footer>Website by © James Wheare | <a href="/info">What does it all mean?</a></footer>
   </div>
 <script type="module" src="main.js"></script>
 </body>

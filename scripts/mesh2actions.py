@@ -24,17 +24,20 @@ def main(game_directory, level, plugin_names):
             if level.startswith('file='):
                 file = level[5:]
                 mesh_tag_data = utils.load_file(file)
-                parse_mesh_actions(mesh_tag_data)
+                parse_mesh_actions(file, mesh_tag_data)
             else:
                 for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                    mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
-                    parse_mesh_actions(mesh_tag_data)
+
+                    (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
+                        tags, data_map, 'mesh', mesh_id
+                    )
+                    parse_mesh_actions(mesh_tag_location, mesh_tag_data)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
-def parse_mesh_actions(mesh_tag_data):
+def parse_mesh_actions(mesh_tag_location, mesh_tag_data):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
     tag_header = myth_headers.parse_header(mesh_tag_data)
 
@@ -42,7 +45,7 @@ def parse_mesh_actions(mesh_tag_data):
     print_actions(actions, tag_header)
 
     if action_remainder:
-        print(f'ACTION REMAINDER {len(action_remainder)}')
+        print(f'ACTION REMAINDER count={len(action_remainder)} mesh=[{tag_header.tag_id}] {tag_header.name} ({mesh_tag_location})')
         print(action_remainder.hex())
 
 def print_actions(actions, tag_header):

@@ -176,7 +176,7 @@ def extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin,
         tags, data_map, 'stli', codec.decode_string(mesh_header.map_description_string_list_tag)
     )
     (_, desc_text) = myth_headers.parse_text_tag(desc_data)
-    level_name = codec.decode_string(desc_text.split(b'\r')[0])
+    level_name = myth_headers.parse_stli(desc_text)[0]
 
     # Extract pregame captions
     caption_data = loadtags.get_tag_data(
@@ -242,7 +242,7 @@ def output_html(
     caption = ''
     if caption_data:
         (_, caption_text) = myth_headers.parse_text_tag(caption_data)
-        caption = codec.decode_string(caption_text.split(b'\r')[0])
+        caption = myth_headers.parse_stli(caption_text)[0]
 
     output_dir = '../output/archive/'
     root_path = pathlib.Path(sys.path[0], output_dir).resolve()
