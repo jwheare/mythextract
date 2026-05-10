@@ -2320,7 +2320,8 @@ function renderHeatmap () {
             if (team.team_index == loc.team) {
               if (loc.observer) {
                 mapLoc.innerText = teamNameShort(teamSlug);
-              } else if (GAME_DATA.header.game.game_type != 'Capture the Flag') {
+              }
+              if (loc.observer || GAME_DATA.header.game.game_type != 'Capture the Flag') {
                 mapLoc.style.backgroundColor = teamColor;
               }
               mapLoc.classList.remove('mapLocation--hidden');
