@@ -21,7 +21,7 @@ const playerList = document.getElementById("playerList");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-05-09';
+const DATA_VERSION = '2026-05-10';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
