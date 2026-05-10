@@ -1517,6 +1517,8 @@ def get_splits(monsters, trades):
         total_value = 0
         for marker_id, marker in team_monsters.items():
             tag_id = marker['tag']
+            if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
+                continue
             player_monsters = team_allocation.get(marker['player_index'], {})
             player_markers = player_monsters.get(tag_id, [])
             player_markers.append(marker_id)
