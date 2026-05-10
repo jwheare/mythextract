@@ -941,7 +941,7 @@ def parse_timeline(
                     "header": command_header,
                     "pt": pt,
                     "player": player,
-                    "cap": players[player.team_captain_identifier],
+                    "cap": players.get(player.team_captain_identifier),
                     "flags": chat_flags,
                     "message": chat_message
                 })
@@ -1040,7 +1040,7 @@ def parse_timeline(
                     observer_count -= 1
                 else:
                     chat_line['player'] = player
-                    chat_line['cap'] = players[player.team_captain_identifier]
+                    chat_line['cap'] = players.get(player.team_captain_identifier)
                     player_count -= 1
 
                 chat_line["num_players"] = player_count
@@ -1643,7 +1643,7 @@ def print_chat(chat_lines, players):
         player = line['player']
         player_color = player_headers.colors(player)[0]
         name = player_name(player)
-        cap_color = player_headers.colors(line['cap'])[0] if 'cap' in line else player_color
+        cap_color = player_headers.colors(line['cap'])[0] if ('cap' in line and line['cap']) else player_color
         chat_message = ''
         if line['header'].verb == Commands.ADD_PLAYER:
             chat_message = f" => joined {line['num_players']}/{line['num_observers']}"
