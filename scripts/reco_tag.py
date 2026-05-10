@@ -654,6 +654,8 @@ def get_trades(
             for unit_palette in palette[mesh_tag.MarkerType.UNIT]:
                 if unit_palette['team_index'] == captain.team_index and unit_palette['tag'] == tag_id:
                     markers = unit_palette['markers']
+                    if mesh_tag.is_reinforcements(unit_palette):
+                        continue
                     selected = 0
                     for marker in sorted_markers(markers, game_param):
                         marker['player_id'] = captain.unique_identifier
@@ -1517,8 +1519,6 @@ def get_splits(monsters, trades):
         total_value = 0
         for marker_id, marker in team_monsters.items():
             tag_id = marker['tag']
-            if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
-                continue
             player_monsters = team_allocation.get(marker['player_index'], {})
             player_markers = player_monsters.get(tag_id, [])
             player_markers.append(marker_id)

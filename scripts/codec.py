@@ -33,6 +33,7 @@ def _data_format(data_format):
             raise e
         end = start + field_size
         fmt_string += f' {fmt}'
+        # fmt name [decoder] [encoder]
         if field[1]:
             fields.append(field[1])
             if len(field) > 2 and field[2]:

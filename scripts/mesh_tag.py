@@ -681,6 +681,15 @@ def parse_palette_entry(entry):
         'markers': OrderedDict(),
     }
 
+def is_reinforcements(unit_palette):
+    if MarkerPaletteFlag.MUST_USE_VETERANS in unit_palette['flags']:
+        reinforcements = True
+        for marker in unit_palette['markers'].values():
+            if MarkerFlag.IS_INVISIBLE not in marker['flags']:
+                reinforcements = False
+        return reinforcements
+    return False
+
 # Not scientific, could be tweaked
 def mesh_size(mesh_header):
     if mesh_header.mesh_size < 440000:

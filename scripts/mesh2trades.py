@@ -383,13 +383,8 @@ def parse_game_type_units(
 
                 if mesh_tag.MarkerPaletteFlag.UNCONTROLLABLE in unit['flags']:
                     continue
-                if mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags']:
-                    all_invisible = True
-                    for marker in unit['markers'].values():
-                        if mesh_tag.MarkerFlag.IS_INVISIBLE not in marker['flags']:
-                            all_invisible = False
-                    if all_invisible:
-                        continue
+                if mesh_tag.is_reinforcements(unit):
+                    continue
                 mons_dict = mons2stats.get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
                 for netgame in netgame_info:
                     if netgame not in game_type_units:
