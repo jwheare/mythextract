@@ -2318,15 +2318,13 @@ function renderHeatmap () {
           for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
             const teamColor = teamSlugMap(teamSlug) == GAME_DATA.header.round.team1 ? 'crimson' : 'orange';
             if (team.team_index == loc.team) {
-              if (loc.observer || GAME_DATA.header.game.game_type != 'Stampede') {
+              if (loc.observer) {
                 mapLoc.innerText = teamNameShort(teamSlug);
+              } else if (GAME_DATA.header.game.game_type != 'Capture the Flag') {
+                mapLoc.style.backgroundColor = teamColor;
               }
-              mapLoc.style.backgroundColor = teamColor;
               mapLoc.classList.remove('mapLocation--hidden');
             }
-          }
-          if (GAME_DATA.header.game.game_type == 'Capture the Flag' && loc.observer) {
-            mapLoc.classList.add('mapLocation--hidden');
           }
         }
         mapLoc.style.top = `${y*100}%`;
