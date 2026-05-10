@@ -64,6 +64,8 @@ def cap2team(tourney_id, round_id, game_num, cap_id):
             31: "v3", # asmodian
             65: "cum", # clank
             53: "cum", # yamnti
+            52: "4c", # karma
+            25: "4c", # gekko
         }
     }
     return teams.get(int(tourney_id), {}).get(int(cap_id))

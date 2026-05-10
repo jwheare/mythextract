@@ -21,7 +21,7 @@ const playerList = document.getElementById("playerList");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-05-03';
+const DATA_VERSION = '2026-05-09';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -490,7 +490,7 @@ function initMWC26 () {
     ['QR2', 'Qualifying Round 2'],
     ['QR3', 'Qualifying Round 3'],
     ['QR4', 'Qualifying Round 4'],
-    // ['DE1', 'Double Elimination 1'],
+    ['DE1', 'Double Elimination 1'],
     // ['DE2', 'Double Elimination 2'],
     // ['DE3', 'Double Elimination 3'],
     // ['BB Finals', 'Bottom Bracket Finals'],
