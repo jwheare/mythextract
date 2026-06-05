@@ -728,7 +728,12 @@ function renderTournamentMedia (tournament) {
 
 async function renderGame () {
   const response = await fetch(`${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}/games/${GAME_ID}/stats.json?v=${DATA_VERSION}`);
-  GAME_DATA = JSON.parse(await response.text());
+  try {
+    GAME_DATA = JSON.parse(await response.text());
+  } catch {
+    history.pushState({}, "", `${BASE_URL}tournament/${TOURNEY_ID}/rounds/${ROUND_ID}`);
+    return routeUrl();
+  }
   window.GAME_DATA = GAME_DATA;
   UNIT_FILTER = null;
 

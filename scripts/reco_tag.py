@@ -872,12 +872,13 @@ def get_trades(
                         continue
                     selected = 0
                     for marker in sorted_markers(markers, game_param):
-                        marker['player_id'] = captain.unique_identifier
-                        marker['player_index'] = players_idx.index(captain.unique_identifier)
-                        team_markers[marker['marker_id']] = marker
-                        selected += 1
-                        if selected >= u['count']:
-                            break
+                        if u['palette_index'] == marker['palette_index']:
+                            marker['player_id'] = captain.unique_identifier
+                            marker['player_index'] = players_idx.index(captain.unique_identifier)
+                            team_markers[marker['marker_id']] = marker
+                            selected += 1
+                            if selected >= u['count']:
+                                break
     return (trade_info, units, team_markers)
 
 def get_computers(tags, data_map, palette, mesh_header):

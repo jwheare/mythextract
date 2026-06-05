@@ -70,7 +70,7 @@ def ansi_format(text):
     return f'{plain}\x1b[0m'
 
 def strip_format(text):
-    return re.sub(r'[\|][ibp][\n\r]', '', str(text), flags=re.IGNORECASE)
+    return re.sub(r'([\|][ibp])|[\n\r]', '', str(text), flags=re.IGNORECASE)
 
 def strip_order(text):
     return re.sub(r'\s{3,}.*', '', str(text.strip()))
