@@ -70,10 +70,10 @@ def ansi_format(text):
     return f'{plain}\x1b[0m'
 
 def strip_format(text):
-    return re.sub(r'[\|][ibp]', '', str(text), flags=re.IGNORECASE)
+    return re.sub(r'[\|][ibp][\n\r]', '', str(text), flags=re.IGNORECASE)
 
 def strip_order(text):
-    return re.sub(r'\s{3,}.*', '', str(text))
+    return re.sub(r'\s{3,}.*', '', str(text.strip()))
 
 def decode_string(s):
     return codec.decode_string(s)
@@ -142,7 +142,7 @@ def http_request(url, method='GET', data=None, headers={}):
     )
 
     with urllib.request.urlopen(req) as response:
-        return (response.status, response.headers, response.read().decode('utf-8'))
+        return (response.status, response.headers, response.read().decode('utf-8', errors='replace'))
 
 LIGATURES = {
     'æ': 'ae', 'Æ': 'AE',
@@ -153,12 +153,16 @@ LIGATURES = {
     'ł': 'l',  'Ł': 'L',
     'ĳ': 'ij', 'Ĳ': 'IJ',
 }
-def slugify(name):
+def slugify(name, strip_bracketed=True):
     # Strip myth formatting
     name = strip_format(name)
 
-    # Remove text in brackets (e.g. "Foo (Bar)" ➝ "Foo")
-    name = re.sub(r"\s*\(.*?\)\s*", "", name)
+    if strip_bracketed:
+        # Remove text in brackets (e.g. "Foo (Bar)" ➝ "Foo")
+        name = re.sub(r"\s*\(.*?\)\s*", "", name)
+    else:
+        # Just remove brackets (e.g. "Foo (Bar)" ➝ "Foo Bar")
+        name = re.sub(r"[()]", "", name)
 
     # Lowercase and replace ligatures
     name = ''.join(LIGATURES.get(c, c) for c in name.lower())

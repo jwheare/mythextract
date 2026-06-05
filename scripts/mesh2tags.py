@@ -27,7 +27,7 @@ def main(game_directory, level, plugin_names):
             print(f'mesh={mesh_id} file=[{header_name}] [{entry_name}]{vtfl}')
             extract_mesh_tags(mesh_id, tags, data_map, plugin_names)
         else:
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

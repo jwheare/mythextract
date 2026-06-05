@@ -37,7 +37,8 @@ def main(game_directory, level, plugin_name, plugin_output):
 
     try:
         if not level or level == 'list':
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            plugin_names = [plugin_name] if plugin_name else None
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
         else:
             if game_version == 2 and level == 'all':
                 for mesh_id, (entry_name, entry_long_name, archive_list) in entrypoint_map.items():

@@ -357,8 +357,20 @@ class String:
     def __bool__(self):
         return bool(self._decoded)
 
-    def __eq__(self, x):
-        return self._decoded == x
+    def __eq__(self, other):
+        return self._decoded == self._unwrap(other)
+
+    def __lt__(self, other):
+        return self._decoded < self._unwrap(other)
+
+    def __le__(self, other):
+        return self._decoded <= self._unwrap(other)
+
+    def __gt__(self, other):
+        return self._decoded > self._unwrap(other)
+
+    def __ge__(self, other):
+        return self._decoded >= self._unwrap(other)
 
     def __len__(self):
         if self._decoded is None:
@@ -395,6 +407,10 @@ class String:
 
     def __getattr__(self, name):
         return getattr(self._decoded, name)
+
+    # Utility to extract value from other
+    def _unwrap(self, other):
+        return other._decoded if isinstance(other, String) else other
 
 def list_pack(name, max_items, fmt, filter_fun=None, empty_value=None, offset=0):
     return type(name, (_ListPacker,), {

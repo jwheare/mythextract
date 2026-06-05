@@ -33,7 +33,7 @@ def main(game_directory, level, plugin_names):
                     )
                     parse_mesh_actions(mesh_tag_location, mesh_tag_data)
         else:
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

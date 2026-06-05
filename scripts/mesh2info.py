@@ -18,7 +18,7 @@ def main(game_directory, level, plugin_names):
 
     try:
         if not level or level == 'list':
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
             mesh_input = input('Choose a mesh id: ')
             main(game_directory, f'mesh={mesh_input}', plugin_names)
         else:

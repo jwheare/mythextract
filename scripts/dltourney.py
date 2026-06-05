@@ -48,10 +48,20 @@ def download_film(game_info, output_dir):
     if not film_name:
         print(f"Missing film_name {game_info}")
         return False
+    saved_films = list(output_dir.glob('*.m2rec'))
+    if len(saved_films) == 1:
+        cached_film = saved_films[0]
+        cached_size = cached_film.stat().st_size
+        if cached_size > 5000:
+            return (cached_film.name, 'cached', cached_film, cached_size, game_info['metaserver_game'])
+        else:
+            print('Corrupt cache', cached_film, cached_size)
     try:
         film_url = f'https://bagrada.net/recordings/public/{film_name}'
-        urllib.request.urlretrieve(film_url, output_dir / film_name)
-        return (film_name, film_url, output_dir / film_name)
+        output_path = output_dir / film_name
+        urllib.request.urlretrieve(film_url, output_path)
+        written = output_path.stat().st_size
+        return (film_name, film_url, output_path, written, game_info['metaserver_game'])
     except HTTPError as e:
         print(f"HTTP error for {film_url}: {e.code} {e.reason}")
     except URLError as e:
@@ -144,7 +154,8 @@ def main(tourney_id, output_dir):
     t_slug = tourney_slug(tourney_id, tourney_short_name)
     tourney_path = f'tournament/{t_slug}'
     tourney_info_data = {
-        'bagrada_tournament': tourney_id,
+        'metaserver': 'bagrada',
+        'metaserver_tournament': tourney_id,
         'name': tourney_name,
         'short_name': tourney_short_name,
         'slug': t_slug,
@@ -173,7 +184,7 @@ def main(tourney_id, output_dir):
             for game_num, game_info in enumerate(games, 1):
                 games_data.append({
                     'game_num': game_num,
-                    'bagrada_game': game_info['id'],
+                    'metaserver_game': game_info['id'],
                     'game_name': game_info['gameName'].rstrip(),
                     'time_limit': game_info['timeLimit'],
                     'game_type': mesh_tag.netgame_scoring_name(game_info['scoring']),
@@ -188,7 +199,7 @@ def main(tourney_id, output_dir):
                     'film_name': game_info['recordingFileName'],
                 })
             rounds_info[round_id] = {
-                'bagrada_round': round_id,
+                'metaserver_round': round_id,
                 'round_name': round_name,
                 'round_path': f'{tourney_path}/{round_path}',
                 'round_slug': r_slug,
@@ -233,9 +244,12 @@ def main(tourney_id, output_dir):
                 dl_futures.append(executor.submit(download_film, game_info, output_path))
 
         for f in as_completed(dl_futures):
-            (film_name, film_url, film_output) = f.result()
-            if film_url and DEBUG:
-                print(f'Downloaded {film_name}')
+            f_res = f.result()
+            if not f_res:
+                sys.exit(1)
+            (film_name, film_url, film_output, film_size, game_id) = f_res
+            if film_name:
+                print(f'Downloaded {film_url} ({film_size}) -> {film_output}')
 
         print('All downloaded')
 

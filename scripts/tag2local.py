@@ -23,6 +23,7 @@ def main(game_directory, tag_type, tag_id, plugin_names):
     """
     Recursively extracts all referenced tags from a tag into a local tree structure
     """
+    plugin_names = [os.path.basename(p) for p in plugin_names]
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
@@ -128,20 +129,31 @@ class TagDataGenerator:
         return tag_id in self.FETCHED[tag_type]
 
     def get_tag_data(self, tag_type, tag_id, tree=[], field=None):
+        if not tag_id or not tag_type:
+            return
+        field_info = f' ({field})' if field else ''
         if self.fetched_check(tag_type, tag_id):
             return
         self.FETCHED[tag_type][tag_id] = True
-
-        if not tag_id or codec.all_on(tag_id) or codec.all_off(tag_id):
-            return
         (location, tag_header, tag_data) = loadtags.get_tag_info(
             self.tags, self.data_map, tag_type, codec.decode_string(tag_id)
         )
+        tree_path = ' > '.join([
+            f'{tree_header.tag_type.upper()}.{tree_header.tag_id:<4}'
+            for (tree_loc, tree_header) in tree
+        ])
         if tag_data:
+            if codec.all_on(tag_id) or codec.all_off(tag_id):
+                if DEBUG:
+                    print(f'! BAD TAG ID {tag_type} {tag_id} {tree_path}{field_info}')
             # Copy otherwise this list is just a reference to the original list from
             # when the function was defined and will keep growing
             tree = tree.copy()
             tree.append((location, tag_header))
+            tree_path = ' > '.join([
+                f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
+                for (tree_loc, tree_header) in tree
+            ])
             if tag_header.tag_type == 'mesh':
                 mesh_header = mesh_tag.parse_header(tag_data)
                 yield from self.get_tag_data('stli', mesh_header.difficulty_level_override_string_list_tag)
@@ -167,8 +179,8 @@ class TagDataGenerator:
                 (palette, _) = mesh_tag.parse_markers(mesh_header, tag_data)
                 for palette_type, p_list in palette.items():
                     for p_val in p_list:
-                        tag_type = mesh_tag.Marker2Tag.get(palette_type)
-                        yield from self.get_tag_data(mesh_tag.Marker2Tag.get(palette_type), codec.encode_string(p_val['tag']), tree)
+                        marker_tag_type = mesh_tag.Marker2Tag.get(palette_type)
+                        yield from self.get_tag_data(mesh_tag.Marker2Tag.get(palette_type), codec.encode_string(p_val['tag']), tree, f'markers({marker_tag_type})')
 
                 # action tags
                 (actions, _) = mesh_tag.parse_map_actions(mesh_header, tag_data)
@@ -177,12 +189,12 @@ class TagDataGenerator:
                         for p in act['parameters']:
                             if p['type'] == mesh_tag.ParamType.SOUND:
                                 for el in p['elements']:
-                                    yield from self.get_tag_data('soun', codec.encode_string(el), tree)
+                                    yield from self.get_tag_data('soun', codec.encode_string(el), tree, 'sound actions')
                     elif act['type'] == 'ligh':
                         for p in act['parameters']:
                             if p['type'] == mesh_tag.ParamType.PROJECTILE:
                                 for el in p['elements']:
-                                    yield from self.get_tag_data('proj', codec.encode_string(el), tree)
+                                    yield from self.get_tag_data('proj', codec.encode_string(el), tree, 'lightning actions')
 
             elif tag_header.tag_type == 'soun':
                 soun = myth_sound.parse_soun_header(tag_data)
@@ -304,7 +316,7 @@ class TagDataGenerator:
 
             elif tag_header.tag_type == 'arti':
                 artifact = mons_tag.parse_artifact(tag_data, tag_header)
-                # yield from self.get_tag_data('mons', artifact.monster_restriction_tag, tree)
+                yield from self.get_tag_data('mons', artifact.monster_restriction_tag, tree)
                 yield from self.get_tag_data('.256', artifact.collection_tag, tree)
                 yield from self.get_tag_data('proj', artifact.override_attack.projectile_tag, tree)
                 yield from self.get_tag_data('stli', artifact.special_ability_string_list_tag, tree)
@@ -333,22 +345,13 @@ class TagDataGenerator:
                             yield from self.get_tag_data('dtex', entry.dtex_id, tree)
 
             if not len(self.plugin_names) or location in self.plugin_names:
-                tree_path = ' > '.join([
-                    f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
-                    for (tree_loc, tree_header) in tree
-                ])
                 if DEBUG:
-                    print(f'{location:<32} {tag_type.upper()}.{tag_header.tag_id} {tag_header.name:<32} {tree_path}')
+                    print(f'{location:<32} {tag_type.upper()}.{tag_header.tag_id:<4} {tag_header.name:<32} {tree_path}{field_info}')
                 yield (tag_header, tag_data)
         elif tag_type != 'dmap':
-            tree_path = ' > '.join([
-                f'{tree_header.tag_type.upper()}.{tree_header.tag_id}'
-                for (tree_loc, tree_header) in tree
-            ])
-            missing_tag = f'{tag_type.upper()}.{codec.decode_string(tag_id)}'
-
-            field_info = f' ({field})' if field else ''
-            print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}{field_info}')
+            if not codec.all_on(tag_id) and not codec.all_off(tag_id):
+                missing_tag = f'{tag_type.upper()}.{codec.decode_string(tag_id):<4}'
+                print(f'{"! MISSING":<32} {missing_tag} {"":<32} {tree_path} > {missing_tag}{field_info}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 4:

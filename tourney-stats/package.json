@@ -7,8 +7,8 @@
     "build": "vite build --base /",
     "preview": "vite preview --host --base /",
     "test": "eslint main.js",
-    "archive-full": "tar --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats-full.tar.gz dist",
-    "archive": "tar --exclude='tournament' --exclude='*.m2rec' --exclude='.DS_Store' -cf mythstats.tar.gz dist",
+    "archive-full": "tar --exclude='.DS_Store' -cf mythstats-full.tar.gz dist && ls -lh mythstats-full.tar.gz",
+    "archive": "tar --exclude='tournament' --exclude='.DS_Store' -cf mythstats.tar.gz dist",
     "build-archive": "npm run build && npm run archive-full"
   },
   "author": "James Wheare",

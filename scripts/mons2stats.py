@@ -288,7 +288,7 @@ def mons_stats(mons_dict):
     for attack in mons_dict['attacks']:
         special = " (special)" if attack['special'] else ""
         aoe = " (aoe)" if attack['aoe'] else ""
-        ammo = f" ({attack['ammo']} ammo)" if attack['ammo'] else ""
+        ammo = f" ({attack['ammo']} ammo)" if attack['ammo'] is not False else ""
         sets_fire = " (sets on fire)" if attack['sets_fire'] else ""
         paralysis = " (paralyses)" if attack['paralysis'] else ""
         unblockable = " (unblockable)" if (attack['unblockable'] and attack['melee']) else ""

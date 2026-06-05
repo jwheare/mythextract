@@ -17,11 +17,12 @@ const actionLegend = document.getElementById('actionLegend');
 const summaryGraph = document.getElementById("summary");
 const heatmap = document.getElementById("heatmap");
 const playerList = document.getElementById("playerList");
+const mediaList = document.getElementById("media");
 
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-05-10';
+const DATA_VERSION = '2026-05-31';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -34,6 +35,11 @@ let TEAM_MAP = null;
 let PROCESSED_ROUNDS = null;
 
 let ROUND_DATA = null;
+
+let MAPS_DATA = null;
+let YT_DATA = {};
+let YT_DATA_PATH_MAP = {};
+window.YT_DATA_PATH_MAP = YT_DATA_PATH_MAP;
 
 let GAME_DATA = null;
 let PLAYER_GROUPS = null;
@@ -52,6 +58,336 @@ function dce (element, className, textContent) {
   return el;
 }
 
+const TOURNIES = [{
+  slug: 'gos-mwc2013',
+  name: 'Myth World Cup 2013',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['DE4', 'Double Elimination 4'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ulms': ['ULMS', 'Until Last Man Stands'],
+    'blades': ['Blades', 'The Blades'],
+    'tcox': ['TCox', 'ThunderCox'],
+    'dr': ['DR', "Devil's Rejects"],
+    'agents': ['Agents', 'Agents'],
+    'tmns': ['TMNS', 'Teenage Mutant Ninja Squirters'],
+    'tmnt': ['TMNT', 'Teenage Mutant Ninja Turtles'],
+    'zomg': ['ZOMG', 'ZOMG'],
+    'deer': ['DEER', 'Deer'],
+    'wtc': ['WTC', 'Wu Tang Clan'],
+  },
+}, {
+  slug: 'gos-mwc2014',
+  name: 'Myth World Cup 2014',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['DE4', 'Double Elimination 4'],
+    ['Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'bros': ['Bros', 'The Bros'],
+    'fotb': ['FotB', 'Fellowship of the Bling'],
+    'gents': ['Gents', 'The Gentlemen'],
+    'gents2': ['Gents', 'The Gentlemen', 'gents'],
+    'tea': ['Tea', 'Teabaggers'],
+    'tea2': ['Tea', 'Teabaggers', 'tea'],
+    'ulms': ['ULMS', 'Until Last Man Stands'],
+    'ulms2': ['ULMS', 'Until Last Man Stands', 'ulms'],
+    'udogs': ['Udogs', 'Underdogs'],
+    'udogs2': ['Udogs', 'Underdogs', 'udogs'],
+  },
+}, {
+  slug: 'gos-mwc2015',
+  name: 'Myth World Cup 2015',
+  rounds: [
+    ['QR 1', 'Qualifying Round 1'],
+    ['QR 2', 'Qualifying Round 2'],
+    ['DE 1', 'Double Elimination 1'],
+    ['DE 2', 'Double Elimination 2'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'deer': ['Deer', 'Deer'],
+    'mom': ['MoM', 'Masters of Myth'],
+    'ncr': ['NCR', 'Namechangers Resurrection'],
+    'owls': ['Owls', 'Sociopathic Owls'],
+    'rabble': ['Rabble', 'Rabble (NCR/TMNT)'],
+    'tmnt2': ['TMNT2', 'Teenage Mutant Ninja Turtles 2'],
+  },
+}, {
+  slug: 'gos-mwc2016',
+  name: 'Myth World Cup 2016',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['DE4', 'Double Elimination 4'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ageha': ['Ageha', 'Ageha'],
+    'boom': ['Boom', 'Boom Town'],
+    'gom': ['GoM', 'Gods of Myth'],
+    'noobs': ['Noobs', 'Noobs Inc'],
+    'por': ['PoR', 'Prophets of Rage'],
+    'syn': ['Syn', 'The Syndicate'],
+    'tinh': ['TINH', 'Team Insert Name Here'],
+    'twf': ['TWF', 'The Wight Foundation'],
+  },
+}, {
+  slug: 'gos-mwc2017',
+  name: 'Myth World Cup 2017',
+  rounds: [
+    ['W1', 'Week 1'],
+    ['W2', 'Week 2'],
+    ['W3', 'Week 3'],
+    ['W4', 'Week 4'],
+    ['W5', 'Week 5'],
+  ],
+  teams: {
+    'bers': ['BERS', 'Berserkers'],
+    'da': ['DA', 'Dragon Army'],
+    'lom': ['LoM', 'Legends of Myth'],
+    'rofl': ['ROFL', 'ROFLmazzers'],
+  }
+}, {
+  slug: 'gos-mwc2018',
+  name: 'Myth World Cup 2018',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    '7l': ['7L', '7th Legion'],
+    'bkbk': ['BKBK', "Baron Kildaer's Black Knights"],
+    'lh': ['LH', 'Legendary Heterosexuals'],
+    'sdm': ['SDM', 'Slong D0ng McKong'],
+    'tcl': ['TCL', 'The Casket Lottery'],
+    'tgp': ['TGP', 'Team Good Players'],
+    'tmnt': ['TMNT', 'Teenage Mutant Ninja Turtles'],
+    'np': ['NP', 'Northern Paladins'],
+  },
+}, {
+  slug: 'gos-mwc2019',
+  name: 'Myth World Cup 2019',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['Semi Finals', 'Semi Finals'],
+    ['Grand Finals', 'Grand Finals'],
+    ['Sudden Death', 'Sudden Death'],
+  ],
+  teams: {
+    'nc': ['NC', 'Namechangers'],
+    'ftn': ['FTN', 'Fellowship of the Team Name'],
+    'moc': ['MoC', 'Murder of Crows'],
+    'sb': ['SB', 'Spice Boys'],
+  },
+}, {
+  slug: 'gos-mwc2020',
+  name: 'Myth World Cup 2020',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['DE4', 'Double Elimination 4'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', 'Avons Grove'],
+    'ba': ['BA', 'Business Associates'],
+    'deer': ['Deer', '~DEER~'],
+    'faf': ['FaF', 'Free Agent Freedom'],
+    'gagt': ['GAGT', 'Good Ass Guys Team'],
+    'hots': ['HOTS', 'HOTSquad'],
+    'sb': ['SB', 'Spice Boiz II Men'],
+    'mm': ['MM', 'The Mystery Men'],
+  },
+}, {
+  slug: 'gos-mwc2021',
+  name: 'Myth World Cup 2021',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['QR4', 'Qualifying Round 4'],
+    ['QR5', 'Qualifying Round 5'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['TBF', 'Top Bracket Finals'],
+    ['BBSF', 'Bottom Bracket Semis'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'kotet': ['KOTET', 'The Knights of the Elliptical Table'],
+    'sm': ['SM', 'Sparkle Motion'],
+    'b4': ['B4', 'Bridge Four'],
+    'ic': ['IC', 'Team Icecream'],
+    'ag': ['AG', 'Avons Grove'],
+    'dc': ['DC', 'The Dunshire Coneheads'],
+  },
+}, {
+  slug: 'gos-mwc2022',
+  name: 'Myth World Cup 2022',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', 'Avons Grove'],
+    'mit': ['MiT', 'Men in Tights'],
+    'rsc': ['RSC', 'Rat Sized Cats'],
+    'sm': ['SM', 'Save Myth'],
+  },
+}, {
+  slug: 'gos-mwc2023',
+  name: 'Myth World Cup 2023',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', 'Avons Grove'],
+    'mitt': ['MiTT', 'Men in Tighter Tights'],
+    'rsc': ['RSC', 'Rat Sized Cats'],
+    'sm': ['SM', 'Save MWC WITH CAPS LOCK'],
+    'tjn': ['TJN', 'The JuggerNots'],
+  },
+}, {
+  slug: 'gos-mwc2024',
+  name: 'Myth World Cup 2024',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', 'Avons Grove'],
+    'miit': ['MIIT', 'The Men In Impeccably Immaculate Tights'],
+    'miit2': ['MIIT', 'The Men In Impeccably Immaculate Tights', 'miit'],
+    'miit3': ['MIIT', 'The Men In Impeccably Immaculate Tights', 'miit'],
+    'bmlm': ['BMLM', 'Boys? More Like Men'],
+    'tl': ['TL', 'Treasure Island'],
+    'tmf': ['TMF', 'The Myth-Fits'],
+    'man': ['MAN', 'The Big Manbowski'],
+    'man2': ['MAN', 'The Big Manbowski', 'man'],
+    'man3': ['MAN', 'The Big Manbowski', 'man'],
+  },
+}, {
+  slug: '7-mwc25',
+  name: 'Myth World Cup 2025',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', "Avon's Grove"],
+    'd&t': ['D&T', "Death & Taxes"],
+    'ma': ['MA', "Marmotas Assassinas"],
+    'mit': ['MiT', "Men in Tights"],
+    'pk': ['PK', "Peacekeepers"],
+    'spy kids': ['SK', "Spy Kids"],
+    'tmf': ['TMF', "The Myth-Fits"],
+    'z snake': ['ZS', "Z Snake"],
+  },
+}, {
+  slug: '9-smo25',
+  name: "'smo draft tournament 2025",
+  rounds: [
+    ['Round 1', 'Round 1'],
+    ['Round 2', 'Round 2'],
+    ['Round 3', 'Round 3'],
+    ['SE', 'Single Elimination'],
+    ['Finals', 'Finals'],
+  ],
+  teams: {
+    'asmo': ['Asmo', 'Asmodian'],
+    'dantski': ['Dant', 'Dantski'],
+    'homer': ['Homer', 'Homer'],
+    'akira': ['Akira', 'Akira'],
+  },
+}, {
+  slug: '13-mwc26',
+  name: 'Myth World Cup 2026',
+  rounds: [
+    ['QR1', 'Qualifying Round 1'],
+    ['QR2', 'Qualifying Round 2'],
+    ['QR3', 'Qualifying Round 3'],
+    ['QR4', 'Qualifying Round 4'],
+    ['DE1', 'Double Elimination 1'],
+    ['DE2', 'Double Elimination 2'],
+    ['DE3', 'Double Elimination 3'],
+    ['BB Finals', 'Bottom Bracket Finals'],
+    // ['Grand Finals', 'Grand Finals'],
+  ],
+  teams: {
+    'ag': ['AG', "Avon's Grove"],
+    'v3': ['V3', "Veni Vidi Vici"],
+    'v32': ['V3', "Veni Vidi Vici", "v3"],
+    '4c': ['4C', "Canadian Calisthenic Club for Casuals"],
+    '4c2': ['4C', "Canadian Calisthenic Club for Casuals", "4c"],
+    'cum': ['CUM', "Company of Unvanquished Mauls"],
+    'cum2': ['CUM', "Company of Unvanquished Mauls", "cum"],
+    'ti': ['TI', "Treasure Island"],
+    'tmf': ['TMF', "The Myth-Fits"],
+    'tmf2': ['TMF', "The Myth-Fits", "tmf"],
+  },
+}];
+
 const ROUTES = {
   game: /^tournament\/([^/]+)\/rounds\/([^/]+)\/games\/([^/]+)/,
   round_stats: /^tournament\/([^/]+)\/rounds\/([^/]+)\/stats/,
@@ -61,8 +397,9 @@ const ROUTES = {
   tournament_stats: /^tournament\/([^/]+)\/stats/,
   tournament_all: /^tournament\/([^/]+)\/all/,
   tournament: /^tournament\/([^/]+)/,
-  home: /^tournament/,
+  maps: /^maps/,
   info: /^info/,
+  home: /^tournament/,
 };
 
 const STAT_TOOLTIPS = {
@@ -78,8 +415,6 @@ const STAT_TOOLTIPS = {
   '🔹 Caps': "Total Times Captained",
   '🎖️ Medals': "Total Medals Earned",
 }
-
-routeUrl();
 
 function parseUrl (url) {
   for (let [routeName, route] of Object.entries(ROUTES)) {
@@ -106,10 +441,11 @@ function routeUrl () {
 
   let hard = false;
   if (PAGE_URL) {
-    let oldParsed = parseUrl(PAGE_URL);
-    if (!oldParsed || ROUTE_NAME != routeName || TOURNEY_ID != routeMatch[1]) {
-      hard = true;
-    }
+    // let oldParsed = parseUrl(PAGE_URL);
+    // if (!oldParsed || ROUTE_NAME != routeName || TOURNEY_ID != routeMatch[1]) {
+    //   hard = true;
+    // }
+    hard = true;
   }
 
   if (hard) {
@@ -138,13 +474,12 @@ function routeUrl () {
     GAME_ID = null;
   }
 
-  if (TOURNEY_ID == '7-mwc25') {
-    initMWC25();
-  } else if (TOURNEY_ID == '9-smo25') {
-    initSmo25();
-  } else if (TOURNEY_ID == '13-mwc26') {
-    initMWC26();
-  }
+  TOURNIES.forEach(({slug, rounds, teams}) => {
+    if (TOURNEY_ID == slug) {
+      ROUND_MAP = new Map(rounds);
+      TEAM_MAP = teams;
+    }
+  });
 
   if (GAME_ID) {
     renderGame();
@@ -154,7 +489,9 @@ function routeUrl () {
     renderTournament();
   } else if (ROUTE_NAME == 'info') {
     renderInfo();
-  } else {
+  } else if (ROUTE_NAME == 'maps') {
+    renderMaps(window.location.hash);
+  } else if (ROUTE_NAME == 'home') {
     renderHome();
   }
 }
@@ -165,6 +502,10 @@ window.addEventListener("popstate", () => {
 
 function renderInfoTitle () {
   let title = "Myth Stats: Info";
+  document.title = title;
+}
+function renderMapsTitle () {
+  let title = "Myth Stats: Maps";
   document.title = title;
 }
 function renderHomeTitle () {
@@ -203,6 +544,7 @@ function resetPage () {
 
   TOURNEY_ID = null;
   TOURNEY_DATA = null;
+  MAPS_DATA = null;
   ROUND_MAP = null;
   TEAM_MAP = null;
   PROCESSED_ROUNDS = null;
@@ -231,12 +573,24 @@ function resetPage () {
   clickGraph.innerHTML = '';
   graphFilter.innerHTML = '';
   actionLegend.innerHTML = '';
+
+  mediaList.innerHTML = '';
 }
 
 function renderInfo () {
   renderInfoTitle();
   renderInfoInfo();
   document.body.classList.add('show-info');
+}
+
+async function renderMaps (hash) {
+  const response = await fetch(`${BASE_URL}maps.json?v=${DATA_VERSION}`);
+  MAPS_DATA = JSON.parse(await response.text());
+  window.MAPS_DATA = MAPS_DATA;
+
+  renderMapsTitle();
+  renderMapsInfo();
+  renderMapsList(hash);
 }
 
 function renderHome () {
@@ -287,6 +641,88 @@ async function renderRound () {
     console.log('round stats');
   } else {
     renderRoundContents(ROUND_DATA, roundContainer);
+    renderRoundMedia(ROUND_DATA)
+  }
+}
+
+function ytLink (video, seenIds) {
+  const vidMeta = YT_DATA[video.yt_id].meta;
+  const vidLink = dce('a', 'mediaLink');
+  vidLink.target = '_blank';
+  let ytUrl = `https://www.youtube.com/watch?v=${video.yt_id}`;
+  if (video.details.ts) {
+    ytUrl += `&t=${video.details.ts}s`;
+  }
+  vidLink.href = ytUrl;
+
+  const vid = dce('img', 'mediaVideo');
+  vid.src = `https://img.youtube.com/vi/${video.yt_id}/mqdefault.jpg`
+  vid.width = 80;
+  vid.height = 45;
+  vidLink.append(vid);
+
+  const vidChannel = dce('span', 'mediaChannel', `▶️ YouTube: ${vidMeta.channel}`);
+  vidLink.append(vidChannel);
+  const vidTitle = dce('span', 'mediaTitle', vidMeta.title);
+  vidLink.append(vidTitle);
+
+  if (video.details.game_num) {
+    const vidGameNum = dce('span', 'mediaGameNum', ` - Game: ${video.details.game_num}`);
+    vidChannel.append(vidGameNum);
+    seenIds[video.yt_id] = vidGameNum;
+  } else {
+    seenIds[video.yt_id] = true;
+  }
+  return vidLink;
+}
+
+function renderRoundMedia (round, gameNum) {
+  if (round.round_path in YT_DATA_PATH_MAP) {
+    const roundVids = YT_DATA_PATH_MAP[round.round_path].sort((a, b) => {
+      if (a.details.game_num && b.details.game_num) {
+        return a.details.game_num - b.details.game_num;
+      } else if (a.details.game_num) {
+        return 0;
+      } else {
+        return -1;
+      }
+    });
+    const seenIds = {};
+    roundVids.forEach(video => {
+      if (gameNum && video.details.game_num && gameNum != video.details.game_num) {
+        return;
+      }
+      if (video.yt_id in seenIds) {
+        if (seenIds[video.yt_id] !== true) {
+          if (video.details.game_num) {
+            const vidGameNum = seenIds[video.yt_id];
+            vidGameNum.append(`, ${video.details.game_num}`);
+            vidGameNum.innerText = vidGameNum.innerText.replace(/Game:/, 'Games:');
+          }
+        }
+      } else {
+        const vidLink = ytLink(video, seenIds);
+        mediaList.append(vidLink);
+      }
+    });
+    if (Object.keys(seenIds).length) {
+      mediaList.prepend(dce('h2', 'mediaCoverage', 'Coverage'));
+    }
+  }
+}
+
+function renderTournamentMedia (tournament) {
+  if (tournament.path in YT_DATA_PATH_MAP) {
+    const seenIds = {};
+    YT_DATA_PATH_MAP[tournament.path].forEach(video => {
+      if (!(video.yt_id in seenIds)) {
+        const vidLink = ytLink(video, seenIds);
+        mediaList.append(vidLink);
+      }
+    });
+    if (Object.keys(seenIds).length) {
+      mediaList.prepend(dce('h2', 'mediaCoverage', 'Coverage'));
+    }
   }
 }
 
@@ -298,7 +734,7 @@ async function renderGame () {
 
   PLAYER_GROUPS = d3.group(GAME_DATA.commands, (d) => {
     let [player, ] = findPlayer(d.player);
-    return player.bagrada_player;
+    return player.metaserver_player;
   });
 
   processGames();
@@ -310,55 +746,270 @@ async function renderGame () {
   renderGameInfo();
   renderSummary();
   renderHeatmap();
+  renderRoundMedia(GAME_DATA.header.round, GAME_DATA.header.game.game_num);
+}
+
+function metaserverLink (info = {}) {
+  let link = dce('a');
+  link.target = '_blank';
+  if (info.gos || (info.tourney && info.tourney.metaserver == 'gos')) {
+    link.textContent = 'gateofstorms.net';
+    if (info.round && info.game) {
+      link.href = `http://gateofstorms.net/tournaments/${info.tourney.metaserver_tournament}/rounds/${info.round}/games/${info.game}`;
+    } else if (info.player) {
+      link.href = `http://gateofstorms.net/users/${info.player}`;
+    } else if (info.round) {
+      link.href = `http://gateofstorms.net/tournaments/${info.tourney.metaserver_tournament}/rounds/${info.round}`;
+    } else if (info.tourney) {
+      link.href = `http://gateofstorms.net/tournaments/${info.tourney.metaserver_tournament}`;
+    } else {
+      link.href = `http://gateofstorms.net/tournaments`;
+    }
+  } else {
+    link.textContent = 'bagrada.net';
+    if (info.game) {
+      link.href = `https://bagrada.net/webui/games/${info.game}`;
+    } else if (info.player) {
+      link.href = `https://bagrada.net/webui/users/${info.player}`;
+    } else if (info.tourney && info.round) {
+      link.href = `https://bagrada.net/webui/tournaments/${info.tourney.metaserver_tournament}/rounds/${info.round}`;
+    } else if (info.tourney) {
+      link.href = `https://bagrada.net/webui/tournaments/${info.tourney.metaserver_tournament}`;
+    } else {
+      link.href = `https://bagrada.net/webui/tournaments`;
+    }
+  }
+  return link;
 }
 
 function renderInfoInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/metaserver`;
-
   titleHead.textContent = 'Myth Stats / Info';
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink());
+  captionHead.append(' / ');
+  captionHead.appendChild(metaserverLink({'gos': true}));
+  captionHead.append(' / ');
+  captionHead.append(stateLink('', 'home'));
+  captionHead.append(' / ');
+  captionHead.append(stateLink('maps', 'maps'));
+}
+
+function renderMapsInfo () {
+  titleHead.textContent = 'Myth Stats / Maps';
+
+  captionHead.appendChild(metaserverLink());
+  captionHead.append(' / ');
+  captionHead.appendChild(metaserverLink({'gos': true}));
   captionHead.append(' / ');
   captionHead.append(stateLink('', 'home'));
 }
 
 function renderHomeInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments`;
-
   titleHead.textContent = 'Myth Stats / Tournaments';
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink());
+  captionHead.append(' / ');
+  captionHead.appendChild(metaserverLink({'gos': true}));
+  captionHead.append(' / ');
+  captionHead.append(stateLink('maps', 'maps'));
 }
 
 function renderHomeTourneys () {
-  tournamentContainer.appendChild(
-    stateLink('tournament/7-mwc25', 'Myth World Cup 2025', 'tournamentLink')
-  );
-  tournamentContainer.appendChild(
-    stateLink('tournament/9-smo25', "'smo draft tournament 2025", 'tournamentLink')
-  );
-  tournamentContainer.appendChild(
-    stateLink('tournament/13-mwc26', 'Myth World Cup 2026', 'tournamentLink')
-  );
+  let tournamentLinks = dce('div', 'tournamentLinks');
+  for (let i = TOURNIES.length - 1; i >= 0; i--) {
+    const {slug, name} = TOURNIES[i];
+    tournamentLinks.appendChild(
+      stateLink(`tournament/${slug}`, name, 'tournamentLink')
+    );
+  }
+  tournamentContainer.append(tournamentLinks);
+}
+
+function normaliseShortName (shortName) {
+  return shortName.replace(/mwc|MWC20|MWC 20/, 'MWC').toUpperCase();
+}
+
+const LIGATURES = {
+    'æ': 'ae', 'Æ': 'AE',
+    'œ': 'oe', 'Œ': 'OE',
+    'ß': 'ss',
+    'ð': 'd',  'Ð': 'D',
+    'þ': 'th', 'Þ': 'Th',
+    'ł': 'l',  'Ł': 'L',
+    'ĳ': 'ij', 'Ĳ': 'IJ',
+}
+function slugify(name) {
+  // Strip myth formatting
+  name = stripFormat(name);
+  // Note this is different to the python side, which removes the bracketed text
+  // don't try to reconstruct slugs created there for matching
+  // Strip brackets
+  name = name.replace(/[()]/g, "");
+  // Lowercase and replace ligatures
+  name = [...name.toLowerCase()].map(c => LIGATURES[c] ?? c).join("");
+  // Normalize and convert accented chars to ASCII
+  name = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  // Replace non-word characters with dashes
+  name = name.replace(/[^\w\s-]/g, "");
+  // Replace spaces and underscores with a single dash
+  name = name.trim().replace(/[\s_]+/g, "-");
+  // Collapse multiple dashes into one
+  name = name.replace(/-{2,}/g, "-");
+  // Strip leading/trailing dashes
+  name = name.replace(/^-+|-+$/g, "");
+  return name;
+}
+
+function slugifyMapGt (game) {
+  let typeSlug = slugify(game.game_type)
+  let mapSlug = slugify(game.map_name);
+  return `${typeSlug}-${mapSlug}`;
+}
+function hashGameMatch (hash, game) {
+  let hashSlice = hash.slice(1);
+  let slug = slugifyMapGt(game);
+  return hashSlice == slug;
+}
+
+function renderMapsList (hash) {
+  let mapList = dce('ol', 'mapList');
+  
+  let opts = {
+    // groupByMap: true,
+    showGames: true,
+    showTrades: true,
+  };
+
+  let scrollTo;
+
+  if (opts.groupByMap) {
+    Object.values(MAPS_DATA).sort((a, b) => b.count - a.count).forEach(mapInfo => {
+    const withGameType = [];
+      Object.values(mapInfo['game_types']).forEach(games => {
+        withGameType.push(games);
+      });
+      withGameType.sort((a, b) => b.length - a.length).forEach(games => {
+        let mapEntry = renderMapsListEntry(games, opts);
+        if (hashGameMatch(hash, games[0].game)) {
+          scrollTo = mapEntry;
+        }
+        mapList.appendChild(mapEntry);
+      });
+    });
+  } else {
+    const withGameType = [];
+    Object.values(MAPS_DATA).forEach(mapInfo => {
+      Object.values(mapInfo['game_types']).forEach(games => {
+        withGameType.push(games);
+      });
+    });
+    withGameType.sort((a, b) => b.length - a.length).forEach(games => {
+      let mapEntry = renderMapsListEntry(games, opts);
+      if (hashGameMatch(hash, games[0].game)) {
+        scrollTo = mapEntry;
+      }
+      mapList.appendChild(mapEntry);
+    });
+  }
+  tournamentContainer.appendChild(mapList);
+  if (scrollTo) {
+    scrollTo.scrollIntoView();
+  }
+}
+
+function renderMapsListEntry (games, opts) {
+  let mapEntry = dce('li', 'mapList__entry');
+
+  let mapItem = dce('span', 'mapList__item');
+  let gameType = dce('span', 'mapList__type', games[0].game.game_type);
+  let gameInfo = dce('div', 'mapList__info');
+  gameInfo.append(gameType);
+
+  let gameCount = dce('span', 'mapList__badge gameList__badge', games.length)
+  gameInfo.prepend(' ');
+  gameInfo.prepend(gameCount);
+
+  let gameMap = dce('div', 'mapList__map', stripFormat(games[0].game.map_name));
+
+  let overheadDiv = dce('div', 'mapList__overhead');
+  let overheadMap = dce('img', 'mapList__overhead_img');
+  overheadMap.src = `${BASE_URL}${games[0].game.overhead_path}`;
+  overheadDiv.appendChild(overheadMap)
+  mapItem.appendChild(overheadDiv);
+
+  mapItem.appendChild(gameInfo);
+  mapItem.appendChild(gameMap);
+
+  if (opts.showGames) {
+    let mapGameInfo = renderMapListGames(games, opts);
+    mapItem.append(mapGameInfo);
+  }
+
+  mapEntry.appendChild(mapItem);
+
+  return mapEntry;
+}
+
+function renderMapListGames (games, opts) {
+  let mapGameInfo = dce('div', 'mapList__gameList');
+  let lastShort;
+  games.sort((a, b) => {
+    return normaliseShortName(b.tournament.short_name).localeCompare(normaliseShortName(a.tournament.short_name));
+  }).forEach(game => {
+    let mapGameItem = dce('div', 'mapList__gameListItem');
+
+    let tourneyShort = normaliseShortName(game.tournament.short_name);
+    let gameName = `${tourneyShort}: ${game.round.round_name} - ${game.game.game_num}/${game.round.num_games}`;
+    let gameLink = stateLink(game.game.game_path, gameName, 'mapList__gameLink');
+    tooltip(gameLink, `${game.tournament.name}: ${game.round.round_name} - Game ${game.game.game_num} of ${game.round.num_games} (${Math.round(game.game.time_limit/30/60)} mins)`);
+    mapGameItem.append(gameLink);
+    if (game.round.round_path in YT_DATA_PATH_MAP) {
+      const coverage = dce('span', 'mapList__coverageIcon', '▶️ ');
+      tooltip(coverage, `Covered by: ${coverageChannels(game.round.round_path).join(', ')}`);
+      mapGameItem.prepend(coverage);
+    }
+
+    if (opts.showTrades) {
+      for (let [teamSlug, team] of Object.entries(game.teams)) {
+        let result = 'Lost';
+        if (team.winner || team.allied_winner) {
+          result = 'Won'
+        } else if (team.tied_winner) {
+          result = 'Tied'
+        }
+        let mapGameTrade = dce('div', 'mapList__trade', summarizeAllocation(team.trade));
+        let mapGameTeam = dce('span', 'mapList__badge', teamNameShort(teamSlug, game.tournament.slug));
+        if (game.game.tie) {
+          mapGameTeam.classList.add('mapList__badge--tie');
+        } else {
+          if (team.winner || team.allied_winner) {
+            mapGameTeam.classList.add('mapList__badge--winner');
+          } else {
+            mapGameTeam.classList.add('mapList__badge--loser');
+          }
+        }
+        mapGameTrade.prepend(mapGameTeam);
+        tooltip(mapGameTrade, `${result}: ${teamName(teamSlug, game.tournament.slug)} (Captain: ${stripFormat(stripOrder(team.captain.name))})`);
+        mapGameItem.append(mapGameTrade);
+      }
+    }
+
+    if (lastShort && lastShort != tourneyShort) {
+      mapGameInfo.append(dce('hr', 'mapList__gameListDivider'));
+    }
+    lastShort = tourneyShort;
+
+    mapGameInfo.append(mapGameItem);
+  });
+  return mapGameInfo;
 }
 
 function renderTournamentInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments/${TOURNEY_DATA.bagrada_tournament}`;
-
   titleHead.textContent = ` / ${TOURNEY_DATA.name}`;
   let allTourney = stateLink('tournament/', 'Tournaments');
   titleHead.prepend(allTourney);
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink({tourney: TOURNEY_DATA}));
 
 
   if (ROUTE_NAME == 'tournament_all') {
@@ -373,54 +1024,37 @@ function renderTournamentInfo () {
   captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
 }
 function renderTournamentTeamInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments/${TOURNEY_DATA.bagrada_tournament}`;
-
-
   titleHead.textContent = ` / `;
   let tourneyLink = stateLink(TOURNEY_DATA.path, TOURNEY_DATA.name);
   titleHead.prepend(tourneyLink);
   titleHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'Stats'));
   titleHead.append(' / Team Stats');
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink({tourney: TOURNEY_DATA}));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
 }
 function renderTournamentPlayerInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/users/${PLAYER_ID}`;
-
   titleHead.textContent = ` / `;
   let tourneyLink = stateLink(TOURNEY_DATA.path, TOURNEY_DATA.name);
   titleHead.prepend(tourneyLink);
   titleHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'Stats'));
   titleHead.append(' / Player Stats');
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink({tourney: TOURNEY_DATA, player: PLAYER_ID}));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path + '/stats', 'tournament stats'));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
 }
 function renderTournamentStatsInfo () {
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments/${TOURNEY_DATA.bagrada_tournament}`;
-
-
   titleHead.textContent = ' / Stats';
   let tourneyLink = stateLink(TOURNEY_DATA.path, TOURNEY_DATA.name);
   titleHead.prepend(tourneyLink);
 
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink({tourney: TOURNEY_DATA}));
   captionHead.append(' / ');
   captionHead.append(stateLink(TOURNEY_DATA.path, 'results'));
 }
@@ -441,71 +1075,6 @@ function processTournaments () {
       PROCESSED_ROUNDS[round.stage].push(round);
     }
   });
-}
-
-function initMWC25 () {
-  // MWC 2025 specific
-  ROUND_MAP = new Map([
-    ['QR1', 'Qualifying Round 1'],
-    ['QR2', 'Qualifying Round 2'],
-    ['QR3', 'Qualifying Round 3'],
-    ['DE1', 'Double Elimination 1'],
-    ['DE2', 'Double Elimination 2'],
-    ['DE3', 'Double Elimination 3'],
-    ['BB Finals', 'Bottom Bracket Finals'],
-    ['Grand Finals', 'Grand Finals'],
-  ]);
-  TEAM_MAP = {
-    'ag': ['AG', "Avon's Grove"],
-    'd&t': ['D&T', "Death & Taxes"],
-    'ma': ['MA', "Marmotas Assassinas"],
-    'mit': ['MiT', "Men in Tights"],
-    'pk': ['PK', "Peacekeepers"],
-    'spy kids': ['SK', "Spy Kids"],
-    'tmf': ['TMF', "The Myth-Fits"],
-    'z snake': ['ZS', "Z Snake"],
-  };
-}
-
-function initSmo25 () {
-  ROUND_MAP = new Map([
-    ['Round 1', 'Round 1'],
-    ['Round 2', 'Round 2'],
-    ['Round 3', 'Round 3'],
-    ['SE', 'Single Elimination'],
-    ['Finals', 'Finals'],
-  ]);
-  TEAM_MAP = {
-    'asmo': ['Asmo', 'Asmodian'],
-    'dantski': ['Dant', 'Dantski'],
-    'homer': ['Homer', 'Homer'],
-    'akira': ['Akira', 'Akira'],
-  };
-}
-
-function initMWC26 () {
-  // MWC 2026 specific
-  ROUND_MAP = new Map([
-    ['QR1', 'Qualifying Round 1'],
-    ['QR2', 'Qualifying Round 2'],
-    ['QR3', 'Qualifying Round 3'],
-    ['QR4', 'Qualifying Round 4'],
-    ['DE1', 'Double Elimination 1'],
-    // ['DE2', 'Double Elimination 2'],
-    // ['DE3', 'Double Elimination 3'],
-    // ['BB Finals', 'Bottom Bracket Finals'],
-    // ['Grand Finals', 'Grand Finals'],
-  ]);
-  TEAM_MAP = {
-    'ag': ['AG', "Avon's Grove"],
-    'v3': ['V3', "Veni Vidi Vici"],
-    '4c': ['4C', "Canadian Calisthenic Club for Casuals"],
-    '4c2': ['4C', "Canadian Calisthenic Club for Casuals", "4c"],
-    'cum': ['CUM', "Company of Unvanquished Mauls"],
-    'cum2': ['CUM', "Company of Unvanquished Mauls", "cum"],
-    'ti': ['TI', "Treasure Island"],
-    'tmf': ['TMF', "The Myth-Fits"],
-  };
 }
 
 function initStats (obj, key) {
@@ -560,29 +1129,32 @@ function calculateTourneyStats (teamFilter) {
   let playerData = {};
   TOURNEY_DATA.rounds.forEach(r => {
     r.games.forEach(g => {
-      for (let [teamSlug, team] of Object.entries(g.teams)) {
-        teamSlug = teamSlugMap(teamSlug);
+      if (!g.teams) {
+        return;
+      }
+      for (let [origTeamSlug, team] of Object.entries(g.teams)) {
+        let teamSlug = teamSlugMap(origTeamSlug);
         if (!teamFilter || teamFilter == teamSlug) {
-          for (let [bagrada_player, player] of Object.entries(team.players)) {
+          for (let [metaserver_player, player] of Object.entries(team.players)) {
             if (player.stats.actions) {
-              if (!(bagrada_player in playerData)) {
-                playerData[bagrada_player] = {
+              if (!(metaserver_player in playerData)) {
+                playerData[metaserver_player] = {
                   names: [],
                   colors: [],
                   teams: [],
                 };
               }
-              playerData[bagrada_player].names.push(player.name);
-              playerData[bagrada_player].colors.push(player.color[0]);
-              playerData[bagrada_player].teams.push(teamSlug);
+              playerData[metaserver_player].names.push(player.name);
+              playerData[metaserver_player].colors.push(player.color[0]);
+              playerData[metaserver_player].teams.push(teamSlug);
               let stats = Object.assign({}, player.stats, {
                 'medals': player.medals.filter(m => m != 'actions').length,
                 'captains': player.captain ? 1 : 0,
               });
               incrementStats(teamStats, teamSlug, stats);
-              let playerStat = incrementStats(playerStats, bagrada_player, stats);
+              let playerStat = incrementStats(playerStats, metaserver_player, stats);
               if (player.stats.actions_engage) {
-                if (team.winner) {
+                if (team.winner || team.allied_winner) {
                   playerStat.game_wins += 1;
                 } else if (g.tie) {
                   playerStat.game_ties += 1;
@@ -612,14 +1184,16 @@ function calculateTourneyStats (teamFilter) {
             }
           }
           let teamStat = initStats(teamStats, teamSlug);
-          if (team.winner) {
-            teamStat.game_wins += 1;
-            teamStat.points += 3;
-          } else if (g.tie) {
-            teamStat.game_ties += 1;
-            teamStat.points += 1;
-          } else {
-            teamStat.game_losses += 1;
+          if (origTeamSlug == teamSlug) {
+            if (team.winner || team.allied_winner) {
+              teamStat.game_wins += 1;
+              teamStat.points += 3;
+            } else if (g.tie) {
+              teamStat.game_ties += 1;
+              teamStat.points += 1;
+            } else {
+              teamStat.game_losses += 1;
+            }
           }
 
           if (team.stats.dmg_action_ratio) {
@@ -639,7 +1213,9 @@ function calculateTourneyStats (teamFilter) {
           }
           if (team.stats.actions_engage) {
             teamStat.game_actions_engage.push(team.stats.actions_engage);
-            teamStat.games += 1;
+            if (origTeamSlug == teamSlug) {
+              teamStat.games += 1;
+            }
           }
         }
       }
@@ -937,9 +1513,9 @@ function sortTable (table) {
 
 }
 
-// function avgMean (arr) {
-//   return arr.reduce((a, b) => a + b) / arr.length;
-// }
+function avgMean (arr) {
+  return arr.reduce((a, b) => a + b) / arr.length;
+}
 
 function avgMode(arr) {
   const counts = {};
@@ -983,14 +1559,24 @@ function avgMedian (arr) {
 //   return 1 + 4 * (score - min) / (max - min);
 // }
 
-function teamName (name) {
-  return TEAM_MAP ? TEAM_MAP[name.toLowerCase()][1] : name;
+function tourneyTeams (tourneySlug) {
+  let tourney = TOURNIES.find(t => t.slug == tourneySlug);
+  if (tourney) {
+    return tourney.teams;
+  }
 }
-function teamNameShort (name) {
-  return TEAM_MAP ? TEAM_MAP[name.toLowerCase()][0] : name;
+
+function teamName (name, tourneySlug) {
+  let map = tourneySlug ? tourneyTeams(tourneySlug) : TEAM_MAP;
+  return map ? map[name.toLowerCase()][1] : name;
 }
-function teamSlugMap (slug) {
-  return TEAM_MAP ? TEAM_MAP[slug][2] || slug : slug;
+function teamNameShort (name, tourneySlug) {
+  let map = tourneySlug ? tourneyTeams(tourneySlug) : TEAM_MAP;
+  return map ? map[name.toLowerCase()][0] : name;
+}
+function teamSlugMap (slug, tourneySlug) {
+  let map = tourneySlug ? tourneyTeams(tourneySlug) : TEAM_MAP;
+  return map ? map[slug][2] || slug : slug;
 }
 
 function renderTournmamentStats () {
@@ -1024,7 +1610,7 @@ function aggregatePlayerStats (stats) {
   };
 }
 
-function renderPlayerStats (bagrada_player) {
+function renderPlayerStats (metaserver_player) {
   let playerStats = {};
   let playerData = {
     names: [],
@@ -1033,8 +1619,11 @@ function renderPlayerStats (bagrada_player) {
   };
   TOURNEY_DATA.rounds.forEach(r => {
     r.games.forEach(g => {
+      if (!g.teams) {
+        return;
+      }
       for (let [teamSlug, team] of Object.entries(g.teams)) {
-        let player = team.players[bagrada_player];
+        let player = team.players[metaserver_player];
         if (player && player.stats.actions) {
           playerData.names.push(player.name);
           playerData.colors.push(player.color[0]);
@@ -1043,9 +1632,9 @@ function renderPlayerStats (bagrada_player) {
             'medals': player.medals.filter(m => m != 'actions').length,
             'captains': player.captain ? 1 : 0,
           });
-          let playerStat = incrementStats(playerStats, bagrada_player, stats);
+          let playerStat = incrementStats(playerStats, metaserver_player, stats);
           if (player.stats.actions_engage) {
-            if (team.winner && player.stats.actions_engage) {
+            if ((team.winner || team.allied_winner) && player.stats.actions_engage) {
               playerStat.game_wins += 1;
             } else if (g.tie) {
               playerStat.game_ties += 1;
@@ -1078,7 +1667,7 @@ function renderPlayerStats (bagrada_player) {
       }
     });
   });
-  let stats = playerStats[bagrada_player];
+  let stats = playerStats[metaserver_player];
   augmentMedals(stats);
   let teamSlug = avgMode(playerData.teams);
   let playerColor = avgMode(playerData.colors);
@@ -1148,7 +1737,7 @@ function renderPlayerGraph (stats, stat, label, title) {
         },
         fontSize: 11,
         title: (d, i) => {
-          return `${stats.round_data[i].round_name}: Game ${stats.game_data[i].game_num}\n${stats.game_data[i].game_type}\n${stats.game_data[i].map_name}\n${label}: ${d[stat]}`
+          return `${stats.round_data[i].round_name}: Game ${stats.game_data[i].game_num}\n${stats.game_data[i].game_type}\n${stripFormat(stats.game_data[i].map_name)}\n${label}: ${d[stat]}`
         },
         tip: {
           dy: 5,
@@ -1191,7 +1780,7 @@ function renderTournamentRoundsAll () {
       PROCESSED_ROUNDS[roundStage].forEach(round => {
         hasRounds = true;
         const subtitleHead = dce('h2', 'subtitle');
-        renderRoundInfo(round, subtitleHead);
+        renderRoundInfo(round, subtitleHead, true);
         const roundContainer = dce('div', 'tournamentAllRounds__round');
         renderRoundContents(round, roundContainer);
         roundList.append(subtitleHead);
@@ -1238,6 +1827,7 @@ function renderTournamentRounds () {
     });
     tournamentContainer.appendChild(roundList);
   }
+  renderTournamentMedia(TOURNEY_DATA);
 }
 
 function renderRounds (rounds, teamFilter) {
@@ -1252,14 +1842,20 @@ function renderRounds (rounds, teamFilter) {
     rounds[roundStage].forEach(round => {
       if (!teamFilter || round.team1 == teamFilter || round.team2 == teamFilter) {
         hasRounds = true;
-        let roundItem = dce('li',  'tournamentGroupedRounds__round');
+        let roundItem = dce('li', 'tournamentGroupedRounds__round');
 
         let suffixText = '';
         if (round.part != null) {
           suffixText += ` (${round.part})`;
         }
-        let roundLink = stateLink(round.round_path, ' vs ');
-        tooltip(roundLink, `${roundStage}: ${teamName(round.team1)} vs ${teamName(round.team2)}${suffixText}`);
+        let vs = 'vs';
+        let coverage = '';
+        if (round.round_path in YT_DATA_PATH_MAP) {
+          vs = '▶️';
+          coverage = `\n▶️ Covered by: ${coverageChannels(round.round_path).join(', ')}`;
+        }
+        let roundLink = stateLink(round.round_path, ` ${vs} `);
+        tooltip(roundLink, `${roundStage}: ${teamName(round.team1)} vs ${teamName(round.team2)}${suffixText}${coverage}`);
         roundLink.className = 'tournamentGroupedRounds__round_link';
         let team1 = dce('span', 'tournamentGroupedRounds__team', teamNameShort(round.team1));
         let team2 = dce('span', 'tournamentGroupedRounds__team', teamNameShort(round.team2));
@@ -1278,8 +1874,33 @@ function renderRounds (rounds, teamFilter) {
           let roundGameLinks = dce('div',  'tournamentGroupedRounds__games');
           round.games.forEach(game => {
             let roundGameLink = stateLink(game.game_path, game.game_num);
-            tooltip(roundGameLink, `${game.game_num}. ${game.game_type} — ${stripFormat(game.map_name)}`);
+            let sd = game.sudden_death ? 'Sudden Death: ' : '';
+            
+            let tt = tooltip(roundGameLink);
+            let overhead = dce('img', 'tooltipOverhead');
+            overhead.src = `${BASE_URL}${game.overhead_path}`;
+            let ttContent = dce('span', 'tooltipContent', `${game.game_num}. ${sd}${game.game_type}\n${stripFormat(game.map_name)}`);
+            tt.append(overhead);
+            if (game.winning_team) {
+              ttContent.append(dce('p', 'tooltipPara', `Winner: ${teamNameShort(game.winning_team)}`));
+            } else if (game.tie) {
+              ttContent.append(dce('p', 'tooltipPara', 'Tie'));
+            }
+            tt.append(ttContent);
+
             roundGameLink.className = 'tournamentGroupedRounds__game';
+            if (round.games.length > 7) {
+              roundGameLink.classList.add('tournamentGroupedRounds__game--wrap');
+            }
+            if (game.tie) {
+              roundGameLink.classList.add('tournamentGroupedRounds__game--tie');
+            } else {
+              if ((teamFilter || round.round_winner) == game.winning_team) {
+                roundGameLink.classList.add('tournamentGroupedRounds__game--winner');
+              } else if (round.round_winner) {
+                roundGameLink.classList.add('tournamentGroupedRounds__game--loser');
+              }
+            }
             roundGameLinks.appendChild(roundGameLink);
           });
           roundItem.appendChild(roundGameLinks);
@@ -1318,16 +1939,15 @@ function renderRoundHead (round_data) {
   let tourneyLink = stateLink(round_data.tournament.path, round_data.tournament.name);
   titleHead.prepend(tourneyLink);
 
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/tournaments/${round_data.tournament.bagrada_tournament}/rounds/${round_data.bagrada_round}`;
-  captionHead.appendChild(bagradaLink);
+  captionHead.appendChild(metaserverLink({
+    tourney: round_data.tournament,
+    round: round_data.metaserver_round
+  }));
   captionHead.append(' / ');
   captionHead.append(stateLink(round_data.tournament.path + '/stats', 'tournament stats'));
 }
 
-function renderRoundInfo (round_data, subtitle) {
+function renderRoundInfo (round_data, subtitle, linkStage) {
   let result, team1, team2;
   if (round_data._processed) {
     let partSuffix = round_data.part ? `(${round_data.part})` : ''
@@ -1343,7 +1963,19 @@ function renderRoundInfo (round_data, subtitle) {
     subtitle.append(' ');
     subtitle.append(result);
 
-    let subtitleStage = dce('span', 'round__stage', `${ROUND_MAP.get(round_data.stage)}: `);
+    if (linkStage && (round_data.round_path in YT_DATA_PATH_MAP)) {
+      const coverage = stateLink(round_data.round_path, '▶️', 'round__coverageIcon')
+      tooltip(coverage, `Covered by: ${coverageChannels(round_data.round_path).join(', ')}`);
+      subtitle.append(coverage);
+    }
+
+    let subtitleStage;
+    if (linkStage) {
+      subtitleStage = dce('span', 'round__stage', ': ');
+      subtitleStage.prepend(stateLink(round_data.round_path, ROUND_MAP.get(round_data.stage)));
+    } else {
+      subtitleStage = dce('span', 'round__stage', `${ROUND_MAP.get(round_data.stage)}: `);
+    }
     subtitle.prepend(subtitleStage);
   } else {
     subtitle.textContent = round_data.round_name;
@@ -1373,46 +2005,50 @@ function renderRoundContents (round_data, container) {
 }
 
 function renderRoundGames (games) {
-  let gameList = dce('ol', 'roundGames');
+  let gameList = dce('ol', 'mapList');
   games.forEach(game => {
-    let gameItem = dce('li', 'roundGames__game');
+    let gameEntry = dce('li', 'mapList__entry');
 
     let gameLink = stateLink(game.game_path);
-    gameLink.className = 'roundGames__link';
-    let gameInfo = dce('div', 'roundGames__info', ` — `);
-    let gameType = dce('span', 'roundGames__type', game.game_type);
+    gameLink.className = 'mapList__link mapList__item';
+    let gameInfo = dce('div', 'mapList__info', ` — `);
+    let gameType = dce('span', 'mapList__type', game.game_type);
     gameInfo.prepend(gameType);
 
+    if (game.sudden_death) {
+      gameInfo.prepend('Sudden Death: ');
+    }
+
     if (game.winning_team) {
-      let gameWinner = dce('span', 'roundGames__winner', teamNameShort(game.winning_team));
+      let gameWinner = dce('span', 'mapList__badge gameList__badge', teamNameShort(game.winning_team));
       let winningTeam = game.teams[game.winning_team];
       gameWinner.style.borderBottom = `5px solid ${winningTeam.color[0]}`;
       tooltip(gameWinner, `Winner: ${teamName(game.winning_team)}`);
       gameInfo.prepend(' ');
       gameInfo.prepend(gameWinner);
     } else if (game.tie) {
-      let gameTie = dce('span', 'roundGames__winner', 'Tie')
+      let gameTie = dce('span', 'mapList__badge gameList__badge', 'Tie')
       gameInfo.prepend(' ');
       gameInfo.prepend(gameTie);
     }
 
-    let gameTime = dce('span', 'roundGames__time', `${Math.round(game.time_limit/30/60)} mins`);
+    let gameTime = dce('span', 'mapList__time', `${Math.round(game.time_limit/30/60)} mins`);
     gameInfo.appendChild(gameTime);
 
-    let gameMap = dce('div', 'roundGames__map', stripFormat(game.map_name));
+    let gameMap = dce('div', 'mapList__map', stripFormat(game.map_name));
 
-    let overheadDiv = dce('div', 'roundGames__overhead');
-    let overheadMap = dce('img', 'roundGames__overhead_img');
-    overheadMap.src = `${BASE_URL}${game.game_path}/overhead.png`;
+    let overheadDiv = dce('div', 'mapList__overhead');
+    let overheadMap = dce('img', 'mapList__overhead_img');
+    overheadMap.src = `${BASE_URL}${game.overhead_path}`;
     overheadDiv.appendChild(overheadMap)
     gameLink.appendChild(overheadDiv);
 
     gameLink.appendChild(gameInfo);
     gameLink.appendChild(gameMap);
 
-    gameItem.appendChild(gameLink);
+    gameEntry.appendChild(gameLink);
 
-    gameList.appendChild(gameItem);
+    gameList.appendChild(gameEntry);
   });
   return gameList;
 }
@@ -1485,10 +2121,10 @@ function renderPlots () {
 
   // Marks with opacity based on FILTERED_PLAYER
 
-  const marks = Array.from(PLAYER_GROUPS, ([bagradaPlayer, points]) => {
-    const [teamSlug, ,] = findBagradaPlayerTeam(bagradaPlayer);
+  const marks = Array.from(PLAYER_GROUPS, ([metaserverPlayer, points]) => {
+    const [teamSlug, ,] = findMetaserverPlayerTeam(metaserverPlayer);
     let filtered = true;
-    if (FILTERED_PLAYER && bagradaPlayer != FILTERED_PLAYER) {
+    if (FILTERED_PLAYER && metaserverPlayer != FILTERED_PLAYER) {
       filtered = false;
     }
     if (FILTERED_TEAM && teamSlug != FILTERED_TEAM) {
@@ -1537,7 +2173,7 @@ function renderPlots () {
         return filterUnits(d);
       }
       let [player, teamSlug] = findPlayer(d.player);
-      if (player.bagrada_player == FILTERED_PLAYER || teamSlug == FILTERED_TEAM) {
+      if (player.metaserver_player == FILTERED_PLAYER || teamSlug == FILTERED_TEAM) {
         return filterUnits(d);
       }
       return false;
@@ -1751,7 +2387,7 @@ function summarizeTargets (targets, self) {
   let owner = null;
   for (const [playerId, monsters] of Object.entries(targets)) {
     summaryTargets.push(summarizeMonsters(monsters));
-    if (!['ambient', 'custom'].includes(playerId)) {
+    if (playerId != 'invalid' && !['ambient', 'custom'].includes(playerId)) {
       let [player, ] = findPlayer(playerId);
       if (playerId == self) {
         owner = 'self';
@@ -1771,10 +2407,18 @@ function findPlayer (playerId) {
   }
 }
 
-function findBagradaPlayerTeam (bagradaPlayer) {
+function findPlayerTeam (playerId) {
+  for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
+    if (playerId in team.players) {
+      return [team.players[playerId], team, teamSlug];
+    }
+  }
+}
+
+function findMetaserverPlayerTeam (metaserverPlayer) {
   for (const [teamSlug, team] of Object.entries(GAME_DATA.header.teams)) {
     for (const player of Object.values(team.players)) {
-      if (player.bagrada_player == bagradaPlayer) {
+      if (player.metaserver_player == metaserverPlayer) {
         return [teamSlug, team, player];
       }
     }
@@ -1788,7 +2432,7 @@ function renderGames () {
   GAME_DATA.header.round.games.forEach(game => {
     const a = stateLink(game.game_path);
     a.className = 'gameSelect__game';
-    if (game.bagrada_game == GAME_DATA.header.game.bagrada_game) {
+    if (game.game_num == GAME_DATA.header.game.game_num) {
       a.classList.add('gameSelect__game--selected');
     }
     let mapName = dce('span', 'gameSelect__game_map', `${game.game_num}. ${stripBrackets(stripFormat(game.map_name))}`);
@@ -1836,6 +2480,7 @@ let TOOLTIP_CONTENTS = {};
 function tooltip (el, content) {
   let node = dce('span', 'tooltip__plain', content);
   tooltipNode(el, node);
+  return node;
 }
 
 function tooltipNode (el, node) {
@@ -1979,7 +2624,7 @@ function renderPlayerList () {
       e.preventDefault();
       selectTeam(teamRow);
     });
-    if (team.winner) {
+    if (team.winner || team.allied_winner) {
       teamHead.append(' ');
       let winner = dce('span', 'playerSelect__winner', '🏆');
       tooltip(winner, 'Winning Team');
@@ -1998,11 +2643,11 @@ function renderPlayerList () {
     for (const player of Object.values(team.players)) {
       // Player stat line
       const playerRow = dce("tr", 'playerStats__player');
-      let bagradaPlayer = player.bagrada_player;
-      if (FILTERED_PLAYER == bagradaPlayer) {
+      let metaserverPlayer = player.metaserver_player;
+      if (FILTERED_PLAYER == metaserverPlayer) {
         playerRow.classList.add('playerStats__player--selected');
       }
-      playerRow.dataset.bagrada_player = bagradaPlayer;
+      playerRow.dataset.metaserver_player = metaserverPlayer;
 
       for ([col, ] of STAT_COLS) {
         let statCell = dce('td', `statCell statCell__${col}`, colCalc(col, player.stats));
@@ -2034,7 +2679,7 @@ function renderPlayerList () {
           playerItem.appendChild(medalEl);
         });
       }
-      playerItem.dataset.bagrada_player = bagradaPlayer;
+      playerItem.dataset.metaserver_player = metaserverPlayer;
 
       playerItem.addEventListener('click', (e) => {
         e.preventDefault();
@@ -2067,17 +2712,18 @@ function renderPlayerList () {
 function renderGameInfo() {
   captionHead.innerHTML = '';
 
-  let subtitle = `${GAME_DATA.header.game.game_type} on ${stripFormat(GAME_DATA.header.game.map_name)} (${GAME_DATA.header.game.difficulty}) - ${Math.round(GAME_DATA.header.game.time_limit/30/60)} mins`;
-
-  let bagradaLink = dce('a');
-  bagradaLink.target = '_blank';
-  bagradaLink.textContent = 'bagrada.net';
-  bagradaLink.href = `https://bagrada.net/webui/games/${GAME_DATA.header.game.bagrada_game}`;
+  let sd = GAME_DATA.header.game.sudden_death ? 'Sudden Death: ' : '';
+  let subtitle = `${sd}${GAME_DATA.header.game.game_type} on ${stripFormat(GAME_DATA.header.game.map_name)} (${GAME_DATA.header.game.difficulty}) - ${Math.round(GAME_DATA.header.game.time_limit/30/60)} mins`;
 
   let filmLink = dce('a');
   filmLink.target = '_blank';
   filmLink.textContent = 'download film';
-  filmLink.href = `https://bagrada.net/recordings/public/${GAME_DATA.header.game.film_name}`;
+  filmLink.href = `${BASE_URL}${GAME_DATA.header.game.game_path}/${GAME_DATA.header.game.film_name}`;
+  // if (GAME_DATA.header.tournament.metaserver == 'gos') {
+  //   filmLink.href = `http://gateofstorms.net/recordings/${GAME_DATA.header.game.film_name}`;
+  // } else {
+  //   filmLink.href = `https://bagrada.net/recordings/public/${GAME_DATA.header.game.film_name}`;
+  // }
 
   titleHead.textContent = ' / ';
   let tourneyLink = stateLink(GAME_DATA.header.tournament.path, GAME_DATA.header.tournament.name);
@@ -2088,7 +2734,7 @@ function renderGameInfo() {
   subtitleHead.textContent = subtitle;
 
   let overheadMap = dce('img');
-  overheadMap.src = `${PAGE_URL}/overhead.png`;
+  overheadMap.src = `${BASE_URL}${GAME_DATA.header.game.overhead_path}`;
   overhead.innerHTML = '';
   overhead.appendChild(overheadMap);
 
@@ -2109,28 +2755,43 @@ function renderGameInfo() {
   captionHead.append(filmLink);
   captionHead.append(' / ');
 
-  captionHead.append(bagradaLink);
+  captionHead.append(metaserverLink({
+    tourney: GAME_DATA.header.tournament,
+    round: GAME_DATA.header.round.metaserver_round,
+    game: GAME_DATA.header.game.metaserver_game
+  }));
   captionHead.append(' / ');
 
   captionHead.append(stateLink(GAME_DATA.header.tournament.path + '/stats', 'tournament stats'));
+  captionHead.append(' / ');
 
-  let start = new Date(GAME_DATA.header.game.start);
-  let startDate = start.toDateString();
-  let end = new Date(GAME_DATA.header.game.end);
-  let timeRange = `${startDate} - ${start.toLocaleTimeString('en-gb', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour24: true,
-  })} - ${end.toLocaleTimeString('en-gb', {
-    timeZoneName: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour24: true,
-  })}`;
-  let gameDate = `${timeRange} `;
-  // let gameDate = `${startDate} `;
+  captionHead.append(stateLink(`maps#${slugifyMapGt(GAME_DATA.header.game)}`, 'historical trades'));
+
+  let timeRange = '';
+  if (GAME_DATA.header.game.start) {
+    let start = new Date(GAME_DATA.header.game.start);
+    let startDate = start.toDateString();
+    timeRange = `${startDate} - ${start.toLocaleTimeString('en-gb', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour24: true,
+    })}`;
+  }
+  if (GAME_DATA.header.game.end) {
+    let end = new Date(GAME_DATA.header.game.end);
+    timeRange = `${timeRange} - ${end.toLocaleTimeString('en-gb', {
+      timeZoneName: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour24: true,
+    })}`;
+  }
+  let gameDate = '';
+  if (timeRange) {
+    gameDate = `${timeRange} `;
+  }
   let host;
-  if ('host' in GAME_DATA.header.game) {
+  if (GAME_DATA.header.game.host) {
     host = stripFormat(stripOrder(GAME_DATA.header.game.host.name));
   }
   if (host) {
@@ -2143,8 +2804,10 @@ function stateLink (href, textContent, className) {
   let link = dce('a', className, textContent);
   link.href = `${BASE_URL}${href}`;
   link.addEventListener('click', (e) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     e.preventDefault();
     history.pushState({}, "", link.href);
+    window.scrollTo(0, 0);
     routeUrl();
   });
   return link;
@@ -2174,13 +2837,14 @@ function renderHeatmap () {
 
   const heatmapHead = dce('h4', 'heatmap-head', 'Heatmap');
   const heatmapImage = dce('div', 'heatmap-image');
+  const heatmapLegend = dce('div', 'heatmap-legend');
   heatmapImage.addEventListener('click', toggleStats);
 
   const [locWidth, locHeight] = GAME_DATA.header.game.dimensions;
   const aspect = locWidth / locHeight;
 
   let cMap = dce('img', 'heatmap-base');
-  cMap.src = `${PAGE_URL}/cmap.png`;
+  cMap.src = `${BASE_URL}${GAME_DATA.header.game.cmap_path}`;
   cMap.style.aspectRatio = aspect;
   heatmapImage.appendChild(cMap);
 
@@ -2192,7 +2856,7 @@ function renderHeatmap () {
     heatmapHead.innerText = `Heatmap: ${teamNameShort(FILTERED_TEAM)} - `;
     heatmapHead.append(teamLink);
   } else if (FILTERED_PLAYER != null) {
-    const [teamSlug, , player] = findBagradaPlayerTeam(FILTERED_PLAYER);
+    const [teamSlug, , player] = findMetaserverPlayerTeam(FILTERED_PLAYER);
     const playerLink = stateLink(
       `tournament/${TOURNEY_ID}/players/${FILTERED_PLAYER}`,
       stripFormat(stripOrder(player.name))
@@ -2203,17 +2867,43 @@ function renderHeatmap () {
     heatmapHead.innerText = "Heatmap: All";
   }
 
-  if (GAME_DATA.header.game.locations) {
+  // Controls
+  const heatmapControls = dce('div', 'heatmap-controls');
+
+  const heatmapTimer = dce('div', 'heatmap-timer');
+  heatmapControls.append(heatmapTimer);
+
+  const heatmapButtons = dce('div', 'heatmap-buttons');
+  const heatmapRestart = dce('div', 'heatmap-button heatmap-restart', '⏮');
+  heatmapRestart.addEventListener('click', resetTimeline);
+  const heatmapPlay = dce('div', 'heatmap-button heatmap-play', '▶');
+  heatmapPlay.addEventListener('click', playPauseTimeline);
+  const heatmapPause = dce('div', 'heatmap-button heatmap-pause heatmap-button--hide', '⏸');
+  heatmapPause.addEventListener('click', playPauseTimeline);
+  const heatmapSkip = dce('div', 'heatmap-button heatmap-skip', '⏭');
+  heatmapSkip.addEventListener('click', skipTimeline);
+  heatmapButtons.append(heatmapRestart);
+  heatmapButtons.append(heatmapPlay);
+  heatmapButtons.append(heatmapPause);
+  heatmapButtons.append(heatmapSkip);
+  heatmapControls.append(heatmapButtons);
+
+  heatmapHead.append(heatmapControls);
+
+  if (GAME_DATA.commands.length) {
     const positions = [];
     GAME_DATA.commands.forEach(c => {
       if (c.position) {
         let [player, teamSlug] = findPlayer(c.player);
         positions.push({
+          time: c.time,
           x: c.position[0],
           y: locHeight-c.position[1],
           teamSlug: teamSlug,
           teamName: teamName(teamSlug),
-          bagradaPlayer: player.bagrada_player,
+          playerName: player.name,
+          playerColor: player.color[0],
+          metaserverPlayer: player.metaserver_player,
         });
       }
     });
@@ -2238,9 +2928,9 @@ function renderHeatmap () {
           weight: d => {
             let filtered = true;
             let sameTeam = false;
-            if (FILTERED_PLAYER && d.bagradaPlayer != FILTERED_PLAYER) {
+            if (FILTERED_PLAYER && d.metaserverPlayer != FILTERED_PLAYER) {
               filtered = false;
-              const [teamSlug, ,] = findBagradaPlayerTeam(FILTERED_PLAYER)
+              const [teamSlug, ,] = findMetaserverPlayerTeam(FILTERED_PLAYER)
               if (teamSlugMap(teamSlug) == teamSlugMap(d.teamSlug)) {
                 sameTeam = true;
               }
@@ -2256,51 +2946,33 @@ function renderHeatmap () {
     });
     heatmapImage.append(densityPlot);
 
-    const dotPlot = Plot.plot({
-      color: {
-        domain: [teamName(GAME_DATA.header.round.team1), teamName(GAME_DATA.header.round.team2)],
-        range: ["crimson", "orange"],
-        legend: true,
-        swatchSize: 10,
-        marginLeft: 0,
-      },
-      className: "densityPlot",
-      width: locWidth,
-      height: locHeight,
-      x: {
-        axis: false,
-        domain: [0, locWidth],
-      },
-      y: {
-        axis: false,
-        domain: [0, locHeight],
-      },
-      marks: [
-        Plot.dot(positions, {
-          x: "x", y: "y",
-          fill: (d) => d.teamName,
-          r: 0.8,
-          opacity: d => {
-            let filtered = true;
-            if (FILTERED_PLAYER && d.bagradaPlayer != FILTERED_PLAYER) {
-              filtered = false;
-            }
-            if (FILTERED_TEAM && d.teamSlug != FILTERED_TEAM) {
-              filtered = false;
-            }
-            return filtered ? 0.5 : 0;
-          },
-        }),
-      ]
-    });
-    heatmapImage.append(dotPlot);
+    const dotColorMap = {};
+    dotColorMap[teamName(GAME_DATA.header.round.team1)] = "crimson";
+    dotColorMap[teamName(GAME_DATA.header.round.team2)] = "orange";
+    const dotLegend = Plot.legend({color: {
+      domain: Object.keys(dotColorMap),
+      range: Object.values(dotColorMap),
+      swatchSize: 10,
+      marginLeft: 0,
+    }});
+    heatmapLegend.append(dotLegend);
 
+    const dotPlotContainer = dce('div', 'dotPlotContainer');
+    dotPlotContainer.append(renderDotPlot(dotColorMap, locWidth, locHeight, positions));
+    heatmapImage.append(dotPlotContainer);
+  }
+  if (GAME_DATA.header.game.locations) {
+    const teamObservers = {};
     GAME_DATA.header.game.locations.forEach(loc => {
-      if (loc.position) {
+      if (loc.position && (loc.target || loc.observer)) {
         let x = loc.position[0] / locWidth;
         let y = loc.position[1] / locHeight;
         let type = 'location';
         if (loc.observer) {
+          if (teamObservers[loc.team]) {
+            return;
+          }
+          teamObservers[loc.team] = true;
           type = 'spawn';
         }
         if (loc.target) {
@@ -2335,12 +3007,330 @@ function renderHeatmap () {
     });
   }
 
+  const heatmapChat = dce('div', 'heatmap-chat');
+  heatmapImage.append(heatmapChat);
+  heatmapImage.append(dce('div', 'heatmap-chatScroll'));
+
   heatmap.appendChild(heatmapHead);
   heatmap.appendChild(heatmapImage);
+  heatmap.appendChild(heatmapLegend);
+}
+
+function renderDotPlot (dotColorMap, locWidth, locHeight, positions) {
+  const dotPlot = dce('div', 'dotPlot');
+  positions.forEach(d => {
+    const dot = dce('div', 'dotPlot__dot');
+    dot.style.backgroundColor = dotColorMap[d.teamName];
+    let x = d.x / locWidth;
+    let y = (locHeight - d.y) / locHeight;
+    dot.style.left = `${x*100}%`;
+    dot.style.top = `${y*100}%`;
+    let filtered = true;
+    if (FILTERED_PLAYER && d.metaserverPlayer != FILTERED_PLAYER) {
+      filtered = false;
+    }
+    if (FILTERED_TEAM && d.teamSlug != FILTERED_TEAM) {
+      filtered = false;
+    }
+    dot.dataset.time = d.time;
+    dot.dataset.x = x;
+    dot.dataset.y = y;
+    dot.dataset.player_name = d.playerName;
+    dot.dataset.player_color = d.playerColor;
+    dot.dataset.team_slug = d.teamSlug;
+    dot.dataset.metaserver_player = d.metaserverPlayer;
+    dot.style.opacity = filtered ? 0.5 : 0;
+    dotPlot.append(dot);
+  });
+  return dotPlot;
+}
+
+const TIMELINE_STATE = {};
+
+function resetTimeline () {
+  console.log('Reset');
+  document.querySelector('.heatmap-chat').innerHTML = '';
+  document.querySelector('.heatmap-chatScroll').innerHTML = '';
+  document.querySelector('.densityPlot').style.display = 'none';
+  document.querySelector('.heatmap-play').classList.remove('heatmap-button--hide');
+  document.querySelector('.heatmap-pause').classList.add('heatmap-button--hide');
+  const TS = TIMELINE_STATE;
+  TS.init = true;
+  TS.multiplier = 32;
+  TS.pause = true;
+  TS.last = performance.now();
+  const game_info = GAME_DATA.header.game;
+  TS.progress = game_info.planning_time;
+  const lastCommand = GAME_DATA.commands[GAME_DATA.commands.length - 1];
+  TS.game_length = game_info.planning_time + Math.min(lastCommand.time, game_info.time_limit);
+  TS.game_over = false;
+  TS.messages = [];
+  TS.lastLog = 0;
+  TS.lastChat = 0;
+  TS.chatIdx = -1;
+  TS.lastCommand = null;
+  TS.teamSpawns = {};
+
+  if (GAME_DATA.header.game.locations) {
+    GAME_DATA.header.game.locations.forEach(loc => {
+      if (loc.position && loc.observer && loc.team != null) {
+        if (TS.teamSpawns[loc.team]) {
+          return;
+        }
+        TS.teamSpawns[loc.team] = loc.position;
+      }
+    });
+  }
+
+  timelineTick(TS.last, true);
+}
+
+function playPauseTimeline () {
+  const TS = TIMELINE_STATE;
+  if (!TS.init || TS.game_over) {
+    resetTimeline();
+  }
+  if (TS.pause) {
+    console.log('Play');
+    TS.last = performance.now();
+    TS.pause = false;
+    requestAnimationFrame(timelineTick);
+  } else {
+    console.log('Pause');
+    TS.pause = true;
+  }
+  document.querySelector('.heatmap-play').classList.toggle('heatmap-button--hide', !TIMELINE_STATE.pause);
+  document.querySelector('.heatmap-pause').classList.toggle('heatmap-button--hide', TIMELINE_STATE.pause);
+}
+
+function skipTimeline () {
+  const TS = TIMELINE_STATE;
+  if (GAME_DATA) {
+    console.log('Skip');
+    if (!TS.init) {
+      resetTimeline();
+    }
+    TS.chatIdx = -1;
+    TS.last = performance.now() - 1;
+    const game_info = GAME_DATA.header.game;
+    if (TS.progress < game_info.planning_time) {
+      TS.progress = game_info.planning_time;
+    } else {
+      TS.progress = TS.game_length;
+    }
+    timelineTick(TS.last + 1, true);
+  }
+}
+
+window.TIMELINE_STATE = TIMELINE_STATE;
+
+function timelineTick (nowRaf, once) {
+  const now = performance.now();
+  const TS = TIMELINE_STATE;
+  if (!GAME_DATA) {
+    console.log('No game abort');
+    return;
+  }
+  const game_info = GAME_DATA.header.game;
+  if (TS.pause) {
+    console.log('Paused abort');
+    // return;
+  }
+  const delta = now - TS.last;
+  TS.last = now;
+  const deltaTicks = (delta / 1000) * 30;
+  TS.progress += deltaTicks * TS.multiplier;
+  TS.progress = Math.min(TS.game_length, TS.progress);
+  if (TS.progress >= TS.game_length) {
+    console.log('Game Over');
+    document.querySelector('.densityPlot').style.display = 'block';
+    document.querySelector('.heatmap-play').classList.remove('heatmap-button--hide');
+    document.querySelector('.heatmap-pause').classList.add('heatmap-button--hide');
+    document.querySelectorAll('.dotPlot__dot').forEach(dot => {
+      dot.classList.remove('dotPlot__dot--hidden');
+    });
+    TS.game_over = true;
+    TS.pause = true;
+  }
+  const pt = TS.progress < game_info.planning_time;
+  const tickStamp = TS.progress - game_info.planning_time;
+
+  document.querySelectorAll('.heatmap-playerBadge').forEach(b => {
+    b.classList.add('heatmap-playerBadge--hide');
+  });
+  const playerPositions = {};
+  const dotTime = TS.lastCommand || tickStamp;
+  document.querySelectorAll('.dotPlot__dot').forEach(dot => {
+    let show = true;
+    if (dot.dataset.time > dotTime || dot.dataset.time < (dotTime - 30*120)) {
+      show = false;
+    } else {
+      const msPlayer = dot.dataset.metaserver_player;
+      if (!(msPlayer in playerPositions)) {
+        let playerBadge = document.querySelector(`.heatmap-playerBadge--${msPlayer}`);
+        if (!playerBadge) {
+          playerBadge = dce(
+            'div', `heatmap-playerBadge heatmap-playerBadge--hide heatmap-playerBadge--${msPlayer}`,
+            stripFormat(stripOrder(dot.dataset.player_name))
+          );
+          playerBadge.style.borderLeft = `7px solid ${dot.dataset.player_color}`;
+          let bg;
+          if (teamSlugMap(dot.dataset.team_slug) == GAME_DATA.header.round.team1) {
+            bg = 'rgba(220, 20, 60, 0.8)'; // crimson
+          } else {
+            bg = 'rgba(255, 165, 0, 0.8)'; // orange
+          }
+          playerBadge.style.backgroundColor = bg;
+          document.querySelector('.heatmap-chat').append(playerBadge);
+        }
+        playerPositions[msPlayer] = {x: [], y: [], element: playerBadge};
+      }
+      playerPositions[msPlayer].x.push(dot.dataset.x - 0);
+      playerPositions[msPlayer].y.push(dot.dataset.y - 0);
+    }
+    if (!TS.game_over) {
+      dot.classList.toggle('dotPlot__dot--hidden', !show);
+    }
+  });
+  for (const playerDetails of Object.values(playerPositions)) {
+    if (playerDetails.x.length > 3 && playerDetails.y.length > 3) {
+      const element = playerDetails.element;
+      // const x = playerDetails.x[playerDetails.x.length-1];
+      // const y = playerDetails.y[playerDetails.y.length-1];
+      const x = avgMean(playerDetails.x.slice(playerDetails.x.length/2));
+      const y = avgMean(playerDetails.y.slice(playerDetails.x.length/2));
+      element.style.left = `${x*100}%`;
+      element.style.top = `${y*100}%`;
+      playerDetails.element.classList.remove('heatmap-playerBadge--hide');
+    }
+  }
+
+  const timestamp = Math.abs(tickStamp) / 30;
+  const mins = Math.floor(timestamp / 60);
+  const secs = Math.floor(timestamp % 60);
+  const ts = `${mins}:${secs.toString().padStart(2, "0")}`;
+
+  let lastCommand;
+  if (!TS.lastCommand && GAME_DATA.commands) {
+    lastCommand = GAME_DATA.commands[GAME_DATA.commands.length - 1];
+    if (lastCommand && tickStamp >= lastCommand.time) {
+      console.log(`END ${ts}`);
+      TS.lastCommand = lastCommand.time;
+    }
+  }
+
+  let chatExpiry = 30 * 6; //(speedup ? 200 : 20);
+  let chatMsg;
+  if (GAME_DATA.chat) {
+    GAME_DATA.chat.forEach((chatLine, i) => {
+      if (i > TS.chatIdx && !chatMsg && tickStamp > chatLine.time && chatLine.type == 'chat') {
+        const remainingExpiry = (tickStamp - chatLine.time);
+        if (remainingExpiry < chatExpiry) {
+          TS.chatIdx = i;
+          chatMsg = chatLine;
+        }
+      }
+    });
+    updateChat();
+  }
+
+  // Super high speed
+  const speedup = (TS.lastCommand || pt);
+  // Disable chat for now
+  chatMsg = null;
+  if (chatMsg) {
+    // Time that chat should stay visible
+    renderChat(chatMsg, TS.progress + chatExpiry);
+    TS.lastChat = TS.progress;
+    // Slow down during chat
+    // TS.multiplier = 2;
+  }
+  // Time since chat after which to return to regular high speed
+  const chatDecay = (30 * 2);
+  if ((TS.progress - TS.lastChat) > chatDecay) {
+    TIMELINE_STATE.multiplier = speedup ? 1000 : 32;
+  }
+  if (chatMsg || (TS.progress - TS.lastLog) > 30) {
+    console.log(`${pt ? 'PT:' : '   '} ${ts} ${TIMELINE_STATE.multiplier}x`, chatMsg);
+  }
+  let state = TS.game_over ? 'Game Over ' : '';
+  document.querySelector('.heatmap-timer').innerText = `${state} ${pt ? 'PT: ' : ''}${ts}`;
+  TS.lastLog = TS.progress;
+
+  if (!TS.pause && !TS.game_over && !once) {
+    requestAnimationFrame(timelineTick);
+  }
+}
+
+function updateChat () {
+  const TS = TIMELINE_STATE;
+  const toKeep = [];
+  TS.messages.forEach(msg => {
+    if (TS.progress > msg.expiry) {
+      msg.element.remove();
+    } else {
+      toKeep.push(msg);
+    }
+  });
+  TS.messages = toKeep;
+}
+
+function renderChat (chatMsg, expiry) {
+  const TS = TIMELINE_STATE;
+  const [player, team, teamSlug] = findPlayerTeam(chatMsg.player);
+  if (!player) {
+    return;
+  }
+  let bg;
+  if (teamSlugMap(teamSlug) == GAME_DATA.header.round.team1) {
+    bg = 'rgba(220, 20, 60, 0.8)'; // crimson
+  } else {
+    bg = 'rgba(255, 165, 0, 0.8)'; // orange
+  }
+  let position = chatMsg.last_position || TS.teamSpawns[team.team_index];
+  let chatEmoji = chatMsg.whisper ? '' : '🗣️'; // 🤫
+  const heatmapChat = document.querySelector('.heatmap-chat');
+  const chatScroll = document.querySelector('.heatmap-chatScroll');
+  const element = dce('div', 'chatMessage');
+  const chatDot = dce('div', 'chatMessage__dot');
+  const author = dce('div', 'chatMessage__author', `${stripFormat(stripOrder(player.name))}`);
+  const messageEl = dce('div', 'chatMessage__message', ` ${chatEmoji} ${chatMsg.message}`);
+  if (chatMsg.whisper) {
+    messageEl.classList.add('chatMessage__message--whisper');
+  }
+  element.append(chatDot)
+  element.append(author);
+  element.append(messageEl);
+  author.style.backgroundColor = bg;
+  if (position) {
+    const [locWidth, locHeight] = GAME_DATA.header.game.dimensions;
+    let x = position[0] / locWidth;
+    let y = position[1] / locHeight;
+    if (x > 0.7) {
+      element.style.right = `${(1-x)*100}%`;
+      chatDot.classList.add('chatMessage__dot--right');
+    } else {
+      element.style.left = `${x*100}%`;
+    }
+    if (y > 0.8) {
+      element.style.bottom = `${(1-y)*100}%`;
+      chatDot.classList.add('chatMessage__dot--bottom');
+    } else {
+      element.style.top = `${y*100}%`;
+    }
+    heatmapChat.append(element);
+  } else {
+    chatScroll.append(element);
+    chatScroll.scrollTo(0, chatScroll.scrollHeight);
+  }
+  TS.messages.push({expiry, element});
 }
 
 function renderSummary () {
   summaryGraph.innerHTML = '';
+  if (!GAME_DATA.commands.length) {
+    return;
+  }
   let showStats = showingStats();
   let plotWidth = showStats ? 600 : 900;
 
@@ -2402,7 +3392,7 @@ function renderSummary () {
 function stripFormat (name) {
   // The private use symbol (often the apple symbol) \uF8FF is sometimes used
   // but isn't displayable in game without interface changes (e.g. JINN) Just strip it
-  return name.replace(/[|\\][bip]/gi, '').replace(/[\r\n]/gi, '').replace(/\uF8FF/g, '');
+  return name.replace(/[|\\][bipE]/gi, '').replace(/[\r\n]/gi, '').replace(/\uF8FF/g, '');
 }
 
 function stripBrackets (name) {
@@ -2410,7 +3400,7 @@ function stripBrackets (name) {
 }
 
 function stripOrder (name) {
-  return name.replace(/\s{3,}.*/, '');
+  return name.trim().replace(/\s{3,}.*/, '');
 }
 
 function resetSelection () {
@@ -2436,13 +3426,13 @@ function selectPlayerOrTeam (playerTeamEl) {
 
 function selectPlayer (playerEl) {
   resetSelection();
-  const bagradaPlayer = playerEl.dataset.bagrada_player;
+  const metaserverPlayer = playerEl.dataset.metaserver_player;
   FILTERED_TEAM = null;
-  if (FILTERED_PLAYER == bagradaPlayer) {
+  if (FILTERED_PLAYER == metaserverPlayer) {
     FILTERED_PLAYER = null;
     resetHeatmap();
   } else {
-    FILTERED_PLAYER = bagradaPlayer;
+    FILTERED_PLAYER = metaserverPlayer;
     playerEl.classList.add('playerStats__player--selected');
   }
   renderPlots();
@@ -2493,3 +3483,38 @@ document.addEventListener('keydown', (e) => {
     }
   }
 });
+
+async function fetchYTData () {
+  const response = await fetch(`${BASE_URL}youtube.json?v=${DATA_VERSION}`);
+  YT_DATA = JSON.parse(await response.text());
+
+  for (const [ytId, ytValue] of Object.entries(YT_DATA)) {
+    ytValue.mapping.forEach(mapping => {
+      if (!(mapping.path in YT_DATA_PATH_MAP)) {
+        YT_DATA_PATH_MAP[mapping.path] = [];
+      }
+      YT_DATA_PATH_MAP[mapping.path].push({
+        yt_id: ytId,
+        details: mapping
+      });
+    });
+  }
+
+  window.YT_DATA = YT_DATA;
+}
+
+function coverageChannels (path) {
+  if (path in YT_DATA_PATH_MAP) {
+    return Array.from(new Set(YT_DATA_PATH_MAP[path].map(({yt_id}) => {
+      return YT_DATA[yt_id].meta.channel;
+    })));
+  }
+  return [];
+}
+
+async function init () {
+  await fetchYTData();
+  routeUrl();
+}
+
+init();

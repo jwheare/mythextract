@@ -70,7 +70,7 @@ def main(game_directory, plugin_names):
     try:
         (game_version, tags, entrypoint_map, data_map, cutscenes) = load_tags(game_directory, plugin_names)
 
-        mono2tag.print_entrypoint_map(entrypoint_map)
+        mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
 
         for tag_type, tag_type_tags in tags.items():
             print(f'{tag_type} num={len(tag_type_tags)}')

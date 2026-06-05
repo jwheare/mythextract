@@ -126,25 +126,28 @@ def format_entry_name(long_name, name):
         return f'\x1b[38;5;{color}m{text:<64}\x1b[0m'
     return f'{text:<64}'
 
-def print_entrypoint_map(entrypoint_map, suffix=''):
+def print_entrypoint_map(entrypoint_map, suffix='', plugin_names=None):
     print(
         f"""
 Entrypoints{suffix}
-------+------------------------------------------+----------------------------------+------------------------------------------------------------------+
- id   | archive                                  | name                             | printable name
-------+------------------------------------------+----------------------------------+------------------------------------------------------------------+"""
+------------------------------------------+----------------------------------+------+------------------------------------------------------------------+
+ archive                                  | name                             | id   | printable name
+------------------------------------------+----------------------------------+------+------------------------------------------------------------------+"""
     )
+    plugin_set = set([os.path.basename(p) for p in plugin_names] if plugin_names else [])
     for entry_id, entrypoint in entrypoint_map.items():
-        print(entrypoint_entry(entry_id, entrypoint))
+        (entry_name, entry_long_name, archive_list) = entrypoint
+        if not plugin_names or bool(plugin_set & set(archive_list)):
+            print(entrypoint_entry(entry_id, entrypoint))
     print('---')
 
 def entrypoint_entry(entry_id, entrypoint):
     (entry_name, entry_long_name, archive_list) = entrypoint
     archive_name = ' < '.join(archive_list)
     return (
-        f' {entry_id: <4} |'
         f' {archive_name: <40} |'
         f' {entry_name:<32} |'
+        f' {entry_id: <4} |'
         f' {format_entry_name(entry_long_name, entry_name)}'
     )
 

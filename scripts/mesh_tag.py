@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
 import enum
+import hashlib
 import json
 import os
 import struct
@@ -502,6 +503,19 @@ def netgame_location_type(game_type, title_case=False):
         target = target.lower()
     return target
 
+INTERESTING_PROJECTILES = {
+    'wipp': 'Pus',
+    'arfa': 'Flaming Arrow',
+    'jomr': 'Root',
+}
+
+def proj_type(tag_id, title_case=False):
+    proj = INTERESTING_PROJECTILES.get(tag_id)
+    if proj:
+        if not title_case:
+            proj = proj.lower()
+        return proj
+
 def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_map):
     items = []
     if MarkerType.OBSERVER in palette:
@@ -512,6 +526,18 @@ def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_ma
                     'team': observer['team_index'],
                     'position': normalise_position(mesh_header, marker['pos']),
                 })
+    if MarkerType.PROJECTILE in palette:
+        for proj in palette[MarkerType.PROJECTILE]:
+            projectile = proj_type(proj['tag'])
+            if projectile:
+                for marker_id, marker in proj['markers'].items():
+                    if difficulty >= marker['min_difficulty']:
+                        items.append({
+                            'projectile': True,
+                            'type': projectile,
+                            'team': None,
+                            'position': normalise_position(mesh_header, marker['pos']),
+                        })
     if MarkerType.SCENERY in palette:
         for scenery in palette[MarkerType.SCENERY]:
             tag_id = scenery['tag']
@@ -715,31 +741,36 @@ def get_level_name(mesh_header, tags, data_map, strip_format=False):
         return utils.ansi_format(level_name)
 
 def export_colormap(tags, data_map, mesh_header):
-    SUBMESH_TEXTURE_WIDTH = 256
-
-    pixel_width = mesh_header.submesh_width * SUBMESH_TEXTURE_WIDTH
-    pixel_height = mesh_header.submesh_height * SUBMESH_TEXTURE_WIDTH
-    
     cmap_data = loadtags.get_tag_data(
         tags, data_map, '.256', codec.decode_string(
             mesh_header.landscape_collection_tag
         )
     )
     if cmap_data:
-        (_, _, cmap_bitmaps) = tag2png.parse_256_tag(cmap_data)
+        cmap_hash = hashlib.md5(cmap_data).hexdigest()[:8]
+        return (cmap_data, cmap_hash)
 
-        final_rows = []
-        for submesh_y in range(mesh_header.submesh_height):
-            for y in range(SUBMESH_TEXTURE_WIDTH):
-                pixel_row = []
-                for submesh_x in range(mesh_header.submesh_width - 1, -1, -1):
-                    bitmap_index = ((submesh_y * mesh_header.submesh_width) + submesh_x) * 2
-                    (name, width, height, rows) = cmap_bitmaps[bitmap_index]
-                    for x in range(len(rows[y]) - 1, -1, -1):
-                        pixel_row.append(rows[y][x])
-                final_rows.append(pixel_row)
+def assemble_colormap(mesh_header, cmap_data):
+    SUBMESH_TEXTURE_WIDTH = 256
 
-        return (pixel_width, pixel_height, final_rows)
+    pixel_width = mesh_header.submesh_width * SUBMESH_TEXTURE_WIDTH
+    pixel_height = mesh_header.submesh_height * SUBMESH_TEXTURE_WIDTH
+
+    (_, _, cmap_bitmaps) = tag2png.parse_256_tag(cmap_data)
+
+    final_rows = []
+    for submesh_y in range(mesh_header.submesh_height):
+        for y in range(SUBMESH_TEXTURE_WIDTH):
+            pixel_row = []
+            for submesh_x in range(mesh_header.submesh_width - 1, -1, -1):
+                bitmap_index = ((submesh_y * mesh_header.submesh_width) + submesh_x) * 2
+                (name, width, height, rows) = cmap_bitmaps[bitmap_index]
+                for x in range(len(rows[y]) - 1, -1, -1):
+                    pixel_row.append(rows[y][x])
+            final_rows.append(pixel_row)
+
+    cmap_hash = hashlib.md5(cmap_data).hexdigest()[:8]
+    return (pixel_width, pixel_height, final_rows, cmap_hash)
 
 def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''

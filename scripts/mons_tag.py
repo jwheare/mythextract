@@ -43,6 +43,16 @@ class AttackFlagTFL(enum.Flag):
     VS_GIANT_SIZED = enum.auto()
     PROHIBITED_VS_GIANT_SIZED = enum.auto()
 
+class AttackExtraFlag(enum.Flag):
+    CAN_BE_USED_AGAINST_FRIENDLIES = enum.auto()
+    GIVES_PROJECTILE_TO_TARGET = enum.auto()
+    PLAYER_CAN_INTERRUPT = enum.auto()
+    VS_FLYING = enum.auto()
+    PROHIBITED_VS_FLYING = enum.auto()
+    DOES_NOT_REQUIRE_RECOVERY_TIME = enum.auto()
+    VS_UNDEAD = enum.auto()
+    PROHIBITED_VS_UNDEAD = enum.auto()
+
 MAX_ATTACKS = 4
 MAX_ATTACK_SEQS = 4
 AttackSequenceFmt = ('AttackSequence', [
@@ -71,7 +81,7 @@ AttackDefFmt = ('AttackDef', [
     ('h', 'recovery_time_experience_delta', codec.Time),
     ('h', 'velocity_improvement_with_experience', codec.World),
     ('h', 'mana_cost', codec.ShortFixed),
-    ('H', 'extra_flags'),
+    ('H', 'extra_flags', AttackExtraFlag),
     ('2x', None),
 ])
 

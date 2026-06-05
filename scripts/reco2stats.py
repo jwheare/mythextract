@@ -15,9 +15,10 @@ def main(game_directory, reco_file):
 
     try:
         (
-            reco_header, players, players_idx, monsters, teams, teams_idx, dropped_players,
+            reco_header, players, players_idx, monsters,
+            teams, teams_idx, alliances, dropped_players,
             plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
-            overhead_map_data, cmap_bitmap, chat_lines, movement_data, trades, splits, game_stats
+            overhead_map_data, cmap_export, chat_lines, movement_data, trades, splits, game_stats
         ) = reco_tag.parse_reco_file(game_directory, reco_file)
 
         print(json.dumps(game_stats, indent=2))

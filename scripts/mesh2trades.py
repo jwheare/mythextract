@@ -95,11 +95,15 @@ def main(game_directory, level, plugin_names):
                     if not CSV and not JSON:
                         print_game_info(mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
 
-                    (trade_info, units, mismatch) = parse_game_teams(
+                    game_teams = parse_game_teams(
                         game_type, game_type_units,
                         counts, team_choice=TEAM
                     )
-                    (diffs, trade) = trade_info
+                    if not game_teams:
+                        continue
+
+                    (trade_info, units, mismatch) = game_teams
+                    (diffs, trade, trade_data) = trade_info
                     (mismatch_team, mismatch_rows) = mismatch
                     if JSON:
                         level_name = mesh_tag.get_level_name(mesh_header, tags, data_map)
@@ -125,7 +129,7 @@ def main(game_directory, level, plugin_names):
                         })
                     elif CSV:
                         level_name_strip = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
-                        for i, row in enumerate(trade):
+                        for i, row in enumerate(trade_data):
                             mismatch_str = ''
                             if mismatch_rows is True:
                                 mismatch_str = 'mismatch'
@@ -163,7 +167,7 @@ def main(game_directory, level, plugin_names):
                         if not NO_TRADING:
                             input_loop(game_type, units, diffs)
         else:
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
             mesh_input = input('Choose a mesh id: ')
             main(game_directory, f'mesh={mesh_input}', plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
@@ -331,8 +335,14 @@ def rekey_units(units):
         (u['tag'], u)
         for u in sort_units(units.values())
     )
+
+# This is the sort order used in the trading dialog and trade film commands
 def sort_units(units):
     return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index']), reverse=True)
+
+# Sort by unit name for diffing only
+def diff_sort_units(units):
+    return sorted(units, key=lambda k: (k['tradeable'], k['targets'], k['unit']), reverse=True)
 
 def set_initial_counts(units, counts):
     for i, u in enumerate(units.values()):
@@ -382,7 +392,12 @@ def parse_game_type_units(
                     continue
 
                 if mesh_tag.MarkerPaletteFlag.UNCONTROLLABLE in unit['flags']:
-                    continue
+                    uncontrollable_target = False
+                    for uncontrollable_marker in unit['markers'].values():
+                        if mesh_tag.MarkerFlag.IS_NETGAME_TARGET in uncontrollable_marker['flags']:
+                            uncontrollable_target = True
+                    if not uncontrollable_target:
+                        continue
                 if mesh_tag.is_reinforcements(unit):
                     continue
                 mons_dict = mons2stats.get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
@@ -495,33 +510,37 @@ def parse_game_teams(
         trades[team] = team_trade_parts(game_type, counted_units)
 
     mismatch = (None, None)
-    for team_id, (diffs, trade) in trades.items():
-        first_trade = trades[list(trades.keys())[0]][1]
-        if trade != first_trade:
-            if CSV or JSON:
-                mismatch_rows = []
-                if len(trade) != len(first_trade):
-                    mismatch = (team_id, True)
-                else:
-                    for i, row in enumerate(first_trade):
-                        if row != trade[i]:
-                            mismatch_keys = {}
-                            for col, val in row.items():
-                                if (val != trade[i][col]):
-                                    mismatch_keys[col] = (val, trade[i][col])
-                            mismatch_rows.append((i, mismatch_keys))
-                    mismatch = (team_id, dict(mismatch_rows))
+    first_trade_s = diff_sort_units(trades[list(trades.keys())[0]][2])
+    for team_id, (diffs, trade, trade_data) in trades.items():
+        trade_data_s = diff_sort_units(trade_data)
+        if trade_data_s != first_trade_s:
+            mismatch_rows = []
+            if len(trade_data_s) != len(first_trade_s):
+                mismatch = (team_id, True)
             else:
-                mismatch = (team_id, {})
+                for i, row in enumerate(first_trade_s):
+                    if row != trade_data_s[i]:
+                        mismatch_keys = {}
+                        for col, val in row.items():
+                            if (val != trade_data_s[i][col]):
+                                mismatch_keys[col] = (val, trade_data_s[i][col])
+
+                        if len(mismatch_keys) == 1 and 'unit' in mismatch_keys:
+                            # Filter unit name only mismatches
+                            pass
+                        else:
+                            mismatch_rows.append((i, mismatch_keys))
+                mismatch = (team_id, dict(mismatch_rows))
             break
 
-    if mismatch[1] is not None:
-        print(f'\x1b[91m- Asymmetric teams [{game_type}] -\x1b[0m')
+    mismatched = mismatch[1] is True or (mismatch[1] is not None and len(mismatch[1]) > 0)
+    if len(counts) == 0 and mismatched:
+        print(f'\x1b[91m- Asymmetric teams [{game_type}] -\x1b[0m', mismatch)
 
     if team_choice is None:
-        if mismatch[1] is not None:
+        if mismatched:
             if not CSV and not JSON:
-                for team_id, (diffs, trade) in trades.items():
+                for team_id, (diffs, trade, trade_data) in trades.items():
                     print(f"\nTeam {team_id}")
                     print('\n'.join(trade))
             team_choice = input("\nChoose team: ").strip().lower()
@@ -529,6 +548,9 @@ def parse_game_teams(
             team_choice = 0
     team_choice = int(team_choice)
 
+    if team_choice not in teams:
+        print(f'\x1b[91m- No units for team: {team_choice} -\x1b[0m')
+        return
     final_merged_units = teams[team_choice]
     if team_choice in shared_units:
         final_merged_units = shared_units[team_choice] | teams[team_choice]
@@ -594,7 +616,7 @@ def input_loop(game_type, unit_dict, diffs):
             else:
                 valid_input = False
 
-        (diffs, trade) = team_trade_parts(game_type, unit_dict)
+        (diffs, trade, trade_data) = team_trade_parts(game_type, unit_dict)
         # Move cursor up
         print(f"\x1b[{len(trade)+2}A", end='')
         for line in trade:
@@ -635,11 +657,12 @@ def team_trade_parts_export(game_type, units):
                 'must_use_vet': u['must_use_vet'],
             })
 
-    return ([], rows)
+    return rows
 
 def team_trade_parts(game_type, units):
+    trade_data = team_trade_parts_export(game_type, units)
     if CSV or JSON:
-        return team_trade_parts_export(game_type, units)
+        return ([], [], trade_data)
     trades = []
     divider = []
     untradeable = []
@@ -726,7 +749,9 @@ def team_trade_parts(game_type, units):
     suffix.append(total_points)
     if not NO_TRADING:
         suffix.append("")
+        suffix.append(summarize_trade(units.values()))
         suffix.append("Class distribution:")
+
         class_graph = ''
         class_key = ''
         for i, unit_class in enumerate(sorted(class_distribution.keys())):
@@ -740,7 +765,10 @@ def team_trade_parts(game_type, units):
     # suffix.append("")
     # suffix.append("---")
     suffix.append("")
-    return (diffs, trades + divider + untradeable + suffix)
+    return (diffs, trades + divider + untradeable + suffix, trade_data)
+
+def summarize_trade(trade):
+  return ', '.join([f"{unit['count']}x {unit_name(unit, count=1)}" for unit in trade if unit['count'] and unit['tradeable']])
 
 def unit_name(u, count=None, with_class=False, with_tag=False):
     u_name = u['spellings'][0]

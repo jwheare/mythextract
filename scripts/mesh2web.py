@@ -65,7 +65,8 @@ def main(game_directory, level, plugin_name, plugin_output):
                 plugin = plugin_name if plugin_name == header_name else None
                 extract_level(game_version, tags, data_map, cutscene_paths, mesh_id, plugin, plugin_output)
         else:
-            mono2tag.print_entrypoint_map(entrypoint_map)
+            plugin_names = [plugin_name] if plugin_name else None
+            mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

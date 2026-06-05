@@ -44,7 +44,7 @@ NewPlayerDataFmt = ('NewPlayerData', [
 ])
 
 AddPlayerDataFmt = ('AddPlayerData', [
-    ('L', 'player_id'),
+    ('L', 'unique_identifier'),
     ('h', 'team_index'),
 
     ('h', 'version'),

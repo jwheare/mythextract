@@ -55,7 +55,7 @@ def parse_256_tag(data):
             myth_collection.parse_sequences(data, coll_header)
             bitmaps = myth_collection.parse_bitmaps(data, coll_header, color_table)
         elif header.tag_type == 'd256':
-            d_header = myth_collection.parse_d256_header(data, header)
+            d_header = myth_collection.parse_d256_header(data)
             if DEBUG:
                 head_d = d_header._asdict()
                 for f, val in head_d.items():

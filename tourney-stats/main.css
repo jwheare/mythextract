@@ -23,9 +23,14 @@ header {
   width: 1210px;
 }
 
+.tournamentLinks {
+  column-count: 3;
+  column-gap: 20px;
+}
 .tournamentLink {
   display: block;
   position: relative;
+  width: 343px;
   margin: 0 0 20px 0;
   padding: 20px;
   text-decoration: none;
@@ -47,14 +52,12 @@ header {
 .tournamentGroupedRounds__group {
     width: 200px;
 }
-.tournamentGroupedRounds__head {
-  font-weight: 24px;
-}
 .tournamentGroupedRounds__rounds {
   margin: 0;
   padding: 0;
 }
 .tournamentGroupedRounds__round {
+  position: relative;
   margin: 0 0 40px 0;
   padding: 0;
   list-style: none;
@@ -70,9 +73,15 @@ header {
 .tournamentGroupedRounds__round_link:hover {
   color: #eee;
 }
+.tournamentGroupedRounds__coverageIcon {
+  position: absolute;
+  top: 10px;
+  left: -10px;
+}
 
 .tournamentGroupedRounds__games {
   display: flex;
+  flex-wrap: wrap;
 }
 .tournamentGroupedRounds__forfeit {
   color: #999;
@@ -89,19 +98,36 @@ header {
   color: #aaa;
   background-color: #233E56;
   flex: 1;
+  box-sizing: border-box;
   text-align: center;
+}
+.tournamentGroupedRounds__game--wrap {
+  flex: 1 1 calc(100% / 5);
+}
+.tournamentGroupedRounds__game--winner {
+  color: #222;
+  background-color: lightgreen;
+}
+.tournamentGroupedRounds__game--loser {
+  color: #222;
+  background-color: orange;
 }
 
 .tournamentGroupedRounds__team {
   font-weight: bold;
   color: #fff;
 }
-.tournamentGroupedRounds__team--winner {
+.tournamentGroupedRounds__team--winner,
+.mapList__badge--winner {
   color: lightgreen;
   font-weight: bold;
 }
-.tournamentGroupedRounds__team--loser {
+.tournamentGroupedRounds__team--loser,
+.mapList__badge--loser {
   color: orange;
+}
+.mapList__badge--tie {
+  color: #999;
 }
 .tournamentGroupedRounds__result {
   margin-left: 10px;
@@ -124,63 +150,88 @@ header {
 }
 
 
-.round__stage {
-  color: #aaa;
+span.round__stage {
+  /*color: #aaa;*/
+}
+.round__coverageIcon {
+  text-decoration: none;
 }
 .round__result {
-  margin-left: 15px;
+  margin: 0 15px;
 }
 
-.roundGames {
+.mapList {
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.roundGames__overhead {
+.mapList__overhead {
   position: absolute;
   top: 15px;
   left: 15px;
   width: 65px;
   text-align: center;
 }
-.roundGames__overhead_img {
+.mapList__overhead_img {
   max-height: 60px;
   max-width: 65px;
 }
-.roundGames__game {
+.mapList__entry {
   margin: 0 0 20px 0;
   padding: 0;
   font-size: 20px;
 }
-.roundGames__game::marker {
+.mapList__entry::marker {
   content: counter(list-item) "  ";
   color: #aaa;
 }
-.roundGames__info {
+.mapList__info {
   color: #aaa;
 }
-.roundGames__type {
+.mapList__type {
   color: #fff;
 }
-.roundGames__link:hover .roundGames__info {
+.mapList__link:hover .mapList__info {
   color: #eee;
 }
-.roundGames__link {
+.mapList__item {
   display: block;
   position: relative;
   padding: 20px 20px 20px 100px;
   text-decoration: none;
   background-color: #2B4965;
 }
-.roundGames__winner {
+.mapList__trade {
+  margin-top: 5px;
+  font-size: 16px;
+}
+.mapList__gameList {
+  margin-top: 10px;
+}
+.mapList__gameListItem {
+  margin-top: 5px;
+}
+hr {
+  padding: 0;
+  border: 0;
+  border-top: 1px solid #111;
+}
+.mapList__gameListDivider {
+  margin: 20px 0 15px 0;
+  border-color: #222;
+}
+.mapList__badge {
   margin-right: 5px;
-  padding: 5px;
+  padding: 2px;
+  font-weight: bold;
+}
+.gameList__badge {
   position: absolute;
   top: 20px;
   right: 20px;
+  padding: 5px;
   text-align: right;
-  font-weight: bold;
   color: #fff;
 }
 
@@ -194,18 +245,29 @@ h1#title {
 #subhead {
   position: relative;
 }
+h2 {
+  font-weight: normal;
+  font-size: 24px;
+}
 h2.subtitle {
   margin: 18px 0 8px 0;
-  font-weight: normal;
-  font-size: 26px;
 }
-h3#caption {
-  margin: 8px 0;
+h3 {
+  margin: 20px 0 15px 0;
   font-weight: normal;
   font-size: 18px;
   line-height: 1.5;
+}
+h3#caption {
+  margin: 8px 0;
   color: #aaa;
 }
+
+h4 {
+  font-size: 17px;
+  font-weight: normal;
+}
+
 #overhead {
   position: absolute;
   top: -7px;
@@ -260,6 +322,7 @@ h3#caption {
   width: 900px;
 }
 .heatmap-head {
+  position: relative;
   margin: -5px 0 10px 0;
 }
 .show-heatmap #graphs {
@@ -278,12 +341,152 @@ h3#caption {
 .heatmap-image img {
   width: 100%;
 }
-.densityPlot {
+
+.densityPlot,
+.dotPlot,
+.dotPlotContainer {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
+  height: 100%;
 }
+
+.dotPlot__dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background-color: grey;
+  border-radius: 10px;
+}
+.show-stats .dotPlot__dot {
+  width: 4px;
+  height: 4px;
+}
+.dotPlot__dot--hidden {
+  display: none;
+}
+
+.heatmap-chat {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+.heatmap-chatScroll {
+  position: absolute;
+  bottom: 3px;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow: hidden;
+
+}
+.chatMessage {
+  position: absolute;
+  z-index: 3;
+  padding: 15px 5px 5px 15px;
+  display: flex;
+  align-items: flex-start; /* tops aligned */
+  max-width: 50%;
+}
+.chatMessage__dot {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 8px;
+  height: 8px;
+  background-color: blue;
+  border-radius: 10px;
+  border: 1px solid #fff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+.chatMessage__dot--right {
+  left: auto;
+  right: -11px;
+}
+.chatMessage__dot--bottom {
+  top: auto;
+  bottom: -11px;
+}
+.chatMessage__author {
+  flex: none; /* don't shrink or grow */
+  white-space: nowrap;
+  padding: 5px;
+  color: #fff;
+}
+.chatMessage__message {
+  flex: 1; /* fills remaining space */
+  min-width: 0;
+  padding: 5px 7px;
+  color: #000;
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.chatMessage__message--whisper {
+  color: #fff;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  background-color: rgba(0, 0, 0, 0.6);
+}
+.heatmap-chat .chatMessage {
+  position: absolute;
+}
+.heatmap-chat .chatMessage__author {
+  border-radius: 5px 0 0 5px;
+}
+.heatmap-chat .chatMessage__message {
+  border-radius: 0 5px 5px 5px;
+}
+
+.heatmap-playerBadge {
+  font-size: 12px;
+  position: absolute;
+  text-align: center;
+  z-index: 3;
+  padding: 3px 5px;
+  color: #fff;
+  border-radius: 5px;
+  white-space: nowrap;
+  transition: top 0.1s ease-in-out;
+  transition: right 0.1s ease-in-out;
+  transition: bottom 0.1s ease-in-out;
+  transition: left 0.1s ease-in-out;
+  transition: inset 0.1s ease-in-out;
+}
+.heatmap-playerBadge--hide {
+  display: none;
+}
+
+.heatmap-controls {
+  position: absolute;
+  top: -10px;
+  right: 0;
+}
+.heatmap-buttons {
+  display: inline-block;
+}
+.heatmap-button {
+  display: inline-block;
+  margin:0 0 0 5px;
+  padding: 10px;
+  width: 15px;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+}
+.heatmap-button:hover {
+  background-color: #fff;
+  color: #000;
+}
+.heatmap-button--hide {
+  display: none;
+}
+.heatmap-timer {
+  display: inline-block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 
 #graphs {
   width: 900px;
@@ -401,7 +604,6 @@ footer {
 .teamDataTable td.dataTableHead__Team {
   width: 120px;
   text-align: left;
-  padding-left: 7px;
 }
 .playerDataTable td.dataTable__Team,
 .playerDataTable td.dataTableHead__Team {
@@ -429,19 +631,22 @@ td.dataTable__Player {
 .dataTable a:hover {
   background-color: #08f;
 }
+thead .dataTablePos,
 td.sorthead {
   font-size: 13px;
   padding-left: 0;
   color: #fff;
   white-space: pre;
-  cursor: pointer;
-  user-select: none;
   vertical-align: middle;
   line-height: 1.4;
   border-bottom: 1px solid #222;
   position: sticky;
   top: 0;
   background-color: #233E56;
+}
+td.sorthead {
+  cursor: pointer;
+  user-select: none;
 }
 td.sorthead::before {
   content: '↑ ';
@@ -485,15 +690,25 @@ td.sorthead.desc::before {
   padding: 6px 8px;
   font-size: 14px;
   pointer-events: none;
+  line-height: 1.5;
 }
 .tooltip__plain {
-  white-space: pre-wrap;
+  display: flex;
+  white-space: preserve-breaks;
 }
 .tooltip--show {
   opacity: 1;
 }
 .tooltip__target {
   cursor: help;
+}
+.tooltipPara {
+  margin: 0;
+}
+.tooltipOverhead {
+  margin: 0 10px 0 0;
+  max-height:63px;
+  max-width: 68px;
 }
 
 .show-stats #graphs,
@@ -714,11 +929,12 @@ td.playerListRightSpacer {
 .tournamentGroupedRounds__round_link:hover,
 .tournamentGroupedRounds__game:hover,
 .tournamentRounds__round a:hover,
-.roundGames__link:hover,
+.mapList__link:hover,
 .playerStats__player:hover,
 .playerStats__team:hover,
 .gameSelect__game:hover,
-.tournamentLink:hover {
+.tournamentLink:hover,
+.mediaLink:hover {
   background-color: #08f;
 }
 .playerStats__player--selected,
@@ -733,4 +949,44 @@ td.playerListRightSpacer {
   display: inline-block;
   width: 5px;
   height: 10px;
+}
+
+#media {
+  margin-bottom: 50px;
+}
+.mediaCoverage {
+  margin: 10px 0 20px 0;
+}
+.mediaDivider {
+  margin: 0 0 20px 0;
+}
+.mediaLink {
+  display: block;
+  position: relative;
+  margin: 0 0 15px 0;
+  padding: 10px 10px 10px 100px;
+  height: 45px;
+  text-decoration: none;
+  background-color: #1D364D;
+  border-radius: 5px;
+  line-height: 1.4;
+}
+.mediaVideo {
+  display: block;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+.mediaTitle {
+  display: block;
+}
+.mediaChannel {
+  display: block;
+  color: #aaa;
+}
+.mediaGameNum {
+  color: #fff;
+}
+.mediaLink:hover .mediaChannel {
+  color: #fff;
 }
