@@ -1791,6 +1791,8 @@ def log_command(
             (command_monsters, _offset) = parse_command_monsters(command_data[8:], monsters, computer_markers, player)
         case Commands.ROTATION:
             action = 'MOVEMENT'
+    if action == 'MOVEMENT':
+        (command_monsters, _offset) = parse_command_monsters(command_data[8:], monsters, computer_markers, player)
     if len(command_monsters):
         (trade_info, units) = trades[player.team_index]
         expanded_monsters = {}

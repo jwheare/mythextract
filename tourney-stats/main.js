@@ -2891,16 +2891,22 @@ function renderHeatmap () {
   heatmapHead.append(heatmapControls);
 
   if (GAME_DATA.commands.length) {
-    const positions = [];
+    GAME_DATA._positions = [];
     GAME_DATA.commands.forEach(c => {
       if (c.position) {
         let [player, teamSlug] = findPlayer(c.player);
-        positions.push({
+        if (c.position[0] == locWidth && c.position[1] == 0) {
+          return;
+        }
+        GAME_DATA._positions.push({
           time: c.time,
           x: c.position[0],
           y: locHeight-c.position[1],
+          xFrac: c.position[0] / locWidth,
+          yFrac: c.position[1] / locHeight,
           teamSlug: teamSlug,
           teamName: teamName(teamSlug),
+          monsters: c.monsters,
           playerName: player.name,
           playerColor: player.color[0],
           metaserverPlayer: player.metaserver_player,
@@ -2920,7 +2926,7 @@ function renderHeatmap () {
         domain: [0, locHeight],
       },
       marks: [
-        Plot.density(positions, {
+        Plot.density(GAME_DATA._positions, {
           x: "x",
           y: "y",
           bandwidth: 1,
@@ -2958,7 +2964,7 @@ function renderHeatmap () {
     heatmapLegend.append(dotLegend);
 
     const dotPlotContainer = dce('div', 'dotPlotContainer');
-    dotPlotContainer.append(renderDotPlot(dotColorMap, locWidth, locHeight, positions));
+    dotPlotContainer.append(renderDotPlot(dotColorMap));
     heatmapImage.append(dotPlotContainer);
   }
   if (GAME_DATA.header.game.locations) {
@@ -3016,15 +3022,13 @@ function renderHeatmap () {
   heatmap.appendChild(heatmapLegend);
 }
 
-function renderDotPlot (dotColorMap, locWidth, locHeight, positions) {
+function renderDotPlot (dotColorMap) {
   const dotPlot = dce('div', 'dotPlot');
-  positions.forEach(d => {
+  GAME_DATA._positions.forEach((d, i) => {
     const dot = dce('div', 'dotPlot__dot');
     dot.style.backgroundColor = dotColorMap[d.teamName];
-    let x = d.x / locWidth;
-    let y = (locHeight - d.y) / locHeight;
-    dot.style.left = `${x*100}%`;
-    dot.style.top = `${y*100}%`;
+    dot.style.left = `${d.xFrac*100}%`;
+    dot.style.top = `${d.yFrac*100}%`;
     let filtered = true;
     if (FILTERED_PLAYER && d.metaserverPlayer != FILTERED_PLAYER) {
       filtered = false;
@@ -3032,13 +3036,7 @@ function renderDotPlot (dotColorMap, locWidth, locHeight, positions) {
     if (FILTERED_TEAM && d.teamSlug != FILTERED_TEAM) {
       filtered = false;
     }
-    dot.dataset.time = d.time;
-    dot.dataset.x = x;
-    dot.dataset.y = y;
-    dot.dataset.player_name = d.playerName;
-    dot.dataset.player_color = d.playerColor;
-    dot.dataset.team_slug = d.teamSlug;
-    dot.dataset.metaserver_player = d.metaserverPlayer;
+    dot.dataset.idx = i;
     dot.style.opacity = filtered ? 0.5 : 0;
     dotPlot.append(dot);
   });
@@ -3161,21 +3159,22 @@ function timelineTick (nowRaf, once) {
   const playerPositions = {};
   const dotTime = TS.lastCommand || tickStamp;
   document.querySelectorAll('.dotPlot__dot').forEach(dot => {
+    const pos = GAME_DATA._positions[dot.dataset.idx];
     let show = true;
-    if (dot.dataset.time > dotTime || dot.dataset.time < (dotTime - 30*120)) {
+    if (pos.time > dotTime || pos.time < (dotTime - 30*120)) {
       show = false;
     } else {
-      const msPlayer = dot.dataset.metaserver_player;
+      const msPlayer = pos.metaserverPlayer;
       if (!(msPlayer in playerPositions)) {
         let playerBadge = document.querySelector(`.heatmap-playerBadge--${msPlayer}`);
         if (!playerBadge) {
           playerBadge = dce(
             'div', `heatmap-playerBadge heatmap-playerBadge--hide heatmap-playerBadge--${msPlayer}`,
-            stripFormat(stripOrder(dot.dataset.player_name))
+            stripFormat(stripOrder(pos.playerName))
           );
-          playerBadge.style.borderLeft = `7px solid ${dot.dataset.player_color}`;
+          playerBadge.style.borderLeft = `7px solid ${pos.playerColor}`;
           let bg;
-          if (teamSlugMap(dot.dataset.team_slug) == GAME_DATA.header.round.team1) {
+          if (teamSlugMap(pos.teamSlug) == GAME_DATA.header.round.team1) {
             bg = 'rgba(220, 20, 60, 0.8)'; // crimson
           } else {
             bg = 'rgba(255, 165, 0, 0.8)'; // orange
@@ -3183,10 +3182,22 @@ function timelineTick (nowRaf, once) {
           playerBadge.style.backgroundColor = bg;
           document.querySelector('.heatmap-chat').append(playerBadge);
         }
-        playerPositions[msPlayer] = {x: [], y: [], element: playerBadge};
+        playerPositions[msPlayer] = {
+          name: stripFormat(stripOrder(pos.playerName)),
+          monsters: {},
+          x: [],
+          y: [],
+          element: playerBadge
+        };
       }
-      playerPositions[msPlayer].x.push(dot.dataset.x - 0);
-      playerPositions[msPlayer].y.push(dot.dataset.y - 0);
+      playerPositions[msPlayer].x.push(pos.xFrac);
+      playerPositions[msPlayer].y.push(pos.yFrac);
+      if (pos.monsters) {
+        for (const [monsterName, count] of Object.entries(pos.monsters)) {
+          const prevCount = playerPositions[msPlayer].monsters[monsterName] || count;
+          playerPositions[msPlayer].monsters[monsterName] = Math.max(count, prevCount);
+        }
+      }
     }
     if (!TS.game_over) {
       dot.classList.toggle('dotPlot__dot--hidden', !show);
@@ -3195,13 +3206,20 @@ function timelineTick (nowRaf, once) {
   for (const playerDetails of Object.values(playerPositions)) {
     if (playerDetails.x.length > 3 && playerDetails.y.length > 3) {
       const element = playerDetails.element;
-      // const x = playerDetails.x[playerDetails.x.length-1];
-      // const y = playerDetails.y[playerDetails.y.length-1];
       const x = avgMean(playerDetails.x.slice(playerDetails.x.length/2));
       const y = avgMean(playerDetails.y.slice(playerDetails.x.length/2));
+      const numGiants = (
+        (playerDetails.monsters['Trow'] || 0) +
+        (playerDetails.monsters['Forest Giant'] || 0)
+      );
+      const giant = numGiants > 0;
+      const g = giant ? `${"🗿".repeat(numGiants)} ` : '';
+      element.classList.toggle('heatmap-playerBadge--giant', giant);
+      // element.innerText = `${g}${playerDetails.name} ${summarizeMonsters(playerDetails.monsters)}`;
+      element.innerText = `${g}${playerDetails.name}`;
       element.style.left = `${x*100}%`;
       element.style.top = `${y*100}%`;
-      playerDetails.element.classList.remove('heatmap-playerBadge--hide');
+      element.classList.remove('heatmap-playerBadge--hide');
     }
   }
 
@@ -3251,7 +3269,7 @@ function timelineTick (nowRaf, once) {
     TIMELINE_STATE.multiplier = speedup ? 1000 : 32;
   }
   if (chatMsg || (TS.progress - TS.lastLog) > 30) {
-    console.log(`${pt ? 'PT:' : '   '} ${ts} ${TIMELINE_STATE.multiplier}x`, chatMsg);
+    // console.log(`${pt ? 'PT:' : '   '} ${ts} ${TIMELINE_STATE.multiplier}x`, chatMsg);
   }
   let state = TS.game_over ? 'Game Over ' : '';
   document.querySelector('.heatmap-timer').innerText = `${state} ${pt ? 'PT: ' : ''}${ts}`;

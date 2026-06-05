@@ -453,6 +453,10 @@ h4 {
   transition: left 0.1s ease-in-out;
   transition: inset 0.1s ease-in-out;
 }
+.heatmap-playerBadge--giant {
+  font-size: 18px;
+  z-index: 4;
+}
 .heatmap-playerBadge--hide {
   display: none;
 }
