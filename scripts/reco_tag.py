@@ -236,11 +236,25 @@ BAGRADA_MATCH = r'bagrada\d{4,4}_\d{2,2}_\d{2,2}__\d{2,2}_\d{2,2}_\d{2,2}_\d{2,3
 # TODO handle this elsewhere
 BAGRADA_STAT_OVERRIDES = {
     81761: {
-        34: { # spy
-            "unitsKilled": 1,
-            "unitsLost": 1,
-            "damageGiven": 1,
-            "damageTaken": 1,
+        'missing': {
+            1: [{
+                # spy
+                "userId": 34,
+                "nickName": "|ispy",
+                "teamName": "|icasual show ponies",
+                "primaryColor": 8727773,
+                "secondaryColor": 15649327,
+                "coatOfArmsBitmapIndex": 48,
+                "gameVersion": 2185,
+                "buildNumber": 471,
+                "host": False,
+                "captain": True,
+                "dropped": False,
+                "unitsKilled": 1,
+                "unitsLost": 1,
+                "damageGiven": 1,
+                "damageTaken": 1,
+            }]
         },
         89: { # Funk
             "unitsKilled": 0,
@@ -297,6 +311,9 @@ def metaserver_stat_hardcodes(metaserver_stats):
                     playerStats = BAGRADA_STAT_OVERRIDES[game_id][player['userId']]
                     for k, v in playerStats.items():
                         player[k] = v
+        if 'missing' in BAGRADA_STAT_OVERRIDES[game_id]:
+            for team_idx, missing in BAGRADA_STAT_OVERRIDES[game_id]['missing'].items():
+                metaserver_stats['teams'][team_idx]['players'] += missing
 
 def fetch_bagrada_stats(file_path, bagrada_game=None):
     file_name = pathlib.Path(file_path).name
@@ -872,7 +889,7 @@ def get_trades(
                         continue
                     selected = 0
                     for marker in sorted_markers(markers, game_param):
-                        if u['palette_index'] == marker['palette_index']:
+                        if marker['palette_index'] in u['palette_index']:
                             marker['player_id'] = captain.unique_identifier
                             marker['player_index'] = players_idx.index(captain.unique_identifier)
                             team_markers[marker['marker_id']] = marker

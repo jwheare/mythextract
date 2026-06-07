@@ -24,6 +24,63 @@ FIXED_SF = 1 << 16
 ANGLE_SF = FIXED_SF / 360
 TIME_SF = 30
 
+class MeshCellTerrain(enum.Enum):
+    MEDIA_DWARF_DEPTH = 0
+    MEDIA_HUMAN_DEPTH = enum.auto()
+    MEDIA_GIANT_DEPTH = enum.auto()
+    MEDIA_DEEP = enum.auto()
+    SLOPED = enum.auto()
+    STEEP = enum.auto()
+    GRASS = enum.auto()
+    DESERT = enum.auto()
+    ROCKY = enum.auto()
+    MARSH = enum.auto()
+    SNOW = enum.auto()
+    FOREST = enum.auto()
+    LOATHING_SPECIAL = enum.auto()
+    UNUSED = enum.auto()
+    WALKING_IMPASSABLE = enum.auto()
+    FLYING_IMPASSABLE = enum.auto()
+
+MeshCellTerrainColors = {
+    MeshCellTerrain.MEDIA_DWARF_DEPTH: (255,255,0),
+    MeshCellTerrain.MEDIA_HUMAN_DEPTH: (255,165,0),
+    MeshCellTerrain.MEDIA_GIANT_DEPTH: (255,0,0),
+    MeshCellTerrain.MEDIA_DEEP: (128,0,128),
+    MeshCellTerrain.SLOPED: (100,100,100),
+    MeshCellTerrain.STEEP: (255,192,203),
+    MeshCellTerrain.GRASS: (255,255,255),
+    MeshCellTerrain.DESERT: (245,245,150),
+    MeshCellTerrain.ROCKY: (200,200,200),
+    MeshCellTerrain.MARSH: (215,175,135),
+    MeshCellTerrain.SNOW: (200,230,250),
+    MeshCellTerrain.FOREST: (100,200,100),
+    MeshCellTerrain.LOATHING_SPECIAL: (0,255,255),
+    MeshCellTerrain.UNUSED: (255,0,255),
+    MeshCellTerrain.WALKING_IMPASSABLE: (0,0,255),
+    MeshCellTerrain.FLYING_IMPASSABLE: (0,0,0),
+}
+
+class MeshCellFlag(enum.Flag, boundary=enum.CONFORM):
+    VERTEX_IS_MEDIA_BIT = enum.auto()
+    CELL_WAS_OR_IS_ON_FIRE_BIT = enum.auto()
+    VERTEX_IS_ANIMATED_MEDIA_BIT = enum.auto()
+    CELL_TRIANGLE0_IS_MEDIA_BIT = enum.auto()
+    CELL_TRIANGLE1_IS_MEDIA_BIT = enum.auto()
+    CELL_HAS_REFLECTION_BIT = enum.auto()
+    CELL_IS_NOT_RENDERED_BIT = enum.auto()
+
+MeshCellFmt = ('MeshCell', [
+    ('h', 'height', codec.World),
+    ('b', 'normal1'),
+    ('b', 'normal2'),
+    ('B', 'flags', MeshCellFlag),
+    ('B', 'terrain_type', lambda b: (MeshCellTerrain((b >> 4) & 0x0F), MeshCellTerrain(b & 0x0F))),
+    ('H', 'first_object_index'),
+    ('h', 'media_height', codec.World),
+    ('H', 'model_index'),
+])
+
 # 887E <- action_id
 # 0000 <- expiration_mode
 # 61636C69 <- action_type
@@ -493,6 +550,9 @@ def mesh_dimensions(mesh_header):
         mesh_header.submesh_height * 32
     )
 
+def mesh_cell_count(mesh_header):
+    return mesh_header.submesh_width * mesh_header.submesh_height * 32 * 32
+
 def netgame_location_type(game_type, title_case=False):
     target = 'Target'
     if game_type in ['lmoth', 'fr', 'ctf', 'terries', 'koth', 'stamp', 'koth_tfl', 'kotm']:
@@ -769,8 +829,7 @@ def assemble_colormap(mesh_header, cmap_data):
                     pixel_row.append(rows[y][x])
             final_rows.append(pixel_row)
 
-    cmap_hash = hashlib.md5(cmap_data).hexdigest()[:8]
-    return (pixel_width, pixel_height, final_rows, cmap_hash)
+    return (pixel_width, pixel_height, final_rows)
 
 def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''
@@ -793,6 +852,66 @@ def parse_oak_editor_data(mesh_header, data):
         # import cbor2
         # return cbor2.loads(editor_data)
     return None
+
+def terrain_color(terrain_type):
+    color = MeshCellTerrainColors.get(terrain_type)
+    if color is None:
+        val = terrain_type.value * 16
+        color = (val, val, val)
+    color += (255,)
+    return color
+
+def draw_cell(r, x, y, values):
+    # Draw an 8x8 pixel cell with 2 triangles
+    left = terrain_color(values[0])
+    right = terrain_color(values[1])
+    alternate = (x ^ y) & 1
+    if alternate:
+        # -------
+        # | L / |
+        # |  /  |
+        # | / R |
+        # -------
+        return ([left] * (8 - r)) + ([right] * r)
+    else:
+        # -------
+        # | \ R |
+        # |  \  |
+        # | L \ |
+        # -------
+        return ([left] * r) + ([right] * (8 - r))
+
+
+def parse_mesh_cells(mesh_header, data):
+    mesh_cells = codec.list_codec(mesh_cell_count(mesh_header), MeshCellFmt)(
+        data, offset=get_offset(mesh_header.mesh_offset)
+    )
+    col_count = mesh_header.submesh_width * 32
+    row_count = mesh_header.submesh_height * 32
+    width = col_count * 8
+    height = row_count * 8
+    print(
+        f'cells={len(mesh_cells)} '
+        f'{col_count} x {row_count}'
+    )
+    pixel_rows = []
+    for y in range(row_count):
+        for cell_row in range(8):
+            pixel_row = []
+            for x in range(col_count):
+                row_idx = y * col_count + x
+                cell = mesh_cells[row_idx]
+                pixel_row += draw_cell(cell_row, x, y, cell.terrain_type)
+            pixel_row.reverse()
+            pixel_rows.append(pixel_row)
+
+    return (width, height, pixel_rows)
+
+def parse_media(mesh_header, data):
+    media_coverage_start = get_offset(mesh_header.media_coverage_region_offset)
+    media_coverage_end = media_coverage_start + mesh_header.media_coverage_region_size
+    media_coverage_data = data[media_coverage_start:media_coverage_end]
+    print(media_coverage_data[0:64].hex())
 
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)

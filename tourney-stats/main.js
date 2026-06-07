@@ -3415,7 +3415,7 @@ function renderSummary () {
 function stripFormat (name) {
   // The private use symbol (often the apple symbol) \uF8FF is sometimes used
   // but isn't displayable in game without interface changes (e.g. JINN) Just strip it
-  return name.replace(/[|\\][bipE]/gi, '').replace(/[\r\n]/gi, '').replace(/\uF8FF/g, '');
+  return name.replace(/[\\|]./gi, '').replace(/[\r\n]/gi, '').replace(/\uF8FF/g, '');
 }
 
 function stripBrackets (name) {

@@ -338,7 +338,7 @@ def rekey_units(units):
 
 # This is the sort order used in the trading dialog and trade film commands
 def sort_units(units):
-    return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index']), reverse=True)
+    return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index'][0]), reverse=True)
 
 # Sort by unit name for diffing only
 def diff_sort_units(units):
@@ -415,6 +415,8 @@ def parse_game_type_units(
                             'max': 0,
                             'min': 0,
                             'targets': 0,
+                            'marker_ids': [],
+                            'palette_index': [],
                             'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
                             'may_use_vet': mesh_tag.MarkerPaletteFlag.MAY_USE_VETERANS in unit['flags'],
                             'must_use_vet': mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags'],
@@ -422,8 +424,10 @@ def parse_game_type_units(
                     visible_count = 0
                     invisible_count = 0
                     target_count = 0
+                    marker_ids = []
+                    palette_index = None
                     for marker_id, marker in unit['markers'].items():
-                        game_type_units[netgame][team][tag_id]['palette_index'] = marker['palette_index']
+                        palette_index = marker['palette_index']
                         if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
                             continue
                         if marker['min_difficulty'] <= difficulty:
@@ -431,6 +435,7 @@ def parse_game_type_units(
                                 invisible_count += 1
                             else:
                                 visible_count += 1
+                                marker_ids.append(marker_id)
                             is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
                             if is_target:
                                 target_count += 1
@@ -449,6 +454,9 @@ def parse_game_type_units(
                     game_type_units[netgame][team][tag_id]['count'] += count
                     game_type_units[netgame][team][tag_id]['max'] += max_count
                     game_type_units[netgame][team][tag_id]['targets'] += target_count
+                    game_type_units[netgame][team][tag_id]['marker_ids'] += marker_ids
+                    if palette_index is not None and palette_index not in game_type_units[netgame][team][tag_id]['palette_index']:
+                        game_type_units[netgame][team][tag_id]['palette_index'].append(palette_index)
                     if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
                         game_type_units[netgame][team][tag_id]['min'] = game_type_units[netgame][team][tag_id]['max']
 
@@ -674,7 +682,7 @@ def team_trade_parts(game_type, units):
     diffs = []
     max_points = sum(u['cost']*u['initial_count'] for u in units.values())
     diff = max_points - total
-    for i, (palette_index, u) in enumerate(units.items()):
+    for i, (tag_id, u) in enumerate(units.items()):
         if u['tradeable']:
             unit_class = unit_class_name(u)
             if unit_class not in class_distribution:
@@ -710,6 +718,8 @@ def team_trade_parts(game_type, units):
             if STATS:
                 trades += mons2stats.mons_stats(u)
                 trades.append(64*'-')
+            for marker_id in u['marker_ids']:
+                trades.append(f"{tag_id} {u['palette_index']} {marker_id} {u_name}")
 
         elif u['count']:
             afford = 0
