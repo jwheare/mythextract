@@ -372,7 +372,7 @@ const TOURNIES = [{
     ['DE2', 'Double Elimination 2'],
     ['DE3', 'Double Elimination 3'],
     ['BB Finals', 'Bottom Bracket Finals'],
-    // ['Grand Finals', 'Grand Finals'],
+    ['Grand Finals', 'Grand Finals'],
   ],
   teams: {
     'ag': ['AG', "Avon's Grove"],
@@ -3058,11 +3058,11 @@ function resetTimeline () {
   document.querySelector('.heatmap-play').classList.remove('heatmap-button--hide');
   document.querySelector('.heatmap-pause').classList.add('heatmap-button--hide');
   const TS = TIMELINE_STATE;
-  TS.init = true;
   TS.multiplier = 32;
   TS.pause = true;
   TS.last = performance.now();
   const game_info = GAME_DATA.header.game;
+  TS.game_path = GAME_DATA.header.game.game_path;
   TS.progress = game_info.planning_time;
   const lastCommand = GAME_DATA.commands[GAME_DATA.commands.length - 1];
   TS.game_length = game_info.planning_time + Math.min(lastCommand.time, game_info.time_limit);
@@ -3090,7 +3090,7 @@ function resetTimeline () {
 
 function playPauseTimeline () {
   const TS = TIMELINE_STATE;
-  if (!TS.init || TS.game_over) {
+  if (TS.game_over || TS.game_path != GAME_DATA.header.game.game_path) {
     resetTimeline();
   }
   if (TS.pause) {
@@ -3110,7 +3110,7 @@ function skipTimeline () {
   const TS = TIMELINE_STATE;
   if (GAME_DATA) {
     console.log('Skip');
-    if (!TS.init) {
+    if (TS.game_path != GAME_DATA.header.game.game_path) {
       resetTimeline();
     }
     TS.chatIdx = -1;
@@ -3213,15 +3213,21 @@ function timelineTick (nowRaf, once) {
       const element = playerDetails.element;
       const x = avgMean(playerDetails.x.slice(playerDetails.x.length/2));
       const y = avgMean(playerDetails.y.slice(playerDetails.x.length/2));
-      const numGiants = (
-        (playerDetails.monsters['Trow'] || 0) +
-        (playerDetails.monsters['Forest Giant'] || 0)
-      );
+      const numTrow = playerDetails.monsters['Trow'] || 0;
+      const numFG = playerDetails.monsters['Forest Giant'] || 0;
+      const numGiants = numTrow + numFG;
       const giant = numGiants > 0;
-      const g = giant ? `${"🗿".repeat(numGiants)} ` : '';
       element.classList.toggle('heatmap-playerBadge--giant', giant);
+      // const g = giant ? `${"🗿".repeat(numGiants)} ` : '';
       // element.innerText = `${g}${playerDetails.name} ${summarizeMonsters(playerDetails.monsters)}`;
-      element.innerText = `${g}${playerDetails.name}`;
+      element.innerHTML = '';
+      element.innerText = `${playerDetails.name}`;
+      for (let i = 0; i < numTrow; i++) {
+        element.prepend('🗿');
+      }
+      for (let i = 0; i < numFG; i++) {
+        element.prepend('🗿');
+      }
       element.style.left = `${x*100}%`;
       element.style.top = `${y*100}%`;
       element.classList.remove('heatmap-playerBadge--hide');

@@ -338,7 +338,7 @@ h4 {
   cursor: pointer;
 }
 
-.heatmap-image img {
+.heatmap-base {
   width: 100%;
 }
 
@@ -452,6 +452,7 @@ h4 {
   transition: bottom 0.1s ease-in-out;
   transition: left 0.1s ease-in-out;
   transition: inset 0.1s ease-in-out;
+  transition: transform 0.1s ease-in-out;
 }
 .heatmap-playerBadge--giant {
   font-size: 18px;
