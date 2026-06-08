@@ -718,8 +718,8 @@ def team_trade_parts(game_type, units):
             if STATS:
                 trades += mons2stats.mons_stats(u)
                 trades.append(64*'-')
-            for marker_id in u['marker_ids']:
-                trades.append(f"{tag_id} {u['palette_index']} {marker_id} {u_name}")
+            # for marker_id in u['marker_ids']:
+            #     trades.append(f"{tag_id} {u['palette_index']} {marker_id} {u_name}")
 
         elif u['count']:
             afford = 0
