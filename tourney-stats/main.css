@@ -461,6 +461,9 @@ h4 {
 .heatmap-playerBadge--hide {
   display: none;
 }
+.unitIcon {
+  margin: 0 3px -1px 0;
+}
 
 .heatmap-controls {
   position: absolute;

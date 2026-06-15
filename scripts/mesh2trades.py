@@ -415,7 +415,7 @@ def parse_game_type_units(
                             'max': 0,
                             'min': 0,
                             'targets': 0,
-                            'marker_ids': [],
+                            'markers': [],
                             'palette_index': [],
                             'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
                             'may_use_vet': mesh_tag.MarkerPaletteFlag.MAY_USE_VETERANS in unit['flags'],
@@ -424,7 +424,7 @@ def parse_game_type_units(
                     visible_count = 0
                     invisible_count = 0
                     target_count = 0
-                    marker_ids = []
+                    markers = []
                     palette_index = None
                     for marker_id, marker in unit['markers'].items():
                         palette_index = marker['palette_index']
@@ -435,7 +435,14 @@ def parse_game_type_units(
                                 invisible_count += 1
                             else:
                                 visible_count += 1
-                                marker_ids.append(marker_id)
+                            markers.append({
+                                k: v for k, v in marker.items() if k not in [
+                                    'tag', 'type', 'pos', 'flags'
+                                ]
+                            } | {
+                                'position': mesh_tag.normalise_position(mesh_header, marker['pos']),
+                                'flags': mesh_tag.marker_flag_info(marker['flags']),
+                            })
                             is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
                             if is_target:
                                 target_count += 1
@@ -454,7 +461,7 @@ def parse_game_type_units(
                     game_type_units[netgame][team][tag_id]['count'] += count
                     game_type_units[netgame][team][tag_id]['max'] += max_count
                     game_type_units[netgame][team][tag_id]['targets'] += target_count
-                    game_type_units[netgame][team][tag_id]['marker_ids'] += marker_ids
+                    game_type_units[netgame][team][tag_id]['markers'] += markers
                     if palette_index is not None and palette_index not in game_type_units[netgame][team][tag_id]['palette_index']:
                         game_type_units[netgame][team][tag_id]['palette_index'].append(palette_index)
                     if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
@@ -497,6 +504,22 @@ def parse_game_type_units(
                 print(f'\x1b[91m- Team {team} Missing assassin targets -\x1b[0m')
 
     return game_types, game_type_units
+
+def rekey_teams(game_type, game_type_units):
+    shared_units = game_type_units.get('all', {})
+    teams = game_type_units.get(game_type, shared_units)
+    for team in shared_units.keys():
+        if team not in teams:
+            teams[team] = shared_units[team]
+    rekeyed_teams = {}
+    for team, units in teams.items():
+        merged_units = units
+        if team in shared_units:
+            merged_units = shared_units[team] | merged_units
+        
+        rekeyed_units = rekey_units(merged_units)
+        rekeyed_teams[team] = rekeyed_units
+    return rekeyed_teams
 
 def parse_game_teams(
     game_type, game_type_units,
@@ -718,8 +741,8 @@ def team_trade_parts(game_type, units):
             if STATS:
                 trades += mons2stats.mons_stats(u)
                 trades.append(64*'-')
-            # for marker_id in u['marker_ids']:
-            #     trades.append(f"{tag_id} {u['palette_index']} {marker_id} {u_name}")
+            # for marker in u['markers']:
+            #     trades.append(f"{tag_id} {marker['palette_index']} {marker['marker_id']} {u_name}")
 
         elif u['count']:
             afford = 0

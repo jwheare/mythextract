@@ -6,12 +6,14 @@ import sys
 import os
 import struct
 
+import codec
 import mesh_tag
 import mono2tag
 import loadtags
 import mesh2info
 import mesh2trades
 import tag2png
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 GAME_TYPE = os.environ.get('GAME_TYPE')
@@ -34,6 +36,16 @@ def main(game_directory, level, plugin_names):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
+def json_handler(o):
+    if isinstance(o, codec.Simple):
+        return o.decode()
+    elif isinstance(o, codec._Codec):
+        return o._asdict()
+    elif hasattr(o, 'name'):
+        return o.name
+    else:
+        return str(o)
+
 def parse_mesh_tag(game_version, tags, data_map, mesh_id, plugin_names):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
 
@@ -50,11 +62,15 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id, plugin_names):
     )
 
     width, height = mesh_tag.mesh_dimensions(mesh_header)
+    mesh_slug = utils.slugify(level_name, strip_bracketed=False)
+    mesh_dir = f'{mesh_id}-{mesh_slug}'
     data = {
         'width': width,
         'height': height,
         'name': level_name,
         'mesh_id': mesh_id,
+        'mesh_slug': mesh_slug,
+        'mesh_dir': mesh_dir,
         'plugins': [os.path.basename(p) for p in plugin_names],
     }
     game_type_data = []
@@ -63,16 +79,18 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id, plugin_names):
             locations = mesh_tag.netgame_locations(
                 mesh_header, gt, DIFFICULTY, palette, tags, data_map
             )
-            gtu = game_type_units.get('all', game_type_units.get(gt))
+
+            gtu = mesh2trades.rekey_teams(gt, game_type_units)
             filtered_locations = [loc for loc in locations if loc['team'] is None or loc['team'] in gtu]
             game_type_data.append({
                 'game_type': gt,
                 'game_type_long': mesh_tag.NetgameNames[gt],
                 'locations': filtered_locations,
+                'units': {t: {str(uk): u for uk, u in tu.items()} for t, tu in gtu.items()},
             })
     data['game_types'] = game_type_data
 
-    output_dir = f'../output/mesh2map/{mesh_id} {level_name}'
+    output_dir = f'../output/mesh2map/{mesh_dir}'
     output_path = pathlib.Path(sys.path[0], output_dir).resolve()
 
     if prompt(output_path):
@@ -85,15 +103,26 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id, plugin_names):
         data['cmap_height'] = cmap_height
         if not cmap_out_path.is_file():
             cmap_png = tag2png.make_png(cmap_width, cmap_height, cmap_rows)
-            with open(cmap_out_path, 'wb') as png_file:
-                png_file.write(cmap_png)
+            with open(cmap_out_path, 'wb') as cmap_png_file:
+                cmap_png_file.write(cmap_png)
             print('+ export', cmap_out_path)
         else:
             print('! exists', cmap_out_path)
 
+        terrain_out_path = output_path / 'terrain.png'
+        mesh_cells = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
+        (terrain_width, terrain_height, terrain_rows) = mesh_tag.export_terrain(mesh_cells)
+        if not terrain_out_path.is_file():
+            terrain_png = tag2png.make_png(terrain_width, terrain_height, terrain_rows)
+            with open(terrain_out_path, 'wb') as terrain_png_file:
+                terrain_png_file.write(terrain_png)
+            print('+ export', terrain_out_path)
+        else:
+            print('! exists', terrain_out_path)
+
         data_out_path = output_path / 'data.json'
         with open(data_out_path, 'w') as json_file:
-            json.dump(data, json_file, indent=2)
+            json.dump(data, json_file, default=json_handler, indent=2)
             print('+ export', data_out_path)
 
         html_file = 'mesh2map.html'

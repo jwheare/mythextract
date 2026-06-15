@@ -31,7 +31,7 @@ def main(game_directory, level, plugin_names):
             main(game_directory, f'mesh={mesh_input}', plugin_names)
         else:
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                parse_mesh_terrain(output_dir, game_version, tags, data_map, mesh_id)
+                export_mesh_terrain(output_dir, game_version, tags, data_map, mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
@@ -55,20 +55,29 @@ def make_legend(output_dir):
     with open(output_path, 'wb') as png_file:
         png_file.write(legend_png)
 
-def parse_mesh_terrain(output_dir, game_version, tags, data_map, mesh_id):
+def export_mesh_terrain(output_dir, game_version, tags, data_map, mesh_id):
     mesh_tag_data = loadtags.get_tag_data(tags, data_map, 'mesh', mesh_id)
 
     tag_header = myth_headers.parse_header(mesh_tag_data)
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
-    # mesh_tag.parse_media(mesh_header, mesh_tag_data)
-    (width, height, rows) = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
+    mesh_cells = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
     level_name = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
-    output_path = output_dir / f'{tag_header.name}-{mesh_id}-{level_name}.png'
+    # mesh_tag.parse_media(mesh_header, mesh_tag_data)
 
-    terrain_png = tag2png.make_png(width, height, rows)
-    with open(output_path, 'wb') as png_file:
-        png_file.write(terrain_png)
-
+    for exporter, suffix in [
+        (mesh_tag.export_terrain, 'terrain'),
+        (mesh_tag.export_media_coverage, 'media'),
+        (mesh_tag.export_terrain_height, 'height'),
+        (mesh_tag.export_media_height, 'media-height'),
+        (mesh_tag.export_terrain_below_media, 'terrain-below-media'),
+    ]:
+        (width, height, rows) = exporter(mesh_cells)
+        output_path = output_dir / f'{tag_header.name}-{mesh_id}-{level_name}-{suffix}.png'
+        output_png = tag2png.make_png(width, height, rows)
+        with open(output_path, 'wb') as png_file:
+            print(output_path)
+            png_file.write(output_png)
+    
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(f"Usage: python3 {sys.argv[0]} <game_directory> [<level> [<plugin_names> ...]]")

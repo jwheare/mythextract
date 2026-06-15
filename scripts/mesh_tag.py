@@ -49,7 +49,7 @@ MeshCellTerrainColors = {
     MeshCellTerrain.MEDIA_DEEP: (128,0,128),
     MeshCellTerrain.SLOPED: (100,100,100),
     MeshCellTerrain.STEEP: (255,192,203),
-    MeshCellTerrain.GRASS: (255,255,255),
+    MeshCellTerrain.GRASS: (255,255,255, 0),
     MeshCellTerrain.DESERT: (245,245,150),
     MeshCellTerrain.ROCKY: (200,200,200),
     MeshCellTerrain.MARSH: (215,175,135),
@@ -858,14 +858,23 @@ def terrain_color(terrain_type):
     if color is None:
         val = terrain_type.value * 16
         color = (val, val, val)
-    color += (255,)
+    if len(color) == 3:
+        color += (255,)
     return color
 
-def draw_cell(r, x, y, values):
+def bool_color(value):
+    white = (255,255,255,255)
+    black = (0,0,0,255)
+    return white if value else black
+
+def draw_cell(r, alternate, values, color_map):
     # Draw an 8x8 pixel cell with 2 triangles
-    left = terrain_color(values[0])
-    right = terrain_color(values[1])
-    alternate = (x ^ y) & 1
+    left = color_map(values[0])
+    right = color_map(values[1])
+    if not left:
+        left = (0,0,0,255)
+    if not right:
+        right = (0,0,0,255)
     if alternate:
         # -------
         # | L / |
@@ -888,24 +897,107 @@ def parse_mesh_cells(mesh_header, data):
     )
     col_count = mesh_header.submesh_width * 32
     row_count = mesh_header.submesh_height * 32
-    width = col_count * 8
-    height = row_count * 8
-    print(
-        f'cells={len(mesh_cells)} '
-        f'{col_count} x {row_count}'
-    )
-    pixel_rows = []
+    # print(
+    #     f'cells={len(mesh_cells)} '
+    #     f'{col_count} x {row_count}'
+    # )
+    rows = []
     for y in range(row_count):
+        row = []
+        for x in range(col_count):
+            row_idx = y * col_count + x
+            cell = mesh_cells[row_idx]
+            alternate = (x ^ y) & 1
+            row.append((alternate, cell))
+        rows.append(row)
+
+    return rows
+
+def export_cell_pixels(mesh_cells, value_map, color_map):
+    width = len(mesh_cells[0]) * 8
+    height = len(mesh_cells) * 8
+
+    pixel_rows = []
+    for row in mesh_cells:
         for cell_row in range(8):
             pixel_row = []
-            for x in range(col_count):
-                row_idx = y * col_count + x
-                cell = mesh_cells[row_idx]
-                pixel_row += draw_cell(cell_row, x, y, cell.terrain_type)
+            for alternate, cell in row:
+                if not value_map:
+                    values = cell
+                if callable(value_map):
+                    values = value_map(cell)
+                elif isinstance(value_map, str):
+                    values = getattr(cell, value_map)
+                if not isinstance(values, list) and not isinstance(values, tuple):
+                    values = (values, values)
+                pixel_row += draw_cell(cell_row, alternate, values, color_map)
+            # Reverse each row, origin is top right
             pixel_row.reverse()
             pixel_rows.append(pixel_row)
 
     return (width, height, pixel_rows)
+
+def cell_to_media_values(cell):
+    return [
+        MeshCellFlag.CELL_TRIANGLE0_IS_MEDIA_BIT in cell.flags,
+        MeshCellFlag.CELL_TRIANGLE1_IS_MEDIA_BIT in cell.flags,
+    ]
+
+def export_media_coverage(mesh_cells):
+    return export_cell_pixels(mesh_cells, cell_to_media_values, bool_color)
+
+def height_color_map(max_height, min_height, height_range):
+    return lambda height: tuple(([round((height - min_height) / max(1, height_range) * 255)]*3) + [255])
+
+def cell_height_range(mesh_cells, height_attr):
+    max_height = None
+    min_height = None
+    for row in mesh_cells:
+        for alternate, cell in row:
+            height = getattr(cell, height_attr)
+            if max_height is None or height > max_height:
+                max_height = height
+            if min_height is None or height < min_height:
+                min_height = height
+    height_range = max_height - min_height
+    return max_height, min_height, height_range
+
+def export_terrain_height(mesh_cells, height_attr='height'):
+    max_height, min_height, height_range = cell_height_range(mesh_cells, height_attr)
+    print(f'max={max_height} min={min_height} range={height_range}')
+    color_map = height_color_map(max_height, min_height, height_range)
+    return export_cell_pixels(mesh_cells, height_attr, color_map)
+
+def export_media_height(mesh_cells):
+    return export_terrain_height(mesh_cells, height_attr='media_height')
+
+def export_terrain_below_media(mesh_cells):
+    max_terrain, min_terrain, terrain_range = cell_height_range(mesh_cells, 'height')
+    max_media, min_media, media_range = cell_height_range(mesh_cells, 'media_height')
+
+    def color_map(cell):
+        if MeshCellFlag.CELL_TRIANGLE0_IS_MEDIA_BIT in cell.flags:
+            return (0, 0, 255, 255)
+        elif cell.height < min_media:
+            return (0, 255, 255,255)
+        else:
+            return (0,0,0,255)
+
+    return export_cell_pixels(mesh_cells, None, color_map)
+
+def export_cell_other(mesh_cells):
+    return export_cell_pixels(
+        mesh_cells,
+        lambda cell: MeshCellFlag.VERTEX_IS_MEDIA_BIT in cell.flags,
+        # lambda cell: [MeshCellFlag.CELL_WAS_OR_IS_ON_FIRE_BIT in cell.flags]*2,
+        # lambda cell: [MeshCellFlag.VERTEX_IS_ANIMATED_MEDIA_BIT in cell.flags]*2,
+        # lambda cell: [MeshCellFlag.CELL_HAS_REFLECTION_BIT in cell.flags]*2,
+        # lambda cell: [MeshCellFlag.CELL_IS_NOT_RENDERED_BIT in cell.flags]*2,
+        bool_color
+    )
+
+def export_terrain(mesh_cells):
+    return export_cell_pixels(mesh_cells, 'terrain_type', terrain_color)
 
 def parse_media(mesh_header, data):
     media_coverage_start = get_offset(mesh_header.media_coverage_region_offset)

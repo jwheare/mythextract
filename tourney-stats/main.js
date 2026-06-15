@@ -22,7 +22,7 @@ const mediaList = document.getElementById("media");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-05-31';
+const DATA_VERSION = '2026-06-15';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -1875,6 +1875,7 @@ function renderRounds (rounds, teamFilter) {
 
         roundItem.appendChild(roundLink);
 
+        let ties = 0;
         if (round.games.length) {
           let roundGameLinks = dce('div',  'tournamentGroupedRounds__games');
           round.games.forEach(game => {
@@ -1898,6 +1899,7 @@ function renderRounds (rounds, teamFilter) {
               roundGameLink.classList.add('tournamentGroupedRounds__game--wrap');
             }
             if (game.tie) {
+              ties++;
               roundGameLink.classList.add('tournamentGroupedRounds__game--tie');
             } else {
               if ((teamFilter || round.round_winner) == game.winning_team) {
@@ -1917,7 +1919,11 @@ function renderRounds (rounds, teamFilter) {
           roundItem.append('No games');
         }
 
-        result.textContent = `${round.winning_teams[round.team1]} - ${round.winning_teams[round.team2]}`;
+        let resultText = `${round.winning_teams[round.team1]} - ${round.winning_teams[round.team2]}`;
+        if (ties) {
+          resultText = `${resultText} - ${ties}`;
+        }
+        result.textContent = resultText;
         if (round.round_winner == round.team1) {
           team1.classList.add('tournamentGroupedRounds__team--winner');
           team2.classList.add('tournamentGroupedRounds__team--loser');
@@ -1987,7 +1993,13 @@ function renderRoundInfo (round_data, subtitle, linkStage) {
   }
 
   if (result && team1 && team2) {
-    result.textContent = `${round_data.winning_teams[round_data.team1]} - ${round_data.winning_teams[round_data.team2]}`;
+    let resultText = `${round_data.winning_teams[round_data.team1]} - ${round_data.winning_teams[round_data.team2]}`;
+    const tieGames = round_data.games.filter(r => r.tie);
+    if (tieGames.length) {
+      resultText = `${resultText} - ${tieGames.length}`;
+    }
+    result.textContent = resultText;
+
     if (round_data.round_winner == round_data.team1) {
       team1.classList.add('tournamentGroupedRounds__team--winner');
       team2.classList.add('tournamentGroupedRounds__team--loser');
@@ -3223,10 +3235,18 @@ function timelineTick (nowRaf, once) {
       element.innerHTML = '';
       element.innerText = `${playerDetails.name}`;
       for (let i = 0; i < numTrow; i++) {
-        element.prepend('🗿');
+        const trowIcon = dce('img', 'unitIcon');
+        trowIcon.src = `${BASE_URL}img/icons/trow.png`;
+        trowIcon.width = 16;
+        trowIcon.height = 16;
+        element.prepend(trowIcon);
       }
       for (let i = 0; i < numFG; i++) {
-        element.prepend('🗿');
+        const fgIcon = dce('img', 'unitIcon');
+        fgIcon.src = `${BASE_URL}img/icons/fg.png`;
+        fgIcon.width = 16;
+        fgIcon.height = 16;
+        element.prepend(fgIcon);
       }
       element.style.left = `${x*100}%`;
       element.style.top = `${y*100}%`;

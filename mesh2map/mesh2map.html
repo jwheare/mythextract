@@ -9,6 +9,7 @@ body {
   background-color: #1C2C3B;
   color: #fff;
   line-height: 1.2;
+  font-size: 15px;
 }
 a {
   color: #ddd;
@@ -19,6 +20,12 @@ a:hover {
 #container {
   width: 1210px;
   margin: 0 auto;
+}
+
+p.help {
+  margin: 0 0 10px 0;
+  color: #aaa;
+  font-style: italic;
 }
 
 .mapLocations {
@@ -53,6 +60,11 @@ a:hover {
   font-weight: bold;
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
+.mapLocation-unit {
+  width: 6px;
+  height: 6px;
+  border-color: #000;
+}
 .mapLocation-target {
   z-index: 9;
   background-color: yellow;
@@ -72,22 +84,390 @@ a:hover {
   opacity: 0.3;
 }
 
-#heatmap {
-  width: 900px;
+#map {
+  width: 800px;
 }
-.heatmap-head {
+.map-head {
   font-weight: normal;
   margin: -5px 0 10px 0;
   line-height: 1.5;
 }
 
-.heatmap-image {
+.map-image {
   width: 100%;
   position: relative;
 }
 
-.heatmap-image img {
+.map-base {
   width: 100%;
+}
+.map-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+.map-terrain {
+  display: none;
+}
+body.terrain .map-terrain {
+  display: block;
+}
+
+#pointsRemaining {
+  margin: 10px 0;
+}
+.pointsRemaining--surplus {
+  color: #00B894;
+}
+.pointsRemaining--debt {
+  color: #D63031;
+}
+
+#tradeSplit {
+  display: flex;
+  margin: 10px;
+}
+#trading {
+  width: 450px;
+}
+#splitResult {
+  margin: 6px 20px;
+  width: 700px;
+}
+
+
+.split {
+  margin: 10px 0 15px 0;
+  background-color: #233E56;
+  border-radius: 5px;
+}
+.split__head {
+  padding: 6px 10px;
+  border-radius: 5px 5px 0 0;
+  font-weight: bold;
+  background-color: #2B4965;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+.split__name_input {
+  position: relative;
+  top: -1px;
+  margin: -4px 0;
+  padding: 3px 2px;
+  border: 1px solid #000;
+  border-radius: 5px;
+}
+.split__name_input:focus {
+  border-color: #1D364D;
+}
+.split__name,
+.split--edit .split__edit_form {
+  display: inline-block;
+}
+.split--edit .split__name,
+.split__edit_form {
+  display: none;
+}
+.split__colorpicker {
+  position: relative;
+  top: 3px;
+  margin: -10px 0 -10px 5px;
+  display: inline-block;
+}
+.split__color {
+  display: inline-block;
+  padding: 5px;
+  cursor: pointer;
+}
+.split__color_circle {
+  display: inline-block;
+  border: 2px solid #000;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+}
+.split__color:hover .split__color_circle {
+  border-color: #fff;
+  /*1D364D;*/
+}
+
+.split__allocation {
+  padding: 10px;
+}
+.split__unit {
+  display: inline-block;
+  margin: 0 5px 10px 0;
+  padding: 3px 6px;
+  border-radius: 5px;
+  background-color: #2B4965;
+  cursor: pointer;
+}
+.split__unit--zero {
+  color: #A4B6CE;
+}
+.split__unit_diff {
+  margin: -3px -6px -3px 6px;
+  padding: 3px 6px;
+  display: inline-block;
+  border-left: 1px solid #000;
+  background-color: #000;
+  color: #fff;
+  border-radius: 0 5px 5px 0;
+}
+.split__unit_diff--under {
+  background-color: #00B894;
+}
+.split__unit_diff--over {
+  background-color: #FF7675;
+}
+.split__notes,
+.strat_notes {
+  font-family: system-ui;
+  background-color: #2B4965;
+  color: #fff;
+  line-height: 1.2;
+  font-size: 15px;
+  margin: -10px 0 0 0;
+  resize: vertical;
+  overflow-y: hidden;
+  padding: 10px;
+  min-height: 38px;
+  height: 38px;
+  width: 100%;
+  border: 0;
+  box-sizing: border-box
+}
+.split__notes::placeholder,
+.strat_notes::placeholder {
+  font-style: italic;
+  color: #A4B6CE;
+}
+.strat_notes {
+  margin: 10px 0;
+  background-color: #233E56;
+  font-size: 20px;
+}
+.split__button {
+  user-select: none;
+  float: right;
+  margin-left: 5px;
+  color: #eee;
+  font-weight: normal;
+  text-shadow: none;
+}
+.split__add,
+.split__button {
+  cursor: pointer;
+  user-select: none;
+}
+
+#untradeable {
+  margin: 20px 0;
+}
+.tradeUnit {
+  line-height: 1.6;
+  margin: 10px 0;
+}
+.tradeUnit__set {
+  float: right;
+  display: inline-block;
+  margin: 23px 0 0 5px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  background-color: #2B4965;
+  cursor: pointer;
+  font-size: 13px;
+}
+.tradeUnit__set_detach {
+  /*margin-left: 10px;*/
+  background-color: #42709B;
+}
+#untradeable .tradeUnit__set_detach {
+  margin-top: 0;
+}
+.tradeUnit__range {
+  width: 150px;
+  position: relative;
+  top: 7px;
+  margin: -20px 10px -20px 20px;
+  padding: 5px 0;
+}
+.tradeUnit__count {
+  width: 33px;
+}
+.tradeUnit__color {
+  display: inline-block;
+  border: 1px solid #000;
+  width: 10px;
+  height: 10px;
+  margin-right: 10px;
+  border-radius: 1px;
+}
+
+h1 {
+  margin: 20px 0;
+  font-size: 24px;
+}
+
+h2 {
+  margin: 20px 0;
+  font-size: 20px;
+}
+
+h3 {
+  margin: 0 0 10px 0;
+  font-size: 18px;
+}
+
+h4 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: normal;
+}
+
+.detach {
+  display: none;
+  position: absolute;
+  z-index: 20;
+  padding: 20px;
+  width: 310px;
+  border-radius: 5px;
+  border: 1px solid #000;
+  background-color: #42709B;
+  box-shadow: 4px 8px 8px rgba(0,0,0,0.4);
+}
+
+.detach__count_field {
+  width: 33px;
+  padding: 5px;
+  border: 1px solid #2B4965;
+  border-radius: 5px;
+}
+.detach__split {
+  display: flex;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px solid #2B4965; 
+}
+.detach__arrow {
+  margin: 0 10px;
+}
+.detach__players {
+  display: flex;
+  width: 300px;
+  flex-wrap: wrap;
+}
+.detach__player {
+  margin: 4px 4px;
+  padding: 3px 10px;
+  width: 20px;
+  text-align: center;
+  background-color: #375E83;
+  font-weight: bold;
+  border-radius: 5px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.detach__player:hover {
+  border-color: #2B4965;
+}
+.detach__player--selected,
+.detach__player--selected:hover {
+  border-color: #fff;
+}
+.detach__player:hover {
+  background-color: #08f;
+  color: #fff;
+}
+.detach__player_add {
+  font-weight: normal;
+  color: #A4B6CE;
+}
+.detach__add_balance_split {
+  margin: 10px 0 0 0;
+}
+.detach__add_split,
+.detach__balance_split {
+  margin-right: 5px;
+  color: #eee;
+  cursor: pointer;
+}
+.detach__add_split:hover,
+.detach__balance_split:hover {
+  text-decoration: underline;
+  color: #fff;
+}
+.detach__balanced {
+  margin-right: 5px;
+}
+
+.detach__buttons {
+  text-align: right;
+}
+
+.detach__button {
+  position: relative;
+  margin: 20px 0 0 5px;
+  padding: 8px;
+  border: 0;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: bold;
+  background-color: #375E83;
+  color: #fff;
+  cursor: pointer;
+}
+.detach__submit {
+  background-color: #2B4965;
+}
+.detach__button:hover {
+  background-color: #08f;
+}
+
+.detach__split_remove {
+  padding: 5px;
+  cursor: pointer;
+}
+.detach__split_remove:hover {
+  background-color: #2B4965;
+}
+
+.detach--show {
+  display: block;
+}
+
+.tooltip {
+  opacity: 0;
+  transition: opacity 0.2s;
+  position: absolute;
+  z-index: 100;
+  top: -1000px;
+  left: -1000px;
+  background-color: #2B4965;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  padding: 6px 8px;
+  font-size: 14px;
+  pointer-events: none;
+  line-height: 1.5;
+}
+.tooltip__plain {
+  display: flex;
+  white-space: preserve-breaks;
+}
+.tooltip--show {
+  opacity: 1;
+}
+.tooltip__target {
+  /*cursor: help;*/
+}
+.tooltipPara {
+  margin: 0;
+}
+.tooltipOverhead {
+  margin: 0 10px 0 0;
+  max-height:63px;
+  max-width: 68px;
 }
 
 .mapLocation-projectile {
@@ -113,13 +493,89 @@ a:hover {
   height: 52px;
   background-image: url('data:image/png;base64,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');
 }
+
+/* Presentation mode */
+
+#toolbar {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 32px;
+}
+.toolbar_button {
+  user-select: none;
+  cursor: pointer;
+}
+
+body.present #container {
+  display: flex;
+  width: 1440px;
+}
+
+body.present #splitResult {
+  width: 700px;
+}
+
+body.present #trading {
+  display: none;
+}
+
+body.present .split__head,
+body.present .split__allocation {
+  display: inline-block;
+}
+body.present .split__head {
+  padding: 13px 10px;
+}
+body.present .mapLocation-unit,
+body.present .split__add,
+body.present .split__button {
+  display: none;
+}
+
     </style>
 </head>
 <body>
   <div id="container">
-    <div id="heatmap"></div>
+    <div id="map"></div>
+    <div id="tradeSplit">
+      <div id="trading">
+        <div id="tradeable"></div>
+        <div id="pointsRemaining"></div>
+        <div id="untradeable"></div>
+      </div>
+      <div id="splitResult">
+        <div id="tradeResult"></div>
+        <div id="tradeResultUntrade"></div>
+        <div id="splits"></div>
+        <textarea class="strat_notes" placeholder="Add overall notes…"></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="detach">
+    <form class="detach__form">
+      <h3 class="detach__unit"></h3>
+      <div class="detach__add_balance_split">
+        <span class="detach__add_split">+ Add split</span>
+        <!-- <span class="detach__balance_split">Rebalance</span> -->
+        <label class="detach__balance_split">
+          <input type="checkbox" class="detach__balanced">Keep balanced
+        </label>
+      </div>
+      <div class="detach__splits"></div>
+      <div class="detach__buttons">
+        <input class="detach__button detach__cancel" type="button" value="Cancel">
+        <input class="detach__button detach__submit" type="submit" value="Detach">
+      </div>
+    </form>
+  </div>
+  <div id="toolbar">
+    <div class="toolbar_button present_toggle">📽️</div>
+    <div class="toolbar_button terrain_toggle">🏔️</div>
+    <div class="toolbar_button download_state">⬇️</div>
   </div>
 <script>
+STATE = {splits: [], counts: {}};
 function dce (element, className, textContent) {
   let el = document.createElement(element);
   if (className) {
@@ -131,61 +587,360 @@ function dce (element, className, textContent) {
   return el;
 }
 
+
+function initTooltips () {
+  tooltip(document.querySelector('.present_toggle'), 'Presentation mode');
+  tooltip(document.querySelector('.terrain_toggle'), 'Terrain map');
+  tooltip(document.querySelector('.download_state'), 'Download backup');
+}
+
 function fetchMap () {
   fetch('./data.json').then(response => {
     response.text().then(txt => {
-      meshData = JSON.parse(txt);
-      buildMap(meshData);
+      STATE.meshData = JSON.parse(txt);
+      fetch('./state.json').then(stateResp => {
+        if (stateResp.ok) {
+          stateResp.text().then(stateTxt => {
+            Object.assign(STATE, JSON.parse(stateTxt));
+            buildMap();
+          });
+        } else {
+          buildMap();
+        }
+      });
     });
   });
 }
 
-function selectGameType (game_type) {
+function renderNotes (notes) {
+  if (notes) {
+    const stratNotes = document.querySelector('.strat_notes');
+    stratNotes.value = notes;
+    stratNotes.style.height = '38px';
+    stratNotes.style.height = `${stratNotes.scrollHeight}px`;
+  }
+}
+
+function selectGameType (gtIdx) {
+  STATE.gtIdx = gtIdx;
+  initLocalState();
+  renderPresent();
+  renderTerrain();
+  updateTrade(STATE.counts, true);
+  renderNotes(STATE.notes);
+  const gt = STATE.meshData.game_types[gtIdx];
   document.querySelectorAll('.mapLocations').forEach((el) => {
     el.classList.remove('mapLocations--show');
   });
-  document.querySelector(`.mapLocations-${game_type}`).classList.add('mapLocations--show');
+  document.querySelector(`.mapLocations-${gt.game_type}`).classList.add('mapLocations--show');
   document.querySelectorAll('.gtLink').forEach((el) => {
     el.classList.remove('gtLink--active');
   });
-  document.querySelector(`.gtLink-${game_type}`).classList.add('gtLink--active');
+  document.querySelector(`.gtLink-${gt.game_type}`).classList.add('gtLink--active');
+  renderTradeUnits();
+  renderSplits();
 }
 
-function buildMap (meshData) {
-  const heatmap = document.getElementById("heatmap");
+function renderTradeUnits () {
+  renderTrade();
+  renderUnits();
+}
 
-  const heatmapTitle = dce('h2', 'heatmap-map', `${meshData.name}`);
-  const heatmapHead = dce('h4', 'heatmap-head');
+function setTradeMin (target) {
+  const counts = {};
+  counts[target.dataset.tag] = 0;
+  updateTrade(counts);
+  renderTrade();
+}
+function setTradeMax (target) {
+  const counts = {};
+  counts[target.dataset.tag] = 'max';
+  updateTrade(counts);
+  renderTrade();
+}
+function setTradeAuto (target) {
+  const counts = {};
+  counts[target.dataset.tag] = 'auto';
+  updateTrade(counts);
+  renderTrade();
+}
 
-  const aspect = meshData.width / meshData.height;
+function updateTrade (counts, norender) {
+  const units = STATE.meshData.game_types[STATE.gtIdx].units[0];
+  for (const [tagId, count] of Object.entries(counts)) {
+    const unit = units[tagId];
+    if (unit.tradeable) {
+      if (count == 'max') {
+        unit.count = unit.max;
+      } else if (count == 'auto') {
+        const remaining = pointsRemaining();
+        const currentValue = unit.count * unit.cost;
+        unit.count = Math.max(0, Math.floor((remaining + currentValue) / unit.cost));
+      } else {
+        unit.count = Math.min(count, unit.max);
+      }
+      STATE.counts[tagId] = unit.count;
+      let remaining = unit.count;
+      unit.markers.forEach(marker => {
+        if (!marker.flags.includes('invis')) {
+          if (remaining) {
+            remaining--;
+          } else {
+            marker.flags.push('invis');
+          }
+        }
+      });
+      if (remaining) {
+        unit.markers.forEach(marker => {
+          if (remaining) {
+            let idx = marker.flags.indexOf('invis');
+            if (idx !== -1) {
+              marker.flags.splice(idx, 1);
+              remaining--;
+            }
+          }
+        });
+      }
+      if (!norender) {
+        const unitCount = document.querySelector(`.tradeUnit__count-${tagId}`);
+        unitCount.value = unit.count;
+      }
+    }
+  }
 
-  const heatmapImage = dce('div', 'heatmap-image');
-  let cMap = dce('img', 'heatmap-base');
+  if (!norender) {
+    saveState();
+    renderPointsRemaining();
+    renderUnits();
+    renderTradeResult();
+    if (STATE.detach) {
+      showDetach();
+    }
+  }
+}
+
+function renderTradeResult () {
+  const units = STATE.meshData.game_types[STATE.gtIdx].units[0];
+  const tradeResult = document.getElementById('tradeResult');
+  tradeResult.style.height = `${tradeResult.scrollHeight}px`;
+  tradeResult.innerHTML = '';
+  const tradeResultUntrade = document.getElementById('tradeResultUntrade');
+  tradeResultUntrade.style.height = `${tradeResultUntrade.scrollHeight}px`;
+  tradeResultUntrade.innerHTML = '';
+
+  let allocated = {};
+  STATE.splits.forEach((split, i) => {
+    split.units.forEach(splitUnit => {
+      if (!(splitUnit.tag in allocated)) {
+        allocated[splitUnit.tag] = 0;
+      }
+      allocated[splitUnit.tag] += splitUnit.count;
+    });
+  });
+
+  Object.entries(units).forEach(([tagId, unit], i) => {
+    const splitUnit = dce('div', 'split__unit', `${unit.count}x ${unitName(unit, unit.count)}`);
+    splitUnit.dataset.tag = tagId;
+    if (unit.count == 0) {
+      splitUnit.classList.add('split__unit--zero');
+    }
+    const diff = unit.count - (allocated[tagId] || 0); 
+    if (diff != 0) {
+      const splitDiff = dce('div', 'split__unit_diff', Math.abs(diff));
+      if (diff > 0) {
+        splitDiff.classList.add('split__unit_diff--under');
+      } else if (diff < 0) {
+        splitDiff.classList.add('split__unit_diff--over');
+      }
+      splitUnit.append(splitDiff);
+    }
+    let container = unit.tradeable ? tradeResult : tradeResultUntrade;
+    container.append(splitUnit);
+  });
+  tradeResult.style.height = 'auto';
+  tradeResultUntrade.style.height = 'auto';
+}
+
+function renderUnits () {
+  const gt = STATE.meshData.game_types[STATE.gtIdx];
+  const gtMarkers = document.querySelector(`.mapLocations-${gt.game_type}`);
+  document.querySelectorAll('.mapLocation-unit').forEach(el => {
+    el.remove();
+  });
+  for (const [team, units] of Object.entries(gt.units)) {
+    Object.values(units).forEach((unit, i) => {
+      unit.markers.forEach(marker => {
+        if (!marker.flags.includes('invis')) {
+          let x = marker.position[0] / STATE.meshData.width;
+          let y = marker.position[1] / STATE.meshData.height;
+          const mapLoc = dce('div', 'mapLocation mapLocation-unit');
+          mapLoc.style.backgroundColor = UNIT_COLORS[i];
+          mapLoc.style.top = `${y*100}%`;
+          mapLoc.style.left = `${x*100}%`;
+          gtMarkers.prepend(mapLoc);
+        }
+      });
+    });
+  }
+}
+
+function unitName (unit, count) {
+  let spellings = unit.spellings;
+  if (!spellings) {
+    Object.entries(STATE.meshData.game_types[STATE.gtIdx].units[0]).forEach(([tagId, u]) => {
+      if (tagId == unit.tag) {
+        spellings = u.spellings;
+      }
+    });
+  }
+  if (count == 1) {
+    return spellings[0]
+  } else {
+    return spellings[1] || spellings[0];
+  }
+}
+
+function renderTrade (focusTag) {
+  const units = STATE.meshData.game_types[STATE.gtIdx].units[0];
+  const tradeable = document.getElementById('tradeable');
+  tradeable.style.height = `${tradeable.scrollHeight}px`;
+  tradeable.innerHTML = '';
+  const untradeable = document.getElementById('untradeable');
+  untradeable.style.height = `${untradeable.scrollHeight}px`;
+  untradeable.innerHTML = '';
+  let hasUntradeable = false;
+  Object.entries(units).forEach(([tagId, unit], i) => {
+    const uName = unitName(unit, unit.max);
+    if (unit.tradeable || unit.count) {
+      const tradeUnit = dce('div', 'tradeUnit');
+      tradeUnit.dataset.tag = tagId;
+
+      const tradeUnitColor = dce('div', 'tradeUnit__color');
+      tradeUnitColor.style.backgroundColor = UNIT_COLORS[i];
+      tradeUnit.append(tradeUnitColor);
+
+      tradeUnit.append(dce('span', 'tradeUnit__name', uName));
+      if (unit.tradeable) {
+        const tradeUnitRange = dce('input', 'tradeUnit__range');
+        tradeUnit.append(dce('span', 'tradeUnit__cost', ` • Cost: ${unit.cost}`));
+        tradeUnit.append(dce('br'));
+
+        tradeUnitRange.type = 'range';
+        tradeUnitRange.name = tagId;
+        tradeUnitRange.max = unit.max;
+        tradeUnitRange.value = unit.count;
+        tradeUnit.append(tradeUnitRange);
+
+        const unitCountField = dce('input', `tradeUnit__count tradeUnit__count-${tagId}`);
+        unitCountField.type = 'number';
+        unitCountField.name = tagId;
+        unitCountField.max = unit.max;
+        unitCountField.min = 0;
+        unitCountField.value = unit.count;
+        tradeUnit.append(unitCountField);
+        tradeUnit.append(dce('span', 'tradeUnit__max', ` / ${unit.max}`));
+
+        tradeUnit.prepend(dce('span', 'tradeUnit__set tradeUnit__set_min', 'None'));
+        tradeUnit.prepend(dce('span', 'tradeUnit__set tradeUnit__set_max', 'Max'));
+        tradeUnit.prepend(dce('span', 'tradeUnit__set tradeUnit__set_auto', 'Auto'));
+
+        tradeable.append(tradeUnit);
+
+        if (focusTag != null && focusTag == tagId) {
+          unitCountField.focus();
+        }
+      } else {
+        hasUntradeable = true;
+        tradeUnit.append(dce('span', 'tradeUnit__count', `: ${unit.count}`));
+        // tradeUnit.append(dce('span', 'tradeUnit__cost', ' • Untradeable'));
+        untradeable.append(tradeUnit);
+      }
+      tradeUnit.prepend(dce('span', 'tradeUnit__set tradeUnit__set_detach', 'Detach'));
+    }
+  });
+  if (hasUntradeable) {
+    untradeable.prepend(dce('h4', 'untradeable__head', 'Untradeable'));
+  }
+  tradeable.style.height = 'auto';
+  untradeable.style.height = 'auto';
+  renderPointsRemaining();
+  renderTradeResult();
+}
+
+function pointsRemaining () {
+  const units = STATE.meshData.game_types[STATE.gtIdx].units[0];
+  let total = 0;
+  let maxPoints = 0;
+  Object.values(units).forEach(unit => {
+    if (unit.tradeable) {
+      total += unit.cost * unit.count;
+      maxPoints += unit.cost * unit.initial_count;
+    }
+  });
+  return maxPoints - total;
+}
+
+function renderPointsRemaining () {
+  const remaining = pointsRemaining();
+  const pr = document.getElementById('pointsRemaining');
+  pr.classList.toggle('pointsRemaining--debt', remaining < 0);
+  pr.classList.toggle('pointsRemaining--surplus', remaining > 0);
+  pr.innerText = `Points remaining: ${remaining}`;
+}
+
+const UNIT_COLORS = [
+  '#FFA100',
+  '#D63031',
+  '#00B894',
+  '#0984E3',
+  '#1A347B',
+  '#A29BFE',
+  '#FF7675',
+  '#6C3483',
+  '#55EFC4',
+  '#FDCB6E',
+];
+
+function buildMap () {
+  const map = document.getElementById("map");
+
+  const mapTitle = dce('h2', 'map-map', `${STATE.meshData.name}`);
+  const mapHead = dce('h4', 'map-head');
+
+  const aspect = STATE.meshData.width / STATE.meshData.height;
+
+  const mapImage = dce('div', 'map-image');
+  let cMap = dce('img', 'map-base');
   cMap.src = './cmap.png';
   cMap.style.aspectRatio = aspect;
-  heatmapImage.appendChild(cMap);
+  mapImage.appendChild(cMap);
 
-  heatmap.appendChild(heatmapTitle);
-  heatmap.appendChild(heatmapHead);
-  heatmap.appendChild(heatmapImage);
+  let tMap = dce('img', 'map-overlay map-terrain');
+  tMap.src = './terrain.png';
+  tMap.style.aspectRatio = aspect;
+  mapImage.appendChild(tMap);
 
-  meshData.game_types.forEach((gt, i) => {
+  map.appendChild(mapTitle);
+  map.appendChild(mapHead);
+  map.appendChild(mapImage);
+
+  STATE.meshData.game_types.forEach((gt, i) => {
     const gtMarkers = dce('div', `mapLocations mapLocations-${gt.game_type}`);
     const gtLink = dce('a', `gtLink gtLink-${gt.game_type}`, gt.game_type_long);
     gtLink.addEventListener('click', (e) => {
       e.preventDefault();
-      selectGameType(gt.game_type);
+      selectGameType(i);
     });
 
     if (i > 0) {
-      heatmapHead.append(' • ');
+      mapHead.append(' • ');
     }
-    heatmapHead.append(gtLink);
+    mapHead.append(gtLink);
     const teamObservers = {};
     gt.locations.forEach(loc => {
       if (loc.position) {
-        let x = loc.position[0] / meshData.width;
-        let y = loc.position[1] / meshData.height;
+        let x = loc.position[0] / STATE.meshData.width;
+        let y = loc.position[1] / STATE.meshData.height;
         let type = 'location';
         if (loc.observer) {
           if (teamObservers[loc.team]) {
@@ -214,13 +969,690 @@ function buildMap (meshData) {
         mapLoc.style.left = `${x*100}%`;
         gtMarkers.append(mapLoc);
       }
-      heatmapImage.append(gtMarkers);
+      mapImage.append(gtMarkers);
     });
+
   });
 
-  selectGameType(meshData.game_types[0].game_type);
+  selectGameType(0);
 }
 
+function summarizeAllocation (allocation) {
+  if (!allocation) {
+    return '';
+  }
+  let summaryParts = [];
+  allocation.forEach(u => {
+    if (u.count) {
+      let summaryPart = `${u.count}x ${unitName(u, u.count)}`;
+      summaryParts.push(summaryPart);
+    }
+  });
+  return summaryParts.join(', ');
+}
+
+function addPlayer () {
+  STATE.splits.push({
+    units: [],
+    color: UNIT_COLORS[STATE.splits.length % UNIT_COLORS.length],
+  });
+  saveState();
+  renderSplits();
+  return STATE.splits.length - 1;
+}
+
+function toggleEditSplit (target, cancel) {
+  const input = target.querySelector('.split__name_input');
+  let idx = target.dataset.idx;
+  if (cancel) {
+    input.value = target.dataset.initialName;
+    saveSplit(target);
+  } else {
+    if (target.classList.contains('split--edit')) {
+      saveSplit(target);
+    } else {
+      showEditSplit(target);
+    }
+  }
+}
+
+function showEditSplit (target, initialName) {
+  const input = target.querySelector('.split__name_input');
+  let idx = target.dataset.idx;
+  input.value = STATE.splits[idx].name || '';
+  target.dataset.initialName = (initialName != null) ? initialName : input.value;
+  target.classList.add('split--edit');
+  input.focus();
+}
+
+function deleteSplit (target) {
+  let idx = target.dataset.idx;
+  STATE.splits.splice(idx, 1);
+  saveState();
+  renderSplits();
+  renderTradeResult();
+}
+
+function moveSplitUp (target) {
+  let idx = target.dataset.idx;
+  if (STATE.splits.length > 1 && idx > 0) {
+    const split = STATE.splits.splice(idx, 1)[0];
+    STATE.splits.splice(idx-1, 0, split);
+  }
+  saveState();
+  renderSplits();
+}
+
+function moveSplitDown (target) {
+  let idx = target.dataset.idx;
+  if (STATE.splits.length > 1 && idx < STATE.splits.length - 1) {
+    const split = STATE.splits.splice(idx, 1)[0];
+    STATE.splits.splice(idx+1, 0, split);
+  }
+  saveState();
+  renderSplits();
+}
+
+function setSplitColor (target) {
+  let colorIdx = target.dataset.idx;
+  const split = target.closest('.split');
+  let idx = split.dataset.idx;
+  STATE.splits[idx].color = UNIT_COLORS[colorIdx];
+  saveState();
+  const initialName = split.dataset.initialName;
+  renderSplits(idx, initialName);
+}
+
+function saveSplit (target) {
+  let idx = target.dataset.idx;
+  const val = target.querySelector('.split__name_input').value;
+  STATE.splits[idx].name = val;
+  saveState();
+  renderSplits();
+}
+
+function hideDetach () {
+  document.querySelector('.detach').classList.remove('detach--show');
+  STATE.detach = null;
+}
+
+function removeDetachSplit (target) {
+  STATE.detach.splits.splice(target.dataset.idx, 1);
+  hideTooltip();
+  showDetach();
+}
+
+function editDetach (target) {
+  const tagId = target.dataset.tag;
+  document.querySelectorAll('.tradeUnit').forEach(tradeUnit => {
+    if (tagId == tradeUnit.dataset.tag) {
+      initDetach(tradeUnit.querySelector('.tradeUnit__set_detach'), target.dataset.split);
+    }
+  });
+}
+
+function initDetach (target, focusSplit) {
+  STATE.detach = {
+    el: target,
+    balanced: true,
+  };
+  showDetach(focusSplit);
+}
+
+function showDetach (focusSplit) {
+  if (!STATE.detach.pos) {
+    const cr = STATE.detach.el.getBoundingClientRect();
+    STATE.detach.pos = {
+      top: STATE.detach.el.offsetTop + 'px',
+      left: (STATE.detach.el.offsetLeft + cr.width + 10) + 'px',
+    }
+  }
+
+  if (!STATE.detach.unit) {
+    const tradeUnit = STATE.detach.el.closest('.tradeUnit');
+    const tagId = tradeUnit.dataset.tag;
+    if (!tagId) {
+      return;
+    }
+    STATE.detach.unit = tagId;
+  }
+
+  const units = STATE.meshData.game_types[STATE.gtIdx].units[0];
+  const unit = units[STATE.detach.unit];
+
+  const splitsEl = document.querySelector('.detach__splits');
+  splitsEl.innerHTML = '';
+
+  if (!STATE.detach.splits) {
+    STATE.detach.splits = [];
+    STATE.detach.players = [];
+    const filtered = STATE.splits.filter(s => s.units.some(u => u.tag == STATE.detach.unit));
+    const balanceCheck = unit.count / Math.max(1, filtered.length);
+    STATE.splits.forEach((split, i) => {
+      STATE.detach.players.push(split);
+      split.units.forEach(splitUnit => {
+        if (splitUnit.tag == STATE.detach.unit) {
+          if (splitUnit.count != balanceCheck) {
+            STATE.detach.balanced = false;
+          }
+          STATE.detach.splits.push({
+            count: splitUnit.count,
+            player: i,
+          });
+        }
+      });
+    });
+  }
+
+  if (!STATE.detach.splits.length) {
+    const firstSplit = {
+      new: true,
+      count: unit.count,
+      player: 0,
+    };
+    if (STATE.detach.players.length == 1) {
+      firstSplit.player = 0;
+    }
+    STATE.detach.splits.push(firstSplit);
+  }
+
+  const perSplit = Math.floor(unit.count / Math.max(1, STATE.detach.splits.length));
+  let surplus = unit.count - (perSplit * STATE.detach.splits.length);
+
+  document.querySelector('.detach__balanced').checked = !!STATE.detach.balanced;
+
+  let focusCount;
+
+  let lastPlayer = -1;
+  let ordered = true;
+  STATE.detach.splits.forEach((split, i) => {
+    const splitEl = dce('div', 'detach__split');
+    const splitCountField = dce('input', 'detach__count_field');
+    if (!focusCount || focusSplit == i) {
+      focusCount = splitCountField;
+    }
+    if (ordered && split.player == null) {
+      split.player = lastPlayer + 1;
+    }
+
+    if (split.player != null && (split.player - lastPlayer) != 1) {
+      ordered = false;
+    }
+    lastPlayer = split.player;
+
+    if (STATE.detach.balanced || split.count == null) {
+      split.count = perSplit;
+      if (surplus > 0) {
+        split.count++;
+        surplus--;
+      }
+    }
+
+    splitCountField.type = 'number';
+    splitCountField.max = unit.max;
+    splitCountField.min = 0;
+    splitCountField.name = `count_${i}`;
+    splitCountField.value = split.count;
+
+    if (STATE.detach.players.length < STATE.detach.splits.length) {
+      for (let extraI = STATE.detach.players.length; extraI < STATE.detach.splits.length; extraI++) {
+        STATE.detach.players.push({
+          new: true,
+          color: UNIT_COLORS[STATE.detach.players.length % UNIT_COLORS.length],
+        });
+        STATE.detach.splits[extraI].player = extraI;
+      }
+    }
+
+    const splitPlayers = dce('div', 'detach__players');
+
+    STATE.detach.players.forEach((player, playerI) => {
+      const playerNum = `P${playerI+1}`;
+      const splitPlayer = dce('div', 'detach__player', playerNum);
+      splitPlayer.dataset.player = playerI;
+      if (playerI == split.player) {
+        splitPlayer.classList.add('detach__player--selected');
+      }
+      let bg = player.color;
+      splitPlayer.style.backgroundColor = bg;
+      let playerTitle = playerNum;
+      if (player.new) {
+        splitPlayer.classList.add('detach__player--new');
+        playerTitle += ' (New)';
+      }
+      if (player.name) {
+        playerTitle += `: ${player.name}`;
+      }
+      const alloc = summarizeAllocation(player.units);
+      if (alloc) {
+        playerTitle += ` - ${alloc}`;
+      }
+      tooltip(splitPlayer, playerTitle);
+      splitPlayers.append(splitPlayer);
+    });
+
+    if (STATE.detach.splits.length < 8) {
+      const addPlayer = dce('div', 'detach__player detach__player_add', '+');
+      tooltip(addPlayer, 'Add player');
+      splitPlayers.append(addPlayer);
+    }
+
+    const splitRemove = dce('div', 'detach__split_remove', '×');
+    tooltip(splitRemove, 'Remove split');
+
+    splitEl.append(splitCountField);
+    splitEl.append(dce('div', 'detach__arrow', '➔'));
+    splitEl.append(splitPlayers);
+    splitEl.append(splitRemove);
+
+    splitEl.dataset.idx = i;
+
+    splitsEl.append(splitEl);
+  });
+
+  // TODO disable submit if a split has a count but no player?
+
+  document.querySelector('.detach__unit').innerText = `${unitName(unit, unit.max)}: ${unit.count} / ${unit.max}`;
+
+  const detach = document.querySelector('.detach');
+  detach.classList.add('detach--show');
+  detach.style.top = STATE.detach.pos.top;
+  detach.style.left = STATE.detach.pos.left;
+  if (focusCount) {
+    focusCount.focus();
+    focusCount.select();
+  }
+}
+
+function setDetachPlayer (target) {
+  const split = target.closest('.detach__split');
+  let player = target.dataset.player;
+  if (player == null) {
+    STATE.detach.players.push({
+      new: true,
+      color: UNIT_COLORS[STATE.detach.players.length % UNIT_COLORS.length],
+    });
+    player = STATE.detach.players.length - 1;
+  }
+  STATE.detach.splits[split.dataset.idx].player = (player - 0);
+  showDetach(split.dataset.idx);
+}
+
+function detachUnit (target) {
+  STATE.splits.forEach((currentSplit, i) => {
+    if (!STATE.detach.splits.some(split => split.player == i)) {
+      let unitIdx = -1;
+      currentSplit.units.forEach((unit, i) => {
+        if (unit.tag == STATE.detach.unit) {
+          unitIdx = i;
+        }
+      });
+      if (unitIdx != -1) {
+        currentSplit.units.splice(unitIdx, 1);
+      }
+    }
+  });
+  STATE.detach.splits.forEach(split => {
+    if (split.player == null) {
+      return;
+    }
+    const player = STATE.detach.players[split.player];
+    let splitPlayer;
+    let found = false;
+    if (player.new) {
+      const playerId = addPlayer();
+      splitPlayer = STATE.splits[playerId];
+    } else {
+      splitPlayer = STATE.splits[split.player];
+      splitPlayer.units.forEach(unit => {
+        if (unit.tag == STATE.detach.unit) {
+          found = true;
+          unit.count = split.count;
+        }
+      });
+    }
+    if (!found) {
+      splitPlayer.units.push({
+        tag: STATE.detach.unit,
+        count: split.count,
+      });
+    }
+  });
+
+  saveState();
+
+  renderSplits();
+  renderTradeResult();
+  hideDetach();
+}
+
+function renderSplits (editIdx, editInitialName) {
+  const splits = document.getElementById('splits');
+  splits.style.height = `${splits.scrollHeight}px`;
+  splits.innerHTML = '';
+  const addButton = dce('div', 'split__add', '+ Add player');
+  splits.append(addButton);
+  STATE.splits.forEach((split, i) => {
+    const splitEl = dce('div', 'split');
+    splitEl.dataset.idx = i;
+    const splitHead = dce('div', 'split__head', `P${i+1}: `);
+    if (split.name) {
+      const splitName = dce('div', 'split__name', split.name);
+      splitHead.append(splitName);
+    }
+    const splitNameForm = dce('form', 'split__edit_form');
+    const splitNameInput = dce('input', 'split__name_input');
+    splitNameInput.name = 'split_name';
+    splitNameInput.value = split.name;
+    splitNameForm.append(splitNameInput);
+
+    splitColorPicker = dce('div', 'split__colorpicker');
+    for (let colorI = 0; colorI < 8; colorI++) {
+      const splitColor = dce('div', 'split__color');
+      const splitColorCircle = dce('div', 'split__color_circle');
+      splitColorCircle.style.backgroundColor = UNIT_COLORS[colorI];
+      splitColor.append(splitColorCircle);
+      splitColor.dataset.idx = colorI;
+      splitColorPicker.append(splitColor);
+    }
+    splitNameForm.append(splitColorPicker);
+    splitHead.append(splitNameForm);
+
+    if (split.color) {
+      splitHead.style.backgroundColor = split.color;
+    }
+    if (STATE.splits.length > 1) {
+      if (i > 0) {
+        splitHead.prepend(dce('div', 'split__button split__up', '↑'));
+      }
+      if (i < STATE.splits.length - 1) {
+        splitHead.prepend(dce('div', 'split__button split__down', '↓'));
+      }
+    }
+    splitHead.prepend(dce('div', 'split__button split__edit', '🏷️'));
+    splitHead.prepend(dce('div', 'split__button split__delete', '🗑️'));
+    const splitAllocation = dce('div', 'split__allocation');
+    let hasUnits = false;
+    split.units.forEach(u => {
+      if (u.count) {
+        hasUnits = true;
+        const splitUnit = dce('div', 'split__unit', `${u.count}x ${unitName(u, u.count)}`);
+        splitUnit.dataset.tag = u.tag;
+        splitUnit.dataset.split = i;
+        splitUnit.dataset.splitCount = u.count;
+        splitAllocation.append(splitUnit);
+      }
+    });
+    if (!hasUnits) {
+      splitAllocation.append(dce('p', 'help', 'Use the Detach buttons to allocate units'));
+    }
+    const splitNotes = dce('textarea', 'split__notes', split.notes);
+    splitNotes.placeholder = 'Add notes…';
+
+    splitEl.append(splitHead);
+    splitEl.append(splitAllocation);
+    splitEl.append(splitNotes);
+    splits.append(splitEl);
+
+    splitNotes.style.height = '38px';
+    splitNotes.style.height = `${splitNotes.scrollHeight}px`;
+
+    if (editIdx != null && editIdx == i) {
+      showEditSplit(splitEl, editInitialName);
+      splitNameInput.focus();
+    }
+  });
+  splits.style.height = 'auto';
+}
+
+function togglePresent () {
+  STATE.present = !STATE.present;
+  saveState();
+  renderPresent();
+}
+
+function toggleTerrain () {
+  STATE.terrain = !STATE.terrain;
+  saveState();
+  renderTerrain();
+}
+
+function renderPresent () {
+  document.body.classList.toggle('present', !!STATE.present);
+}
+
+function renderTerrain () {
+  document.body.classList.toggle('terrain', !!STATE.terrain);
+}
+
+function serialiseState () {
+  const obj = {};
+  ['splits', 'counts', 'notes', 'present', 'terrain'].forEach(k => {
+    obj[k] = STATE[k];
+  });
+  return JSON.stringify(obj, null, 2);
+}
+
+function initLocalState () {
+  const localState = fetchState();
+  if (localState) {
+    Object.assign(STATE, localState);
+  } else {
+    saveState();
+  }
+}
+
+function stateKey () {
+  return `${STATE.meshData.mesh_slug}|${STATE.gtIdx}`;
+}
+
+function saveState () {
+  const key = stateKey();
+  const content = serialiseState();
+  localStorage.setItem(key, content);
+}
+
+function fetchState () {
+  const key = stateKey();
+  const value = localStorage.getItem(key);
+  if (value) {
+    const parsed = JSON.parse(value);
+    return parsed;
+  }
+}
+
+function downloadState () {
+  const content = serialiseState();
+
+  const link = dce('a');
+  const file = new Blob([content], { type: 'text/plain' });
+  link.href = URL.createObjectURL(file);
+  link.download = "state.json";
+  link.click();
+  URL.revokeObjectURL(link.href);
+}
+
+const TOOLTIP = dce('div', 'tooltip');
+document.body.appendChild(TOOLTIP);
+let TOOLTIP_ID = 1;
+let TOOLTIP_CONTENTS = {};
+
+function tooltip (el, content) {
+  let node = dce('span', 'tooltip__plain', content);
+  tooltipNode(el, node);
+  return node;
+}
+
+function tooltipNode (el, node) {
+  TOOLTIP.innerHTML = '';
+  let tipId = TOOLTIP_ID++;
+  el.dataset.tooltip_id = tipId;
+  TOOLTIP_CONTENTS[tipId] = node
+  el.classList.add('tooltip__target');
+  el.addEventListener("mouseenter", () => {
+    showTooltip(el);
+  });
+
+  el.addEventListener("mousemove", e => {
+    const offset = 10;
+    const smudge = 10;
+    const tooltipWidth = TOOLTIP.offsetWidth;
+    const tooltipHeight = TOOLTIP.offsetHeight;
+    const pageX = e.pageX;
+    const pageY = e.pageY;
+
+    const willOverflowRight = pageX + offset + smudge + tooltipWidth > window.innerWidth;
+    const willOverflowBottom = pageY + offset + smudge + tooltipHeight > window.innerHeight;
+
+    const left = willOverflowRight
+      ? pageX - tooltipWidth - offset
+      : pageX + offset;
+
+    const top = willOverflowBottom
+      ? pageY - tooltipHeight - offset
+      : pageY + offset;
+
+    TOOLTIP.style.left = `${Math.max(left, offset)}px`;
+    TOOLTIP.style.top = `${Math.max(top, offset)}px`;
+
+  });
+
+  el.addEventListener("mouseleave", () => {
+    hideTooltip();
+  });
+}
+
+function showTooltip (el) {
+  TOOLTIP.innerHTML = '';
+  TOOLTIP.appendChild(TOOLTIP_CONTENTS[el.dataset.tooltip_id]);
+  TOOLTIP.classList.add('tooltip--show');
+}
+
+function hideTooltip () {
+  TOOLTIP.classList.remove('tooltip--show');
+}
+
+function clearTooltips () {
+  hideTooltip();
+  TOOLTIP_CONTENTS = {};
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('split__add')) {
+    addPlayer();
+  } else if (e.target.classList.contains('split__delete')) {
+    deleteSplit(e.target.closest('.split'));
+  } else if (e.target.classList.contains('split__edit')) {
+    toggleEditSplit(e.target.closest('.split'));
+  } else if (e.target.classList.contains('split__up')) {
+    moveSplitUp(e.target.closest('.split'));
+  } else if (e.target.classList.contains('split__down')) {
+    moveSplitDown(e.target.closest('.split'));
+  } else if (e.target.classList.contains('split__color')) {
+    setSplitColor(e.target);
+  } else if (e.target.classList.contains('split__color_circle')) {
+    setSplitColor(e.target.closest('.split__color'));
+  } else if (e.target.classList.contains('tradeUnit__set_min')) {
+    setTradeMin(e.target.closest('.tradeUnit'));
+  } else if (e.target.classList.contains('tradeUnit__set_max')) {
+    setTradeMax(e.target.closest('.tradeUnit'));
+  } else if (e.target.classList.contains('tradeUnit__set_auto')) {
+    setTradeAuto(e.target.closest('.tradeUnit'));
+  } else if (e.target.classList.contains('tradeUnit__set_detach')) {
+    initDetach(e.target);
+  } else if (e.target.classList.contains('split__unit')) {
+    editDetach(e.target);
+  } else if (e.target.classList.contains('split__unit_diff')) {
+    editDetach(e.target.closest('.split__unit'));
+  } else if (e.target.classList.contains('detach__cancel')) {
+    hideDetach();
+  } else if (e.target.classList.contains('detach__player')) {
+    setDetachPlayer(e.target);
+  } else if (e.target.classList.contains('detach__add_split')) {
+    STATE.detach.splits.push({
+      new: true,
+      count: 0,
+    });
+    showDetach();
+  // } else if (e.target.classList.contains('detach__balance_split')) {
+  //   STATE.detach.balanced = true;
+  //   showDetach();
+  } else if (e.target.classList.contains('detach__split_remove')) {
+    removeDetachSplit(e.target.closest('.detach__split'));
+  } else if (e.target.classList.contains('terrain_toggle')) {
+    toggleTerrain();
+  } else if (e.target.classList.contains('present_toggle')) {
+    togglePresent();
+  } else if (e.target.classList.contains('download_state')) {
+    downloadState();
+  }
+});
+
+document.addEventListener('submit', (e) => {
+  if (e.target.classList.contains('split__edit_form')) {
+    e.preventDefault();
+    saveSplit(e.target.closest('.split'));
+  } else if (e.target.classList.contains('detach__form')) {
+    e.preventDefault();
+    detachUnit(e.target);
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key == 'Escape') {
+    if (STATE.detach) {
+      hideDetach();
+    } else if (e.target.classList.contains('split__name_input')) {
+      toggleEditSplit(e.target.closest('.split'), true);
+    }
+  }
+});
+
+document.addEventListener('input', (e) => {
+  if (e.target.classList.contains('tradeUnit__range')) {
+    const counts = {};
+    counts[e.target.name] = e.target.value;
+    updateTrade(counts);
+  } else if (e.target.classList.contains('tradeUnit__count')) {
+    const tradeUnit = e.target.closest('.tradeUnit');
+    const tagId = tradeUnit.dataset.tag;
+    const counts = {};
+    counts[tagId] = e.target.value;
+    updateTrade(counts);
+    renderTrade(tagId);
+  } else if (e.target.classList.contains('split__notes')) {
+    e.target.style.height = '38px';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+    const split = e.target.closest('.split');
+    const idx = split.dataset.idx;
+    STATE.splits[idx].notes = e.target.value;
+    saveState();
+  } else if (e.target.classList.contains('strat_notes')) {
+    e.target.style.height = '38px';
+    e.target.style.height = `${e.target.scrollHeight}px`;
+    STATE.notes = e.target.value;
+    saveState();
+  } else if (e.target.classList.contains('split__name_input')) {
+    const split = e.target.closest('.split');
+    const idx = split.dataset.idx;
+    STATE.splits[idx].name = e.target.value;
+    saveState();
+  } else if (e.target.classList.contains('detach__count_field')) {
+    const split = e.target.closest('.detach__split');
+    STATE.detach.splits[split.dataset.idx].count = (e.target.value - 0);
+    STATE.detach.balanced = false;
+    document.querySelector('.detach__balanced').checked = false;
+  }
+});
+
+document.addEventListener('change', (e) => {
+  if (e.target.classList.contains('detach__balanced')) {
+    STATE.detach.balanced = document.querySelector('.detach__balanced').checked;
+    showDetach();
+  }
+});
+
+initTooltips();
 fetchMap();
 
 </script>
