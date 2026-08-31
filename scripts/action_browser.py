@@ -9,6 +9,7 @@ import mesh2info
 import mono2tag
 import loadtags
 import tree_curses
+import template2info
 import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
@@ -39,26 +40,7 @@ def build_action_help(tags, data_map):
     action_help = {}
     for action_type in tags['temp'].keys():
         action_template_data = loadtags.get_tag_data(tags, data_map, 'temp', action_type)
-        (action_template_header, action_template) = myth_headers.parse_text_tag(action_template_data)
-        template_lines = myth_headers.parse_stli(action_template)
-        params = {}
-        for param in template_lines[2:]:
-            if param.strip():
-                p_parts = param.strip().split('/', 2)
-                p_parts2 = p_parts[0].strip().split(' ')
-
-                param_field = p_parts2[2].strip()
-                params[param_field] = {
-                    'name': p_parts[1].strip(),
-                    'type': p_parts2[1].strip(),
-                    'requirement': p_parts2[0].strip(),
-                    'desc': p_parts[2].strip(),
-                }
-        action_help[action_type] = {
-            'name': template_lines[0].strip(),
-            'expiration_mode': template_lines[1].strip(),
-            'params': params
-        }
+        action_help[action_type] = template2info.parse_template(action_template_data)
     return action_help
 
 def lookup_action_help(action_help, action_type, param_type=None):

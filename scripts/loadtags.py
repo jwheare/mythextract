@@ -125,21 +125,22 @@ def locate_tag_data(tags, data_map, tag_type, tag_id, location):
     if tag_locations:
         for (tag_location, tag_header) in tag_locations:
             if (tag_location == location):
-                tag_start = tag_header.tag_data_offset
-                tag_end = tag_start + tag_header.tag_data_size
-                tag_header_norm = myth_headers.normalise_tag_header(tag_header)
-                return (
-                    tag_header_norm,
-                    tag_header_norm.value + data_map[location][tag_start:tag_end]
-                )
+                (tag_header_norm, encoded) = collect_tag_data(tag_header, data_map[location])
+                return (tag_header_norm, encoded)
     return (None, None)
+
+def collect_tag_data(tag_header, mono_data):
+    tag_start = tag_header.tag_data_offset
+    tag_end = tag_start + tag_header.tag_data_size
+    tag_data = mono_data[tag_start:tag_end]
+    tag_header_norm = myth_headers.normalise_tag_header(tag_header)
+    return (tag_header_norm, tag_header_norm.value + tag_data)
 
 def get_tag_data(tags, data_map, tag_type, tag_id):
     (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)
     if tag_header:
-        tag_start = tag_header.tag_data_offset
-        tag_end = tag_start + tag_header.tag_data_size
-        return myth_headers.encode_header(tag_header) + data_map[location][tag_start:tag_end]
+        (tag_header_norm, encoded) = collect_tag_data(tag_header, data_map[location])
+        return encoded
 
 def get_tag_info(tags, data_map, tag_type, tag_id):
     (location, tag_header) = lookup_tag_header(tags, tag_type, tag_id)

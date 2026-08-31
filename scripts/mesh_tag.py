@@ -1100,11 +1100,11 @@ def encode_map_action_param(game_version, param):
     elif param_type == ParamType.WORLD_POINT_2D:
         elem_count = num_elems
         elem_struct = f'{num_elems * 2}L'
-        elem_values = [round(val * WORLD_POINT_SF) for pair in param_elems for val in pair]
+        elem_values = [tuple([round(val * WORLD_POINT_SF) for pair in param_elems for val in pair])]
     elif param_type == ParamType.WORLD_POINT_3D:
         elem_count = num_elems
         elem_struct = f'{num_elems * 3}L'
-        elem_values = [round(val * WORLD_POINT_SF) for pair in param_elems for val in pair]
+        elem_values = [tuple([round(val * WORLD_POINT_SF) for pair in param_elems for val in pair])]
     elif param_type == ParamType.FIXED:
         elem_count = num_elems
         elem_struct = f'{num_elems}L'
@@ -1376,7 +1376,7 @@ def parse_map_actions(mesh_header, data):
                 param_elems = world_points
 
             if DEBUG_ACTIONS:
-                print(f'{param_remain:<3} \x1b[1m{param_type}\x1b[0m [{num_elems}] {param_elems} \x1b[1m{remainder}\x1b[0m', param_fmt, param_data.hex())
+                print(f'{param_remain:<3} {param_type} [{num_elems}] {param_elems} {remainder}', param_fmt, param_data.hex())
 
             if param_name == 'name':
                 name = param_elems
