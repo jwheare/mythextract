@@ -999,12 +999,6 @@ def export_cell_other(mesh_cells):
 def export_terrain(mesh_cells):
     return export_cell_pixels(mesh_cells, 'terrain_type', terrain_color)
 
-def parse_media(mesh_header, data):
-    media_coverage_start = get_offset(mesh_header.media_coverage_region_offset)
-    media_coverage_end = media_coverage_start + mesh_header.media_coverage_region_size
-    media_coverage_data = data[media_coverage_start:media_coverage_end]
-    print(media_coverage_data[0:64].hex())
-
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)
     marker_palette_end = marker_palette_start + mesh_header.marker_palette_size
