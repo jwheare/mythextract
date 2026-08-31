@@ -34,7 +34,7 @@ def main(game_directory, template, template_file=None):
             (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory)
             if not template or template == 'list':
                 for action_type, locations in tags['temp'].items():
-                    print(action_type)
+                    print(f'{action_type} - {locations[0][1].name}')
                     # for loc, tag_header in locations:
                     #     print(f' - {tag_header.name} ({loc})')
                 template_choice = input('Choose an action template type: ')
