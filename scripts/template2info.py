@@ -1,31 +1,35 @@
 #!/usr/bin/env python3
 import sys
 import os
+import pathlib
 import struct
+import textwrap
 
 import utils
 import myth_headers
 import loadtags
 
 DEBUG = (os.environ.get('DEBUG') == '1')
+RAW_OUTDIR = os.environ.get('RAW_OUTDIR')
 
 def main(game_directory, template, template_file=None):
     """
     Load Myth game tags and print template info
     """
     try:
-        if template == 'file' and template_file:
+        if template == 'tag' and template_file:
+            action_template_data = utils.load_file(template_file)
+            print_template_info(action_template_data)
+        elif template_file:
             mono_data = utils.load_file(template_file)
             mono_header = myth_headers.parse_mono_header(template_file, mono_data)
             mono_tags = myth_headers.get_mono_tags(mono_data, mono_header)
-            print(mono_header.name)
-            print()
+            print(f' {mono_header.name:<32} {template_file:>74}')
             for tag_header in mono_tags:
-                (tag_header_norm, action_template_data) = loadtags.collect_tag_data(tag_header, mono_data)
-                print_template_info(action_template_data)
-        elif template == 'tag' and template_file:
-            action_template_data = utils.load_file(template_file)
-            print_template_info(action_template_data)
+                if tag_header.tag_type == 'temp':
+                    if template == 'file' or template == 'all' or template == tag_header.tag_id:
+                        (tag_header_norm, action_template_data) = loadtags.collect_tag_data(tag_header, mono_data)
+                        print_template_info(action_template_data)
         else:
             (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory)
             if not template or template == 'list':
@@ -46,16 +50,42 @@ def main(game_directory, template, template_file=None):
         raise ValueError(f"Error processing binary data: {e}")
 
 def print_template_info(action_template_data):
-    data = parse_template(action_template_data)
-    print(f"{data['name']} [{data['header'].tag_id}] {data['header'].name}")
-    print(data['expiration_mode'])
-    for param_field, param in data['params'].items():
-        print(f"- [{param_field}] {param['name']} \x1b[90m{param['type']}\x1b[0m ({param['requirement']})")
-        if param['desc']:
-            print(f"    {param['desc']}")
-        for k, v in param['metadata'].items():
-            print(f"    {k} = {v}")
-    print()
+    if RAW_OUTDIR:
+        (action_template_header, action_template) = myth_headers.parse_text_tag(action_template_data)
+        template_lines = myth_headers.parse_stli(action_template)
+        tag_file_name = f'{action_template_header.tag_id}.{action_template_header.name}'
+        outdir = pathlib.Path(RAW_OUTDIR)
+        tag_path = outdir / tag_file_name
+        outdir.mkdir(parents=True, exist_ok=True)
+        if False and tag_path.is_file():
+            print('exists', tag_path)
+        else:
+            with open(tag_path, 'w') as tag_path_file:
+                tag_path_file.write('\n'.join(template_lines))
+            print('written', tag_path)
+    else:
+        data = parse_template(action_template_data)
+        template_name = f'{data['name']} ({data['header'].name})'
+        print()
+        print(' ' + '-'*107 + ' ')
+        print()
+        exp_mode = f"{data['expiration_mode']}"
+        print(f"  {data['header'].tag_id.upper()}   {template_name:<48}   \x1b[90m{exp_mode:>48}\x1b[0m")
+        if len(data['params']):
+            print()
+        for i, (param_field, param) in enumerate(data['params'].items()):
+            field = f'  {param_field}'
+            if param['requirement'] == 'required':
+                field = f'* \x1b[1m{param_field}\x1b[0m'
+            param_name = param['name']
+            param_type = param['type']
+            md = [f'{k} = {v}' for k, v in param['metadata'].items()]
+            if len(md):
+                param_name = f"{param_name}  ({', '.join(md)})"
+            print(f"{field}   {param_name:<64}   {param_type:>32}  ")
+            if param['desc']:
+                for chunk in textwrap.wrap(param['desc'], 80):
+                    print(f"         \x1b[90m{chunk}\x1b[0m")
 
 def parse_template(action_template_data):
     (action_template_header, action_template) = myth_headers.parse_text_tag(action_template_data)
