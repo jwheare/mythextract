@@ -14,6 +14,7 @@ import action_browser
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 VALIDATE = (os.environ.get('VALIDATE') == '1')
+DEBUG_LINK = (os.environ.get('DEBUG_LINK') == '1')
 
 def main(game_directory, level, plugin_names):
     """
@@ -86,6 +87,9 @@ def print_actions(actions, tag_header, action_templates):
             print(f'{tag_prefix}{line}')
         for p in act['parameters']:
             print(f'{tag_prefix}        {indent_space}- {p['name']} {p['type'].name}={p['elements']}')
+            if DEBUG_LINK:
+                if p['name'] == 'link' and len(p['elements']) == 1:
+                    print_link_debug(actions, tag_header, action_id, act, line, p)
             if VALIDATE:
                 template = action_templates.get(act['type'])
                 if template:
@@ -109,6 +113,43 @@ def print_actions(actions, tag_header, action_templates):
             print(f'{tag_prefix}\x1b[3m[{' '.join(action_vars)}]\x1b[0m')
 
         print()
+
+def generate_link_params(actions, elem_params):
+    for params in elem_params:
+        if params['name'] == 'link':
+            linked_element = params['elements'][0]
+            if linked_element in actions:
+                next_elem_params = actions[linked_element]['parameters']
+                if len(next_elem_params):
+                    yield from generate_link_params(actions, next_elem_params)
+        else:
+            yield params['name']
+
+def print_link_debug(actions, tag_header, action_id, act, line, p):
+    print(f'{tag_header.tag_id} [{action_id}] DEBUG_LINK {tag_header.tag_type}={tag_header.tag_id} {tag_header.name}')
+    print(f'{tag_header.tag_id} [{action_id}] DEBUG_LINK {line}')
+    element = p['elements'][0]
+    action_type = act['type'].upper() if act['type'] else 'NULL'
+    # if element == 37472:
+    #     breakpoint()
+    if element in actions:
+        elem_params = actions[element]['parameters']
+        if actions[element]['type']:
+            suffix = f'type={actions[element]['type'].upper()} - {actions[element]['name']}'
+        elif len(elem_params):
+            linked_params = list(generate_link_params(actions, elem_params))
+            linked_params_u = set(linked_params)
+            if len(linked_params):
+                recurse = ''
+                if len(linked_params) > 1:
+                    recurse = f'({len(linked_params)})'
+                suffix = f'param={','.join(linked_params_u)}{recurse} - {actions[element]['name']}'
+            else:
+                suffix = f'empty link - {actions[element]['name']}'
+        else:
+            suffix = f'empty      - {actions[element]['name']}'
+    print(f'{tag_header.tag_id} [{action_id}] DEBUG_LINK link: {action_type}->{suffix} ({element})')
+    print(f'{tag_header.tag_id} [{action_id}] DEBUG_LINK ---')
 
 def print_validation_error(type, value, tag_header, line, p):
     print(f'VALIDATION_ERROR {tag_header.tag_type}={tag_header.tag_id} {tag_header.name}')
