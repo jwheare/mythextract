@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
     template = None
     if len(sys.argv) > 2:
-        template = sys.argv[2]
+        template = sys.argv[2].lower()
 
     template_file = None
     if len(sys.argv) > 3:

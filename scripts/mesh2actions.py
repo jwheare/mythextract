@@ -41,7 +41,10 @@ def main(game_directory, level, plugin_names):
                     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
                         tags, data_map, 'mesh', mesh_id
                     )
-                    parse_mesh_actions(mesh_tag_location, mesh_tag_data, action_templates)
+                    if myth_headers.tag_has_data(mesh_tag_data):
+                        parse_mesh_actions(mesh_tag_location, mesh_tag_data, action_templates)
+                    else:
+                        print("Missing mesh tag data", mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

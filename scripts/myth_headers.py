@@ -287,6 +287,9 @@ def parse_mono_header(filename, data):
         tag_count, tag_list_start, tag_list_size
     )
 
+def tag_has_data(data):
+    return len(data) > 64
+
 def parse_header(data):
     version = data[60:64]
     is_tfl = version == b'myth'
