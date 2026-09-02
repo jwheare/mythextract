@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
+import copy
 import os
 import re
 import struct
@@ -335,11 +336,12 @@ def rekey_units(units, limit=True):
     for i, u in enumerate(sort_units(units.values())):
         # Myth has a maximum of 8 tradeable units
         # limit will be False if we haven't filtered by game type yet
+        u_copy = copy.copy(u)
         if limit and i > 7:
-            u['tradeable'] = False
-            u['max'] = u['initial_count']
-            u['markers'] = [m for m in u['markers'] if 'invis' not in m['flags']]
-        rekeyed[str(u['tag'])] = u
+            u_copy['tradeable'] = False
+            u_copy['max'] = u['initial_count']
+            u_copy['markers'] = [m for m in u['markers'] if 'invis' not in m['flags']]
+        rekeyed[str(u['tag'])] = u_copy
     return rekeyed
 
 # This is the sort order used in the trading dialog and trade film commands
