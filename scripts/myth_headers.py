@@ -7,8 +7,11 @@ import utils
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
+HALO_MONO_HEADER_SIZE = 128
 TAG_HEADER_SIZE = 64
 ENTRY_TAG_HEADER_SIZE = 112
+
+HALO_VERSION = 99
 
 class ArchiveType(enum.Enum):
     TAG = 0
@@ -110,6 +113,22 @@ GORHeaderFmt = ('GORHeader', [
 ])
 GORHeader = codec.codec(GORHeaderFmt)
 
+HaloMonoHeaderFmt = ('HaloMonoHeader', [
+    ('h', 'type', ArchiveType),
+    ('H', 'version'),
+    ('32s', 'name', codec.String),
+    ('64s', 'description', codec.String),
+    ('H', 'entry_tag_count'),
+    ('H', 'tag_list_count'),
+    ('4s', 'checksum'),
+    ('L', 'flags'),
+    ('L', 'size'),
+    ('4s', 'header_checksum'),
+    ('4x', None),
+    ('4s', 'signature', codec.String),
+])
+HaloMonoHeader = codec.codec(HaloMonoHeaderFmt)
+
 UnifiedHeader = namedtuple('UnifiedHeader', [
     'filename',
     'game_version',
@@ -158,6 +177,23 @@ SBHeaderFmt = ('SBHeader', [
     ('4s', 'signature', codec.String),
 ])
 SBHeader = codec.codec(SBHeaderFmt)
+
+HaloHeaderFmt = ('HaloHeader', [
+    ('h', 'identifier'),
+    ('b', 'flags'),
+    ('b', 'type'),
+    ('32s', 'name', codec.String),
+    ('4s', 'tag_type', codec.String),
+    ('4s', 'tag_id', codec.String),
+    ('i', 'tag_data_offset'),
+    ('l', 'tag_data_size'),
+    ('L', 'user_data'),
+    ('h', 'version'),
+    ('b', 'destination'),
+    ('b', 'owner_index'),
+    ('4s', 'signature', codec.String),
+])
+HaloHeader = codec.codec(HaloHeaderFmt)
 
 def tfl2sb(tfl_header, tag_content):
     SBHeaderT = codec.make_nt(SBHeaderFmt)
@@ -220,6 +256,13 @@ def parse_sb_mono_header(header):
 
     return SBMonoHeader(header_data)
 
+def parse_halo_mono_header(header):
+    header_data = header[:HALO_MONO_HEADER_SIZE]
+    if len(header_data) < HALO_MONO_HEADER_SIZE:
+        raise ValueError("Invalid header")
+
+    return HaloMonoHeader(header_data)
+
 def encode_sb_mono_header(mono):
     return mono.value
 
@@ -232,8 +275,9 @@ def mono_header_size(header):
 def parse_mono_header(filename, data):
     is_sb = data[124:128] == b'dng2'
     is_tfl = not is_sb and data[:4] == b'\x00\x01\x00\x01'
+    is_halo = data[124:128] == b'ding'
 
-    if not is_tfl and not is_sb:
+    if not is_tfl and not is_sb and not is_halo:
         raise ValueError("Incompatible game version")
 
     if is_tfl:
@@ -255,6 +299,19 @@ def parse_mono_header(filename, data):
         description = header.description
         tag_count = header.tag_list_count
         header_size = SB_MONO_HEADER_SIZE
+        header_type = header.type
+
+        entry_tag_count = header.entry_tag_count
+        entry_tag_list_start = header_size
+
+        tag_list_start = entry_tag_list_start + (entry_tag_count * ENTRY_TAG_HEADER_SIZE)
+    elif is_halo:
+        version = HALO_VERSION
+        header = parse_halo_mono_header(data)
+        print(header)
+        description = header.description
+        tag_count = header.tag_list_count
+        header_size = HALO_MONO_HEADER_SIZE
         header_type = header.type
 
         entry_tag_count = header.entry_tag_count
@@ -294,14 +351,17 @@ def parse_header(data):
     version = data[60:64]
     is_tfl = version == b'myth'
     is_sb = version == b'mth2'
+    is_halo = version == b'blam'
 
-    if not is_tfl and not is_sb:
+    if not is_tfl and not is_sb and not is_halo:
         raise ValueError(f"Incompatible game version: {version}")
 
     if is_tfl:
         return parse_tfl_header(data)
     elif is_sb:
         return parse_sb_header(data)
+    elif is_halo:
+        return parse_halo_header(data)
 
 def parse_tfl_header(header):
     return TFLHeader(header)
@@ -309,11 +369,16 @@ def parse_tfl_header(header):
 def parse_sb_header(header):
     return SBHeader(header)
 
+def parse_halo_header(header):
+    return HaloHeader(header)
+
 def get_mono_tags(data, mono_header):
     if mono_header.game_version == 1:
         head_codec = TFLHeader
     elif mono_header.game_version == 2:
         head_codec = SBHeader
+    elif mono_header.game_version == HALO_VERSION:
+        head_codec = HaloHeader
     else:
         raise ValueError(f"Incompatible game version: {mono_header.game_version}")
     return codec.list_codec(mono_header.tag_count, head_codec)(data, offset=mono_header.tag_list_start)
@@ -367,6 +432,11 @@ def game_version(header):
         return 1
     elif header.signature == 'mth2':
         return 2
+    elif header.signature == 'blam':
+        return HALO_VERSION
+
+def is_halo_tag(header):
+    return game_version(header) == HALO_VERSION
 
 def normalise_tag_header(header, **kwargs):
     return header._replace(

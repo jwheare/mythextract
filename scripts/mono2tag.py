@@ -38,7 +38,8 @@ Tags ({tag_id})
         )
         for i, tag_header in enumerate(myth_headers.get_mono_tags(data, mono_header)):
             tag_id_hex = tag_header.tag_id.value.hex()
-            tag_id_print = tag_header.tag_id
+            tag_id_print = tag_id_hex if myth_headers.is_halo_tag(tag_header) else tag_header.tag_id
+            tag_id_col = '    ' if myth_headers.is_halo_tag(tag_header) else tag_header.tag_id
             if (
                 (not tag_id and not tag_type)
                 or tag_type == 'all'
@@ -53,7 +54,7 @@ Tags ({tag_id})
                     f' {i:03} | '
                     f'{tag_header.signature} | '
                     f'{tag_header.tag_type} | '
-                    f'{tag_id_print} | '
+                    f'{tag_id_col} | '
                     f'{tag_id_hex} | '
                     f'{tag_header.name}'
                 )
