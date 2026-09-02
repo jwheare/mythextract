@@ -515,7 +515,7 @@ def parse_reco_head(game_directory, reco_file, head_only=False):
         for i, (f, val) in enumerate(reco._asdict().items()):
             print(f'{f:<42} {utils.val_repr(val)}')
 
-    offset += reco.data_size()
+    offset += reco._data_size()
     game_param = game_headers.parse_params(reco_data[offset:])
     game_param = game_param._replace(
         plugin_data=pref2info.parse_pref_plugins(game_param.plugin_data, game_param.plugin_count)
@@ -526,7 +526,7 @@ def parse_reco_head(game_directory, reco_file, head_only=False):
         for i, (f, val) in enumerate(game_param._asdict().items()):
             print(f'{f:<42} {utils.val_repr(val)}')
 
-    offset += game_param.data_size()
+    offset += game_param._data_size()
     game_data = game_headers.parse_data(reco_data[offset:])
     game_data = game_data._replace_raw(
         players=game_data.players[:game_data.player_count]
@@ -541,7 +541,7 @@ def parse_reco_head(game_directory, reco_file, head_only=False):
             else:
                 print(f'{f:<42} {utils.val_repr(val)}')
 
-    offset += game_data.data_size()
+    offset += game_data._data_size()
     save_game = game_headers.parse_save(reco_data[offset:])
 
     if DEBUG:
@@ -549,7 +549,7 @@ def parse_reco_head(game_directory, reco_file, head_only=False):
         for i, (f, val) in enumerate(save_game._asdict().items()):
             print(f'{f:<42} {utils.val_repr(val)}')
 
-    offset += save_game.data_size()
+    offset += save_game._data_size()
     if DEBUG:
         print('header offset', offset)
 
@@ -1129,7 +1129,7 @@ def parse_timeline(
         if DEBUG_CMDS:
             print(block_header)
 
-        commands_start = block_offset + block_header.data_size()
+        commands_start = block_offset + block_header._data_size()
         commands_end = commands_start + block_header.size
         commands_data = reco_data[commands_start:commands_end]
         if len(commands_data) != block_header.size:
@@ -1139,7 +1139,7 @@ def parse_timeline(
         command_offset = 0
         for command_i in range(block_header.command_count):
             command_header = command_header_codec(commands_data[command_offset:])
-            command_data_start = command_offset + command_header.data_size()
+            command_data_start = command_offset + command_header._data_size()
             if not command_header.size:
                 print('Corrupt command block. length:', len(commands_data[command_offset:]), command_header)
                 abort = True

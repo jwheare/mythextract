@@ -67,7 +67,7 @@ def parse_font_tag(data, text):
         print('----+---+----+--------------------+-----+-----')
     while glyph_head_start < font_header.font_data_len:
         font_glyph = FontGlyph(data[glyph_head_start:])
-        glyph_head_end = glyph_head_start + font_glyph.data_size()
+        glyph_head_end = glyph_head_start + font_glyph._data_size()
 
         g_pix = font_glyph.bitmap_width * font_glyph.bitmap_height
         glyph_size = g_pix + (g_pix & 1)

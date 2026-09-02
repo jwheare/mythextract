@@ -5,6 +5,7 @@ import struct
 import pathlib
 import hashlib
 
+import mesh_tag
 import myth_headers
 import mono2tag
 import loadtags
@@ -53,6 +54,17 @@ def main(file_1, file_2, tag_type, tag_id):
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
+def print_mesh_section(side, tag_header, section, data):
+    data_hash = hashlib.md5(data).hexdigest()[:5]
+    print(
+        f'  {side}  | '
+        f'{tag_header.signature} | '
+        f'{tag_header.tag_type} | '
+        f'{tag_header.tag_id} | '
+        f'{data_hash} | {data[:32].hex()} | '
+        f'[section: {section}] (len={len(data)})'
+    )
+
 def print_tag(side, tag_header, data):
     data_hash = hashlib.md5(data).hexdigest()[:5]
     print(
@@ -84,6 +96,18 @@ def diff_tag_harder(tag_header_1, tag_data_1, tag_header_2, tag_data_2):
             print("Items added:")
             for i, s in enumerate(stli_diff_a):
                 print(f"{i:>3} {s}")
+    elif tag_header_1.tag_type == 'mesh':
+        mesh_header_1 = mesh_tag.parse_header(tag_data_1)
+        mesh_header_2 = mesh_tag.parse_header(tag_data_2)
+        for section in [
+            'mesh', 'data', 'marker_palette', 'markers', 'media_coverage_region',
+            'mesh_LOD_data', 'connectors', 'editor_data'
+        ]:
+            section_data_1 = mesh_tag.get_section_data(mesh_header_1, section, tag_data_1)
+            section_data_2 = mesh_tag.get_section_data(mesh_header_1, section, tag_data_2)
+            if section_data_1 != section_data_2:
+                print_mesh_section('<', tag_header_1, section, section_data_1)
+                print_mesh_section('>', tag_header_2, section, section_data_2)
     else:
         return
 
@@ -123,9 +147,9 @@ def diff_tags(tags_1, tags_2, data_map_1, data_map_2, tag_type, tag_id):
     print(
         """
 Tags
------+------+------+------+-------+-------
- dif | game | type | id   | hash  | name  
------+------+------+------+-------+-------"""
+-----+------+------+------+-------+----------------------------------+-------
+ dif | game | type | id   | hash  | hex                              | name  
+-----+------+------+------+-------+----------------------------------+-------"""
     )
     for tag_type_1, tag_ids_1 in tags_1.items():
         if not tag_type or tag_type_1 == tag_type:

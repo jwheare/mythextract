@@ -243,7 +243,7 @@ def parse_lpgr(data):
 def parse_prgr(data):
     prgr_head = myth_headers.parse_tag(PrgrHeadFmt, data)
 
-    proj_list_start = myth_headers.TAG_HEADER_SIZE + prgr_head.data_size()
+    proj_list_start = myth_headers.TAG_HEADER_SIZE + prgr_head._data_size()
     proj_list_codec = codec.list_codec(prgr_head.number_of_parts, PrgrProjFmt)
     proj_list = proj_list_codec(data, offset=proj_list_start)
 

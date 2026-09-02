@@ -201,18 +201,18 @@ class _ListCodec:
     def __init__(self, item_data, offset=0):
         if self.MAX_ITEMS is None:
             self.original_data = item_data[offset:]
-            self.MAX_ITEMS = len(self.original_data) / self.data_size()
+            self.MAX_ITEMS = len(self.original_data) / self._data_size()
             if not self.MAX_ITEMS.is_integer():
                 raise ValueError('Item data not divisible by format length')
             self.MAX_ITEMS = round(self.MAX_ITEMS)
         else:
-            data_end = offset + self.MAX_ITEMS * self.data_size()
+            data_end = offset + self.MAX_ITEMS * self._data_size()
             self.original_data = item_data[offset:data_end]
         self.items = []
 
         start = 0
         for i in range(self.MAX_ITEMS):
-            end = start + self.data_size()
+            end = start + self._data_size()
             item_data = self.original_data[start:end]
             item = self.CODEC(item_data)
             if not self.FILTER or self.FILTER(item):
@@ -221,7 +221,7 @@ class _ListCodec:
                 self.items.append(None)
             start = end
 
-    def data_size(self):
+    def _data_size(self):
         return self.CODEC._item_def_size
 
     def __iter__(self):
@@ -283,7 +283,7 @@ class _Codec:
         processed = _process_data_values(values, self._decoders)
         self._item = self._nt._make(processed)
 
-    def data_size(self):
+    def _data_size(self):
         return self._item_def_size
 
     @property

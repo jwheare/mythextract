@@ -760,6 +760,13 @@ def cutscenes(game_version, header):
 def get_offset(offset):
     return myth_headers.TAG_HEADER_SIZE + MESH_HEADER_SIZE + offset
 
+def get_section_data(mesh_header, section, data):
+    offset = f'{section}_offset'
+    size = 'map_action_buffer_size' if section == 'map_actions' else f'{section}_size'
+    start = get_offset(getattr(mesh_header, offset))
+    end = start + getattr(mesh_header, size)
+    return data[start:end]
+
 def parse_palette_entry(entry):
     return {
         'flags': entry.flags,

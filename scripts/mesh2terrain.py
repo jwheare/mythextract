@@ -76,6 +76,9 @@ def export_mesh_terrain(mesh_tag_data, output_dir, slug_suffix=''):
     mesh_slug = f'{tag_header.name}-{mesh_id}{slug_suffix}'
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
     mesh_cells, mesh_cells_hash = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
+    print('hash', mesh_cells_hash)
+    mesh_output_dir = output_dir / mesh_slug
+    mesh_output_dir.mkdir(parents=True, exist_ok=True)
     
     for exporter, suffix in [
         (mesh_tag.export_terrain, 'terrain'),
@@ -85,7 +88,7 @@ def export_mesh_terrain(mesh_tag_data, output_dir, slug_suffix=''):
         (mesh_tag.export_terrain_below_media, 'terrain-below-media'),
     ]:
         (width, height, rows) = exporter(mesh_cells)
-        output_path = output_dir / f'{mesh_slug}-{suffix}.png'
+        output_path = mesh_output_dir / f'{mesh_slug}-{suffix}.png'
         output_png = tag2png.make_png(width, height, rows)
         with open(output_path, 'wb') as png_file:
             print(output_path)
