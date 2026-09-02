@@ -193,6 +193,7 @@ def main(game_directory, level, plugin_names):
 
 def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
     game_type_items = {}
+    test_difficulties = []
     if mesh_tag.MarkerType.SCENERY in palette:
         for scenery in palette[mesh_tag.MarkerType.SCENERY]:
             tag_id = scenery['tag']
@@ -216,13 +217,12 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
     for gt in ['fr', 'scav']:
         # Check only one item of each number, and at least one item total
         if 'all' in game_types or gt in game_types:
-            test_difficulty = False
             flag_counts = {}
             max_flag_num = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
                     if item['min_difficulty'] > 0:
-                        test_difficulty = True
+                        test_difficulties.append(item['min_difficulty'])
                     max_flag_num = max(max_flag_num, item['flag_number'])
                     if item['flag_number'] not in flag_counts:
                         flag_counts[item['flag_number']] = 0
@@ -236,19 +236,15 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
                     if count != 1:
                         print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: {target} {flag_num} unexpected count: {count} -\x1b[0m")
 
-            if test_difficulty:
-                print('TODO check difficulties')
-
     for gt in ['ctf', 'balls']:
         # Check only one item for each team
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            test_difficulty = False
             flag_counts = {}
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
                     if item['min_difficulty'] > 0:
-                        test_difficulty = True
+                        test_difficulties.append(item['min_difficulty'])
                     if item['team'] not in flag_counts:
                         flag_counts[item['team']] = 0
                     flag_counts[item['team']] += 1
@@ -258,19 +254,15 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
                 if count != 1:
                     print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} unexpected {target} count: {count} -\x1b[0m")
 
-            if test_difficulty:
-                print('TODO check difficulties')
-
     for gt in ['stb', 'lmoth', 'koth']:
         # Check only one item total
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            test_difficulty = False
             count = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
                     if item['min_difficulty'] > 0:
-                        test_difficulty = True
+                        test_difficulties.append(item['min_difficulty'])
                     count += 1
             target = mesh_tag.netgame_location_type(gt, True)
             if count != 1:
@@ -280,12 +272,11 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
         # Check at least one item total
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            test_difficulty = False
             count = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
                     if item['min_difficulty'] > 0:
-                        test_difficulty = True
+                        test_difficulties.append(item['min_difficulty'])
                     count += 1
             target = mesh_tag.netgame_location_type(gt, True)
             if count < 1:
@@ -295,12 +286,11 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
         # Check same items per team
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            test_difficulty = False
             flag_counts = {}
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
                     if item['min_difficulty'] > 0:
-                        test_difficulty = True
+                        test_difficulties.append(item['min_difficulty'])
                     if item['team'] not in flag_counts:
                         flag_counts[item['team']] = 0
                     flag_counts[item['team']] += 1
@@ -316,8 +306,8 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
                     count = flag_counts.get(team, 0)
                     print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} mismatched flags: {count} -\x1b[0m")
 
-            if test_difficulty:
-                print('TODO check difficulties')
+    if len(test_difficulties):
+        print('TODO check difficulties', set(test_difficulties), len(test_difficulties))
 
 def parse_mesh_header(tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(
