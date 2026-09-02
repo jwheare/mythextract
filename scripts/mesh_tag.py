@@ -3,6 +3,7 @@ from collections import OrderedDict
 import enum
 import hashlib
 import json
+import math
 import os
 import struct
 import tag2png
@@ -12,6 +13,8 @@ import myth_headers
 import loadtags
 import utils
 import myth_tags
+import mons_tag
+import myth_collection
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 DEBUG_ACTIONS = (os.environ.get('DEBUG_ACTIONS') == '1')
@@ -186,11 +189,11 @@ MeshHeaderFmt = ('MeshHeader', [
     ('L', 'flags', MeshFlags),
     ('4s', 'particle_system_tag'),
     ('L', 'team_count'),
-    ('h', 'dark_fraction'),
-    ('h', 'light_fraction'),
-    ('8s', 'dark_color'),
-    ('8s', 'light_color'),
-    ('l', 'transition_point'),
+    ('h', 'dark_fraction', codec.ShortFixed),
+    ('h', 'light_fraction', codec.ShortFixed),
+    ('8s', 'dark_color', codec.Color),
+    ('8s', 'light_color', codec.Color),
+    ('l', 'transition_point', codec.Fixed),
     ('h', 'ceiling_height'),
     ('B', 'min_vtfl_version'),
     ('B', 'max_vtfl_version'),
@@ -218,7 +221,7 @@ MeshHeaderFmt = ('MeshHeader', [
     ('L', 'mesh_LOD_data_offset'),
     ('L', 'mesh_LOD_data_size'),
     ('4x', None), # runtime: mesh_LOD_data_ptr
-    ('8s', 'global_tint_color'),
+    ('8s', 'global_tint_color', codec.Color),
     ('h', 'global_tint_fraction'),
     ('H', 'pad'),
     ('4s', 'wind_tag'),
@@ -576,7 +579,7 @@ def proj_type(tag_id, title_case=False):
             proj = proj.lower()
         return proj
 
-def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_map):
+def netgame_locations(mesh_header, game_type, palette, tags, data_map):
     items = []
     if MarkerType.OBSERVER in palette:
         for observer in palette[MarkerType.OBSERVER]:
@@ -591,13 +594,13 @@ def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_ma
             projectile = proj_type(proj['tag'])
             if projectile:
                 for marker_id, marker in proj['markers'].items():
-                    if difficulty >= marker['min_difficulty']:
-                        items.append({
-                            'projectile': True,
-                            'type': projectile,
-                            'team': None,
-                            'position': normalise_position(mesh_header, marker['pos']),
-                        })
+                    items.append({
+                        'projectile': True,
+                        'type': projectile,
+                        'team': None,
+                        'min_difficulty': marker['min_difficulty'],
+                        'position': normalise_position(mesh_header, marker['pos']),
+                    })
     if MarkerType.SCENERY in palette:
         for scenery in palette[MarkerType.SCENERY]:
             tag_id = scenery['tag']
@@ -616,7 +619,7 @@ def netgame_locations(mesh_header, game_type, difficulty, palette, tags, data_ma
                         if scen_tag_info:
                             scoring_type, flag_number = scen_tag_info
                             scoring_key = netgame_scoring_key(scoring_type)
-                            if scoring_key == gt and difficulty >= marker['min_difficulty']:
+                            if scoring_key == gt:
                                 items.append({
                                     'target': True,
                                     'type': netgame_location_type(gt),
@@ -800,6 +803,16 @@ def get_level_name(mesh_header, tags, data_map, strip_format=False):
     else:
         return utils.ansi_format(level_name)
 
+def export_overhead(tags, data_map, mesh_header):
+    overhead_data = loadtags.get_tag_data(
+        tags, data_map, '.256', codec.decode_string(
+            mesh_header.overhead_map_collection_tag
+        )
+    )
+    if overhead_data:
+        overhead_hash = hashlib.md5(overhead_data).hexdigest()[:8]
+        return (overhead_data, overhead_hash)
+
 def export_colormap(tags, data_map, mesh_header):
     cmap_data = loadtags.get_tag_data(
         tags, data_map, '.256', codec.decode_string(
@@ -819,17 +832,26 @@ def assemble_colormap(mesh_header, cmap_data):
     (_, _, cmap_bitmaps) = tag2png.parse_256_tag(cmap_data)
 
     final_rows = []
+    shadow_rows = []
     for submesh_y in range(mesh_header.submesh_height):
         for y in range(SUBMESH_TEXTURE_WIDTH):
             pixel_row = []
+            shadow_row = []
             for submesh_x in range(mesh_header.submesh_width - 1, -1, -1):
                 bitmap_index = ((submesh_y * mesh_header.submesh_width) + submesh_x) * 2
-                (name, width, height, rows) = cmap_bitmaps[bitmap_index]
-                for x in range(len(rows[y]) - 1, -1, -1):
-                    pixel_row.append(rows[y][x])
-            final_rows.append(pixel_row)
+                shadow_index = bitmap_index + 1
 
-    return (pixel_width, pixel_height, final_rows)
+                for (idx, row) in [
+                    (bitmap_index, pixel_row), 
+                    (shadow_index, shadow_row)
+                ]:
+                    (name, width, height, rows) = cmap_bitmaps[idx]
+                    for x in range(len(rows[y]) - 1, -1, -1):
+                        row.append(rows[y][x])
+            final_rows.append(pixel_row)
+            shadow_rows.append(shadow_row)
+
+    return (pixel_width, pixel_height, final_rows, shadow_rows)
 
 def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''
@@ -911,7 +933,29 @@ def parse_mesh_cells(mesh_header, data):
             row.append((alternate, cell))
         rows.append(row)
 
-    return rows
+    cells_hash = hashlib.md5(mesh_cells.original_data).hexdigest()[:8]
+    return rows, cells_hash
+
+def export_cell_pixels_single(mesh_cells, value_map, color_map):
+    width = len(mesh_cells[0])
+    height = len(mesh_cells)
+
+    pixel_rows = []
+    for row in mesh_cells:
+        pixel_row = []
+        for alternate, cell in row:
+            if not value_map:
+                value = cell
+            if callable(value_map):
+                value = value_map(cell)
+            elif isinstance(value_map, str):
+                value = getattr(cell, value_map)
+            pixel_row.append(color_map(value))
+        # Reverse each row, origin is top right
+        pixel_row.reverse()
+        pixel_rows.append(pixel_row)
+
+    return (width, height, pixel_rows)
 
 def export_cell_pixels(mesh_cells, value_map, color_map):
     width = len(mesh_cells[0]) * 8
@@ -949,7 +993,7 @@ def export_media_coverage(mesh_cells):
 def height_color_map(max_height, min_height, height_range):
     return lambda height: tuple(([round((height - min_height) / max(1, height_range) * 255)]*3) + [255])
 
-def cell_height_range(mesh_cells, height_attr):
+def cell_height_range(mesh_cells, height_attr='height'):
     max_height = None
     min_height = None
     for row in mesh_cells:
@@ -964,9 +1008,9 @@ def cell_height_range(mesh_cells, height_attr):
 
 def export_terrain_height(mesh_cells, height_attr='height'):
     max_height, min_height, height_range = cell_height_range(mesh_cells, height_attr)
-    print(f'max={max_height} min={min_height} range={height_range}')
+    # print(f'max={max_height} min={min_height} range={height_range}')
     color_map = height_color_map(max_height, min_height, height_range)
-    return export_cell_pixels(mesh_cells, height_attr, color_map)
+    return export_cell_pixels_single(mesh_cells, height_attr, color_map)
 
 def export_media_height(mesh_cells):
     return export_terrain_height(mesh_cells, height_attr='media_height')
@@ -998,6 +1042,90 @@ def export_cell_other(mesh_cells):
 
 def export_terrain(mesh_cells):
     return export_cell_pixels(mesh_cells, 'terrain_type', terrain_color)
+
+def impassable_scenery(mesh_header, palette, tags, data_map):
+    results = {}
+    width, height = mesh_dimensions(mesh_header)
+    if MarkerType.SCENERY in palette:
+        for scenery in palette[MarkerType.SCENERY]:
+            (location, tag_header, tag_data) = loadtags.get_tag_info(
+                tags, data_map, 'scen', scenery['tag']
+            )
+            scen_tag = myth_tags.parse_scenery(tag_data)
+            if myth_tags.scen_terrain_impassable(scen_tag):
+                obje_data = loadtags.get_tag_data(
+                    tags, data_map, 'obje', codec.decode_string(scen_tag.object_tag)
+                )
+                obje_tag = mons_tag.parse_obje(obje_data)
+                max_scale = obje_tag.scale_delta.upper_bound(obje_tag)
+
+                (core_location, core_header, core_data) = loadtags.get_tag_info(
+                    tags, data_map, 'core', codec.decode_string(scen_tag.collection_reference_tag)
+                )
+                core_tag = myth_collection.parse_collection_ref(core_data)
+                seq = myth_collection.sequence(tags, data_map, core_tag.collection_tag, scen_tag.sequence_indexes[0])
+                world_radius = seq['metadata'].radius * 10 * seq['metadata'].pixels_to_world
+                radius = max_scale * (world_radius / 512)
+
+                for marker_id, marker in scenery['markers'].items():
+                    pos_x = marker['pos'][0]
+                    pos_y = marker['pos'][1]
+
+                    # Mark the cell we're in
+                    results[(int(pos_x), int(pos_y))] = True
+
+                    # Work out the bounding radius
+                    x_min = utils.clamp(pos_x - radius, 0, width - 1)
+                    x_max = utils.clamp(pos_x + radius, 0, width - 1)
+                    y_min = utils.clamp(pos_y - radius, 0, height - 1)
+                    y_max = utils.clamp(pos_y + radius, 0, height - 1)
+
+                    # For each cell in a square grid that contains the radius in x and y (o), check if
+                    # any corner of the cell (abcd) is less than radius away from the point (p)
+                    # note, this can be 3x3, 4x4 or larger
+                    # a---b---•---•
+                    # |  o|  o|  o|
+                    # d---c--|•---•
+                    # |  o---p---o|
+                    # •---•--|•---•
+                    # |  o|  o|  o|
+                    # •---•---•---•
+
+                    for x in range(int(x_min), int(x_max) + 1):
+                        for y in range(int(y_min), int(y_max) + 1):
+                            for (x_add, y_add) in [
+                                (0, 0), # a
+                                (1, 0), # b
+                                (1, 1), # c
+                                (0, 1), # d
+                            ]:
+                                if math.dist((pos_x, pos_y), (x + x_add, y + y_add)) < radius:
+                                    results[(x, y)] = True
+
+    results_bin = b''.join([
+        struct.pack('>II', width, height)
+    ] + [struct.pack('>II', x, y) for (x, y) in sorted(results.keys())])
+    results_hash = hashlib.md5(results_bin).hexdigest()[:8]
+    return (results, results_hash)
+
+
+def export_impassable_scenery(mesh_cells, impassables):
+    width = len(mesh_cells[0])
+    height = len(mesh_cells)
+
+    pixel_rows = []
+    for y, row in enumerate(mesh_cells):
+        pixel_row = []
+        for x, col in enumerate(row):
+            if impassables.get((x, y)):
+                pixel_row.append((0,255,0,255))
+            else:
+                pixel_row.append((255,255,255,0))
+        # Reverse each row, origin is top right
+        pixel_row.reverse()
+        pixel_rows.append(pixel_row)
+
+    return (width, height, pixel_rows)
 
 def parse_markers(mesh_header, data):
     marker_palette_start = get_offset(mesh_header.marker_palette_offset)

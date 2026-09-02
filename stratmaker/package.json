@@ -1,0 +1,23 @@
+{
+  "name": "myth-strat-maker",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "dev": "vite --host --base /",
+    "build": "vite build --base /",
+    "preview": "vite preview --host --base /",
+    "test": "eslint main.js"
+  },
+  "author": "James Wheare",
+  "license": "MIT",
+  "description": "Unit trade, distribution and strategy tool for Myth",
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0"
+  },
+  "dependencies": {
+    "three": "^0.185.0",
+    "vite": "^8.0.11"
+  }
+}

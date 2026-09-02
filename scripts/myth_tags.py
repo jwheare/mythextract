@@ -221,6 +221,9 @@ def scen_netgame_info(scenery):
         )
     return None
 
+def scen_terrain_impassable(scenery):
+    return SceneryFlag.MARKS_TERRAIN_IMPASSABLE in scenery.flags
+
 SceneryFmt = ('Scenery', [
     ('L', 'flags', SceneryFlag),
     ('4s', 'collection_reference_tag'),
@@ -242,6 +245,7 @@ SceneryFmt = ('Scenery', [
     ('8s', 'projectile_group_types', codec.list_pack(
         'SceneryPgrTypes', MAX_SCENERY_PRGR, '>h'
     )),
+    # runtime
     ('h', 'collection_reference_index'),
     ('h', 'impact_projectile_group_type'),
     ('h', 'object_type'),

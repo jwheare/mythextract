@@ -75,7 +75,8 @@ def export_mesh_terrain(mesh_tag_data, output_dir, slug_suffix=''):
     mesh_id = tag_header.tag_id
     mesh_slug = f'{tag_header.name}-{mesh_id}{slug_suffix}'
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
-    mesh_cells = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
+    mesh_cells, mesh_cells_hash = mesh_tag.parse_mesh_cells(mesh_header, mesh_tag_data)
+    
     for exporter, suffix in [
         (mesh_tag.export_terrain, 'terrain'),
         (mesh_tag.export_media_coverage, 'media'),

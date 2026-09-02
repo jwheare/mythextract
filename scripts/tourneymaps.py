@@ -3,9 +3,11 @@ import json
 import os
 import pathlib
 import re
+import csv
 import sys
 
 import mesh2trades
+import utils
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 TRADE = os.environ.get('TRADE')
@@ -19,6 +21,8 @@ def main(tourneys_dir, output_path):
     maps = {}
     if not output_path:
         output_path = tourneys_path / 'maps.json'
+
+    csvwriter = csv.writer(sys.stdout, lineterminator='\n')
 
     tourney_slugs = []
     for tourney_path in [p for p in (tourneys_path / 'tournament').iterdir() if p.is_dir()]:
@@ -40,7 +44,7 @@ def main(tourneys_dir, output_path):
         tourney_slugs.append(t_slug)
         for round_info in tourney_info['rounds']:
             for game_info in round_info['games']:
-                map_name = game_info['map_name']
+                map_name = utils.strip_format(game_info['map_name'])
                 game_type = game_info['game_type']
                 if map_name not in maps:
                     maps[map_name] = {'count': 0, 'game_types': {}, 'tourneys': {}}
@@ -86,16 +90,18 @@ def main(tourneys_dir, output_path):
     tourney_slugs.sort()
     tourney_slug_header = ','.join([f'20{ts}' for ts in tourney_slugs])
     if FILTER_PRINT:
-        print(f"FILTER_CSV Map,{tourney_slug_header},total")
+        csvwriter.writerow(["FILTER_CSV", 'Map', tourney_slug_header, 'total'])
     for map_name, map_detail in sorted(maps.items(), key=lambda m: m[1]['count'], reverse=True):
         tourney_summary = ', '.join([f'20{t}={tc}' for t, tc in sorted(map_detail['tourneys'].items())])
         tourney_summary_csv = ','.join([str(map_detail['tourneys'].get(ts, 0)) for ts in tourney_slugs])
         if FILTER_PRINT:
             print(f'FILTER_MAP {map_detail['count']:02d} {map_name} ({tourney_summary})')
-            print(f'FILTER_CSV "{map_name}",{tourney_summary_csv},{map_detail['count']}')
+            csvwriter.writerow(["FILTER_CSV", map_name, tourney_summary_csv, map_detail['count']])
         for gt, games in sorted(map_detail['game_types'].items(), key=lambda g: len(g[1]), reverse=True):
             if FILTER_PRINT:
                 print(f'FILTER_GT {len(games):02d} {map_name} - {gt}')
+                plugin_names = [p['name'] for p in games[0]['game']['plugins']]
+                csvwriter.writerow(["FILTER_PLUGIN", map_detail['count'], len(games), map_name, *plugin_names])
 
     if prompt(output_path):
         with open(output_path, 'w') as output_json:

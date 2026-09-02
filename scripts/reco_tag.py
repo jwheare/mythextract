@@ -969,7 +969,7 @@ def parse_timeline(
     game_time = game_param.time_limit/30/60
     planning_ticks = game_param.pregame_time_limit
 
-    locations = mesh_tag.netgame_locations(mesh_header, game_type_choice, game_param.difficulty_level, palette, tags, data_map)
+    locations = mesh_tag.netgame_locations(mesh_header, game_type_choice, palette, tags, data_map)
 
     # Set up teams
     (
@@ -1001,6 +1001,7 @@ def parse_timeline(
         'game_type': game_type,
         'map_name': map_name,
         'game_type_map_slug': game_type_map_slug,
+        'mesh_id': mesh_tag_header.tag_id,
         'plugins': game_headers.plugin_details(game_param.plugin_data, find=True),
         'difficulty': mesh_tag.difficulty(game_param.difficulty_level),
         'host': None,
@@ -1085,7 +1086,6 @@ def parse_timeline(
         tags, data_map, palette, mesh_header,
         level_name, game_param.difficulty_level, game_type_choice
     )
-    parse_game_type = game_types[0]
 
     monsters = {}
     trades = {}
@@ -1093,6 +1093,12 @@ def parse_timeline(
     dropped_players = []
     movement_data = []
     last_positions = {}
+
+    if len(game_types):
+        parse_game_type = game_types[0]
+    else:
+        parse_game_type = 'all'
+    
     for team_index, cap_id in enumerate(teams_idx):
         if cap_id is not None:
             (trade_info, units, team_markers) = get_trades(

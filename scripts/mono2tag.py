@@ -30,27 +30,39 @@ def main(mono_path, tag_type, tag_id, output_file):
             print_entrypoint_map(entrypoints)
 
         print(
-            """
-Tags
------+------+------+------+-------
- idx | game | type | id   | name 
------+------+------+------+-------"""
+            f"""
+Tags ({tag_id})
+-----+------+------+------+----------+-------
+ idx | game | type | id   | hex      | name 
+-----+------+------+------+----------+-------"""
         )
         for i, tag_header in enumerate(myth_headers.get_mono_tags(data, mono_header)):
+            tag_id_hex = tag_header.tag_id.value.hex()
+            tag_id_print = tag_header.tag_id
             if (
                 (not tag_id and not tag_type)
-                or (tag_type == tag_header.tag_type and tag_id == tag_header.tag_id)
+                or tag_type == 'all'
+                or (tag_type == tag_header.tag_type and (
+                    tag_id == tag_header.tag_id or
+                    tag_id == f'idx={i}' or
+                    tag_id == f'hex={tag_id_hex}' or
+                    tag_id == 'all'
+                ))
             ):
                 print(
                     f' {i:03} | '
                     f'{tag_header.signature} | '
                     f'{tag_header.tag_type} | '
-                    f'{tag_header.tag_id} | '
+                    f'{tag_id_print} | '
+                    f'{tag_id_hex} | '
                     f'{tag_header.name}'
                 )
                 if tag_id and tag_type:
-                    export_tag(tag_header, data, output_file)
-                    return
+                    if tag_type != 'all' and tag_id != 'all':
+                        export_tag(tag_header, data, tag_id_print, output_file)
+                        return
+                    else:
+                        export_tag(tag_header, data, tag_id_print, output_file, do_prompt=False)
 
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -161,18 +173,18 @@ def seek_tag(tags, tag_type, tag_id, data, mono_header):
             tag_end = tag_start + tag_header.tag_data_size
             return myth_headers.encode_header(tag_header) + data[tag_start:tag_end]
 
-def export_tag(tag_header, data, output_file):
+def export_tag(tag_header, data, tag_id_print, output_file, do_prompt=True):
     tag_start = tag_header.tag_data_offset
     tag_end = tag_start + tag_header.tag_data_size
     tag_data = data[tag_start:tag_end]
 
     if not output_file:
-        output_file = f'../tags/{tag_header.signature}-{tag_header.tag_type}-{tag_id}'
+        output_file = f'../tags/{tag_header.signature}-{tag_header.tag_type}-{tag_id_print}-{tag_header.name}'
         tag_path = pathlib.Path(sys.path[0], output_file).resolve()
     else:
         tag_path = pathlib.Path(output_file)
 
-    if prompt(tag_path):
+    if not do_prompt or prompt(tag_path):
         pathlib.Path(tag_path.parent).mkdir(parents=True, exist_ok=True)
         with open(tag_path, 'wb') as tag_file:
             tag_file.write(myth_headers.encode_header(tag_header))

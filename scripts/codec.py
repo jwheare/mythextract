@@ -784,3 +784,14 @@ WorldPoint2DFmt = ('WorldPoint2D', [
     ('L', 'x', World),
     ('L', 'y', World),
 ])
+
+ColorFmt = ('Color', [
+    ('H', 'r', ShortFixed),
+    ('H', 'g', ShortFixed),
+    ('H', 'b', ShortFixed),
+    ('H', 'flags'),
+])
+Color = codec(ColorFmt)
+
+def color_hex(color):
+    return "#{:02X}{:02X}{:02X}".format(int(color.r), int(color.g), int(color.b))

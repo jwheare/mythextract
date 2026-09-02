@@ -80,16 +80,6 @@ def get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc
         'berserk_vitality': mons.berserk_vitality,
     }
 
-def sequence(tags, data_map, collection_tag, sequence_index):
-    (_, coll_header, coll_data) = loadtags.get_tag_info(
-        tags, data_map, '.256', codec.decode_string(collection_tag)
-    )
-    if not coll_header:
-        return
-    coll_head = myth_collection.parse_collection_header(coll_data, coll_header)
-    seqs = myth_collection.parse_sequences(coll_data, coll_head)
-    return seqs[sequence_index]
-
 def process_attacks(mons, tags, data_map):
     attacks = []
     vet_max = mons_tag.vet_max(mons)
@@ -208,7 +198,7 @@ def process_attacks(mons, tags, data_map):
                     if not attack_s:
                         continue
 
-                    seq = sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
+                    seq = myth_collection.sequence(tags, data_map, mons.collection_tag, attack_s.sequence_index)
                     if not seq:
                         continue
                     seq_meta = seq['metadata']

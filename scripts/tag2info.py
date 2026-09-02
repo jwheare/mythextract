@@ -72,6 +72,7 @@ def print_tag_info(tag_data):
         case 'mons':
             mons_obj = mons_tag.parse_tag(game_version, tag_data)
             mons2info.print_tag(game_version, mons_obj)
+            # print_tag_obj(mons_obj)
         case 'anim':
             print_tag_obj(myth_tags.parse_anim(tag_data))
         case 'scen':

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=1240">
+    <title>Myth Strategy Maker</title>
+    <link rel="stylesheet" type="text/css" href="main.css">
+</head>
+<body class="nogametype">
+  <div id="container">
+    <div id="map">
+      <h2 class="map__name">
+        <span class="map__title"></span>
+        <input class="map__time" placeholder="Time limit…">
+      </h2>
+      <h3 class="map__plugin"></h3>
+      <h4 class="map__gt"></h4>
+      <div class="map">
+        <div class="map__status_wrap">
+          <div class="map__status">
+            <div class="map__status_button map__status_draw_button map__status_draw_help">?</div>
+            <div class="map__status_button map__status_draw_button map__status_draw_active">🖍️</div>
+            <div class="map__status_button map__status_add_view">+</div>
+          </div>
+        </div>
+        <div class="mapImages"></div>
+      </div>
+    </div>
+    <div id="tradeSplit">
+      <div id="trading">
+        <div id="tradeable"></div>
+        <div id="resetTrade">Reset to default</div>
+        <div id="pointsRemaining"></div>
+        <div id="untradeable"></div>
+      </div>
+      <div id="splitResult">
+        <div id="tradeResult"></div>
+        <div id="tradeResultUntrade"></div>
+        <textarea class="strat_notes" placeholder="Add overall notes…"></textarea>
+        <div id="splits"></div>
+      </div>
+    </div>
+  </div>
+  <div class="detach">
+    <form class="detach__form">
+      <h3 class="detach__unit"></h3>
+      <div class="detach__add_balance_split">
+        <span class="detach__add_split">+ Add split</span>
+        <!-- <span class="detach__balance_split">Rebalance</span> -->
+        <label class="detach__balance_split">
+          <input type="checkbox" class="detach__balanced">Keep balanced
+        </label>
+      </div>
+      <div class="detach__splits"></div>
+      <div class="detach__buttons">
+        <input class="detach__button detach__cancel" type="button" value="Cancel">
+        <input class="detach__button detach__submit" type="submit" value="Detach">
+      </div>
+    </form>
+  </div>
+  <div id="map3d"><canvas id="map3d_canvas"></canvas></div>
+  <div id="toolbar">
+    <div class="toolbar_button notrading_toggle">🧮</div>
+    <div class="toolbar_button noclutter_toggle">🧹</div>
+    <div class="toolbar_button nodrawings_toggle">🖍️</div>
+    <div class="toolbar_button terrain_toggle">🏔️</div>
+    <div class="toolbar_button noshadow_toggle">😎</div>
+    <div class="toolbar_button download_state">⬇️</div>
+    <a href="/" class="toolbar_button all_maps">📖</a>
+  </div>
+<script type="module" src="main.js"></script>
+</body>
+</html>

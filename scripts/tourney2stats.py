@@ -560,7 +560,7 @@ def main(tourney_dir, game_directory, output_dir):
                         shutil.move(old_cmap_path, cmap_out_path)
                         print('CMAP MOVED... ', end='', flush=True)
                     else:
-                        (cmap_width, cmap_height, cmap_rows) = mesh_tag.assemble_colormap(mesh_header, cmap_data)
+                        (cmap_width, cmap_height, cmap_rows, shadow_rows) = mesh_tag.assemble_colormap(mesh_header, cmap_data)
                         cmap_png = tag2png.make_png(cmap_width, cmap_height, cmap_rows)
                         with open(cmap_out_path, 'wb') as png_file:
                             png_file.write(cmap_png)

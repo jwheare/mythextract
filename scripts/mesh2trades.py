@@ -129,7 +129,7 @@ def main(game_directory, level, plugin_names):
                         })
                     elif CSV:
                         level_name_strip = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
-                        for i, row in enumerate(trade_data):
+                        for i, row in enumerate(diff_sort_units(trade_data)):
                             mismatch_str = ''
                             if mismatch_rows is True:
                                 mismatch_str = 'mismatch'
@@ -330,15 +330,21 @@ def parse_mesh_header(tags, data_map, mesh_id):
 
     return mesh_header, mesh_tag_data, mesh_tag_location
 
-def rekey_units(units):
-    return OrderedDict(
-        (u['tag'], u)
-        for u in sort_units(units.values())
-    )
+def rekey_units(units, limit=True):
+    rekeyed = OrderedDict()
+    for i, u in enumerate(sort_units(units.values())):
+        # Myth has a maximum of 8 tradeable units
+        # limit will be False if we haven't filtered by game type yet
+        if limit and i > 7:
+            u['tradeable'] = False
+            u['max'] = u['initial_count']
+            u['markers'] = [m for m in u['markers'] if 'invis' not in m['flags']]
+        rekeyed[str(u['tag'])] = u
+    return rekeyed
 
 # This is the sort order used in the trading dialog and trade film commands
 def sort_units(units):
-    return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k['max'], k['palette_index'][0]), reverse=True)
+    return sorted(units, key=lambda k: (k['tradeable'], k['cost'], k.get('max'), k['palette_index'][0]), reverse=True)
 
 # Sort by unit name for diffing only
 def diff_sort_units(units):
@@ -366,14 +372,51 @@ def auto_adjust_counts(units):
     
     return adjusted
 
-def parse_game_type_units(
+def game_type_counts(mesh_header, game_type, unit):
+    visible_count = 0
+    invisible_count = 0
+    target_count = 0
+    min_count = 0
+    tradeable = False
+    for marker in unit['markers']:
+        if game_type not in marker['game_types']:
+            continue
+        if 'invis_obs' in marker['flags']:
+            continue
+        if marker['tradeable']:
+            tradeable = True
+        if 'invis' in marker['flags']:
+            invisible_count += 1
+        else:
+            visible_count += 1
+            if not marker['tradeable']:
+                min_count += 1
+        is_target = 'netgame_targ' in marker['flags']
+        if is_target:
+            target_count += 1
+
+    if mesh_tag.is_single_player(mesh_header):
+        count = visible_count + invisible_count
+        max_count = count
+    else:
+        count = visible_count
+        max_count = visible_count + invisible_count
+    counts = {
+        'initial_count': count,
+        'count': count,
+        'max': max_count,
+        'min': min_count,
+        'targets': target_count,
+        'tradeable': tradeable
+    }
+    return counts
+
+def parse_units(
     game_version,
     tags, data_map, palette, mesh_header,
-    level_name, difficulty, game_type_choice
+    level_name
 ):
-    game_type_units = OrderedDict()
-    team_has_stampede_targets = {}
-    team_has_assassin_targets = {}
+    all_units = {}
 
     if mesh_tag.MarkerType.UNIT in palette:
         for unit in palette[mesh_tag.MarkerType.UNIT]:
@@ -401,71 +444,86 @@ def parse_game_type_units(
                 if mesh_tag.is_reinforcements(unit):
                     continue
                 mons_dict = mons2stats.get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc)
-                for netgame in netgame_info:
+                if team not in all_units:
+                    all_units[team] = OrderedDict()
+                if tag_id not in all_units[team]:
+                    all_units[team][tag_id] = mons_dict | {
+                        'tag': tag_id,
+                        'team': team,
+                        'markers': [],
+                        'palette_index': [],
+                    }
+                markers = []
+                palette_index = None
+                tradeable = False
+                may_use_vet = False
+                must_use_vet = False
+                for marker_id, marker in unit['markers'].items():
+                    palette_index = marker['palette_index']
+                    if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
+                        continue
+                    marker_tradeable = mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags']
+                    marker_may_use_vet = mesh_tag.MarkerPaletteFlag.MAY_USE_VETERANS in unit['flags']
+                    marker_must_use_vet = mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags']
+                    if marker_tradeable:
+                        tradeable = True
+                    if marker_may_use_vet:
+                        may_use_vet = True
+                    if marker_must_use_vet:
+                        must_use_vet = True
+                    markers.append({
+                        k: v for k, v in marker.items() if k not in [
+                            'tag', 'type', 'pos', 'flags'
+                        ]
+                    } | {
+                        'position': mesh_tag.normalise_position(mesh_header, marker['pos']),
+                        'flags': mesh_tag.marker_flag_info(marker['flags']),
+                        'game_types': netgame_info,
+                        'tradeable': marker_tradeable,
+                        'may_use_vet': marker_may_use_vet,
+                        'must_use_vet': marker_must_use_vet,
+                    })
+
+                all_units[team][tag_id]['markers'] += markers
+                all_units[team][tag_id]['tradeable'] = tradeable
+                all_units[team][tag_id]['may_use_vet'] = may_use_vet
+                all_units[team][tag_id]['must_use_vet'] = must_use_vet
+                if palette_index is not None and palette_index not in all_units[team][tag_id]['palette_index']:
+                    all_units[team][tag_id]['palette_index'].append(palette_index)
+
+    return all_units
+
+def parse_game_type_units(
+    game_version,
+    tags, data_map, palette, mesh_header,
+    level_name, difficulty, game_type_choice
+):
+    game_type_units = OrderedDict()
+    team_has_stampede_targets = {}
+    team_has_assassin_targets = {}
+
+    all_units = parse_units(
+        game_version,
+        tags, data_map, palette, mesh_header,
+        level_name
+    )
+
+    for team, team_units in all_units.items():
+        for tag_id, mons_dict in team_units.items():
+            for marker in mons_dict['markers']:
+                for netgame in marker['game_types']:
                     if netgame not in game_type_units:
                         game_type_units[netgame] = {}
                     if team not in game_type_units[netgame]:
                         game_type_units[netgame][team] = OrderedDict()
                     if tag_id not in game_type_units[netgame][team]:
-                        game_type_units[netgame][team][tag_id] = mons_dict | {
-                            'tag': tag_id,
-                            'team': team,
-                            'initial_count': 0,
-                            'count': 0,
-                            'max': 0,
-                            'min': 0,
-                            'targets': 0,
-                            'markers': [],
-                            'palette_index': [],
-                            'tradeable': mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags'],
-                            'may_use_vet': mesh_tag.MarkerPaletteFlag.MAY_USE_VETERANS in unit['flags'],
-                            'must_use_vet': mesh_tag.MarkerPaletteFlag.MUST_USE_VETERANS in unit['flags'],
-                        }
-                    visible_count = 0
-                    invisible_count = 0
-                    target_count = 0
-                    markers = []
-                    palette_index = None
-                    for marker_id, marker in unit['markers'].items():
-                        palette_index = marker['palette_index']
-                        if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
-                            continue
-                        if marker['min_difficulty'] <= difficulty:
-                            if mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags']:
-                                invisible_count += 1
-                            else:
-                                visible_count += 1
-                            markers.append({
-                                k: v for k, v in marker.items() if k not in [
-                                    'tag', 'type', 'pos', 'flags'
-                                ]
-                            } | {
-                                'position': mesh_tag.normalise_position(mesh_header, marker['pos']),
-                                'flags': mesh_tag.marker_flag_info(marker['flags']),
-                            })
-                            is_target = mesh_tag.MarkerFlag.IS_NETGAME_TARGET in marker['flags']
-                            if is_target:
-                                target_count += 1
-                            if is_target and mesh_tag.NetgameFlag.STAMPEDE in unit['netgame_flags']:
-                                team_has_stampede_targets[team] = True
-                            if is_target and mesh_tag.NetgameFlag.ASSASSIN in unit['netgame_flags']:
-                                team_has_assassin_targets[team] = True
-
-                    if mesh_tag.is_single_player(mesh_header):
-                        count = visible_count + invisible_count
-                        max_count = count
-                    else:
-                        count = visible_count
-                        max_count = visible_count + invisible_count
-                    game_type_units[netgame][team][tag_id]['initial_count'] += count
-                    game_type_units[netgame][team][tag_id]['count'] += count
-                    game_type_units[netgame][team][tag_id]['max'] += max_count
-                    game_type_units[netgame][team][tag_id]['targets'] += target_count
-                    game_type_units[netgame][team][tag_id]['markers'] += markers
-                    if palette_index is not None and palette_index not in game_type_units[netgame][team][tag_id]['palette_index']:
-                        game_type_units[netgame][team][tag_id]['palette_index'].append(palette_index)
-                    if mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED not in unit['flags']:
-                        game_type_units[netgame][team][tag_id]['min'] = game_type_units[netgame][team][tag_id]['max']
+                        game_type_dict = mons_dict | game_type_counts(mesh_header, netgame, mons_dict)
+                        game_type_units[netgame][team][tag_id] = game_type_dict
+                        is_target = 'netgame_targ' in marker['flags']
+                        if is_target and netgame == 'stamp':
+                            team_has_stampede_targets[team] = True
+                        if is_target and netgame == 'ass':
+                            team_has_assassin_targets[team] = True
 
     enabled_game_types = mesh_tag.enabled_netgames(mesh_header)
     if 'all' in game_type_units:
@@ -476,7 +534,7 @@ def parse_game_type_units(
     included_game_types.sort()
 
     game_types = []
-    if game_type_choice == 'all':
+    if game_type_choice == 'all' or mesh_tag.is_single_player(mesh_header):
         game_types = included_game_types
     else:
         if game_type_choice not in included_game_types:
@@ -518,6 +576,20 @@ def rekey_teams(game_type, game_type_units):
             merged_units = shared_units[team] | merged_units
         
         rekeyed_units = rekey_units(merged_units)
+        rekeyed_teams[team] = rekeyed_units
+    return rekeyed_teams
+
+def rekey_teams_all(mesh_header, all_units):
+    rekeyed_teams = {}
+    for team, team_units in all_units.items():
+        for tag_id, mons_dict in team_units.items():
+            for marker in mons_dict['markers']:
+                for netgame in marker['game_types']:
+                    if 'counts' not in mons_dict:
+                        mons_dict['counts'] = {}
+                    if netgame not in mons_dict['counts']:
+                        mons_dict['counts'][netgame] = game_type_counts(mesh_header, netgame, mons_dict)
+        rekeyed_units = rekey_units(team_units, limit=False)
         rekeyed_teams[team] = rekeyed_units
     return rekeyed_teams
 
@@ -605,7 +677,11 @@ def input_loop(game_type, unit_dict, diffs):
         count = None
         all_units = False
         if match := re.match(r'^(\d+)\s+(\d+)$', adjust):
-            unit = int(match.group(1)) - 1
+            unit = int(match.group(1) or 0) - 1
+            if unit < 0:
+                unit = None
+            unit_set = unit is not None
+            valid_unit = unit_set and unit < len(units)
             count = int(match.group(2))
         elif match := re.match(r'^(\d+)?([+]{1,2}|[-]{1,2}|[=]{1,1})$', adjust):
             unit = int(match.group(1) or 0) - 1

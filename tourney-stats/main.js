@@ -22,7 +22,7 @@ const mediaList = document.getElementById("media");
 let BASE_URL = import.meta.env.BASE_URL;
 let PAGE_URL = null;
 
-const DATA_VERSION = '2026-06-15';
+const DATA_VERSION = '2026-07-09';
 let TOURNEY_ID = null;
 let ROUND_ID = null;
 let PLAYER_ID = null;
@@ -490,7 +490,7 @@ function routeUrl () {
   } else if (ROUTE_NAME == 'info') {
     renderInfo();
   } else if (ROUTE_NAME == 'maps') {
-    renderMaps(window.location.hash);
+    renderMaps(window.location.hash.slice(1));
   } else if (ROUTE_NAME == 'home') {
     renderHome();
   }
@@ -583,14 +583,14 @@ function renderInfo () {
   document.body.classList.add('show-info');
 }
 
-async function renderMaps (hash) {
+async function renderMaps (hashSlug) {
   const response = await fetch(`${BASE_URL}maps.json?v=${DATA_VERSION}`);
   MAPS_DATA = JSON.parse(await response.text());
   window.MAPS_DATA = MAPS_DATA;
 
   renderMapsTitle();
   renderMapsInfo();
-  renderMapsList(hash);
+  renderMapsList(hashSlug);
 }
 
 function renderHome () {
@@ -870,13 +870,12 @@ function slugifyMapGt (game) {
   let mapSlug = slugify(game.map_name);
   return `${typeSlug}-${mapSlug}`;
 }
-function hashGameMatch (hash, game) {
-  let hashSlice = hash.slice(1);
+function hashGameMatch (hashSlug, game) {
   let slug = slugifyMapGt(game);
-  return hashSlice == slug;
+  return hashSlug == slug;
 }
 
-function renderMapsList (hash) {
+function renderMapsList (hashSlug) {
   let mapList = dce('ol', 'mapList');
   
   let opts = {
@@ -889,13 +888,13 @@ function renderMapsList (hash) {
 
   if (opts.groupByMap) {
     Object.values(MAPS_DATA).sort((a, b) => b.count - a.count).forEach(mapInfo => {
-    const withGameType = [];
+      const withGameType = [];
       Object.values(mapInfo['game_types']).forEach(games => {
         withGameType.push(games);
       });
       withGameType.sort((a, b) => b.length - a.length).forEach(games => {
         let mapEntry = renderMapsListEntry(games, opts);
-        if (hashGameMatch(hash, games[0].game)) {
+        if (hashGameMatch(hashSlug, games[0].game)) {
           scrollTo = mapEntry;
         }
         mapList.appendChild(mapEntry);
@@ -910,7 +909,7 @@ function renderMapsList (hash) {
     });
     withGameType.sort((a, b) => b.length - a.length).forEach(games => {
       let mapEntry = renderMapsListEntry(games, opts);
-      if (hashGameMatch(hash, games[0].game)) {
+      if (hashGameMatch(hashSlug, games[0].game)) {
         scrollTo = mapEntry;
       }
       mapList.appendChild(mapEntry);
@@ -919,6 +918,8 @@ function renderMapsList (hash) {
   tournamentContainer.appendChild(mapList);
   if (scrollTo) {
     scrollTo.scrollIntoView();
+  } else if (hashSlug) {
+    tournamentContainer.prepend(dce('div', 'warningMessage', 'Map not found'));
   }
 }
 
@@ -3211,8 +3212,7 @@ function timelineTick (nowRaf, once) {
       playerPositions[msPlayer].y.push(pos.yFrac);
       if (pos.monsters) {
         for (const [monsterName, count] of Object.entries(pos.monsters)) {
-          const prevCount = playerPositions[msPlayer].monsters[monsterName] || count;
-          playerPositions[msPlayer].monsters[monsterName] = Math.max(count, prevCount);
+          playerPositions[msPlayer].monsters[monsterName] = count;
         }
       }
     }

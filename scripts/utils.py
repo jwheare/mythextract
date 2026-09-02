@@ -210,3 +210,6 @@ def profileStart():
 def profileEnd():
     PROFILER.disable()
     pstats.Stats(PROFILER).sort_stats(pstats.SortKey.CUMULATIVE).print_stats(100)
+
+def clamp(val, min_val, max_val):
+    return max(min(val, max_val), min_val)

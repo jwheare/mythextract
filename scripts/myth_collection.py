@@ -5,24 +5,18 @@ import struct
 
 import codec
 import myth_headers
+import loadtags
 
 DEBUG_COLL = (os.environ.get('DEBUG_COLL') == '1')
 
 FIXED_SF = 1 << 16
 
-ColorFmt = ('Color', [
-    ('H', 'r', codec.ShortPercent),
-    ('H', 'g', codec.ShortPercent),
-    ('H', 'b', codec.ShortPercent),
-    ('H', 'flags'),
-])
-
 CollectionRefFmt = ('CollectionRef', [
     ('4s', 'collection_tag'),
     ('H', 'number_of_permutations'),
     ('H', 'tint_fraction'),
-    ('320s', 'colors', lambda colors: [codec.list_codec(8, ColorFmt)(colors) for i in range(5)]),
-    ('8s', 'tint', ColorFmt),
+    ('320s', 'colors', lambda colors: [codec.list_codec(8, codec.ColorFmt)(colors) for i in range(5)]),
+    ('8s', 'tint', codec.Color),
     ('36x', None),
     ('2x', None),
     ('10x', None),
@@ -281,6 +275,16 @@ SequenceFrameFmt = ('SequenceFrame', [
     ('38x', None),
 ])
 
+def sequence(tags, data_map, collection_tag, sequence_index):
+    (_, coll_header, coll_data) = loadtags.get_tag_info(
+        tags, data_map, '.256', codec.decode_string(collection_tag)
+    )
+    if not coll_header:
+        return
+    coll_head = parse_collection_header(coll_data, coll_header)
+    seqs = parse_sequences(coll_data, coll_head)
+    return seqs[sequence_index]
+
 def parse_sequences(data, coll_header):
     sequences = []
     if coll_header.sequence_reference_count:
@@ -307,8 +311,9 @@ def parse_sequences(data, coll_header):
                 frame_start = view_start + view_length
             if DEBUG_COLL:
                 print(
-                    f'{i:>2} sequence: {seq_ref.name:<32} '
-                    f'frames: {frames}'
+                    f'{i:>2} sequence: {seq_ref.name}\n'
+                    f'frames: {frames}\n'
+                    f'metadata: {seq_data}'
                 )
             sequences.append({
                 'name': seq_ref.name,
@@ -342,7 +347,7 @@ def parse_bitmaps(data, coll_header, color_table):
             bitref.size, bitmap_head_start, data
         )
 
-        rows = decode_bitmap(coll_header, bitdata, bitmap_data, color_table)
+        rows = decode_bitmap(i, coll_header, bitdata, bitmap_data, color_table)
 
         if DEBUG_COLL:
             print(
@@ -413,15 +418,15 @@ def parse_sequence_bitmaps(data):
 
 def sequences_to_bitmaps(bitmaps, bitmap_instances, sequences):
     bms = []
-    for sequence in sequences:
+    for seq in sequences:
         seq_bms = []
-        for (frame, views) in sequence['frames']:
+        for (frame, views) in seq['frames']:
             idx = views[0]
             bitmap_index = bitmap_instances[idx].bitmap_index
             if bitmap_index > -1 and bitmap_index < len(bitmaps):
                seq_bms.append(bitmaps[bitmap_index])
         bms.append({
-            'name': sequence['name'],
+            'name': seq['name'],
             'bitmaps': seq_bms
         })
     return bms
@@ -452,7 +457,10 @@ def parse_bitmap_data(total_size, start, data):
 
     return (bitmap_meta, bitmap_data)
 
-def decode_bitmap(coll_header, bitdata, bitmap_data, color_table=None):
+def decode_bitmap(idx, coll_header, bitdata, bitmap_data, color_table=None):
+    cmap = UserDataFlags.IS_COLOR_MAP in coll_header.user_data
+    force_gray = cmap and idx & 1
+    force_raw = cmap and not idx & 1
     if bitdata.encoding == ExtendedEncoding.EXT_R8G8B8A5H:
         return decode_bitmap_64(bitmap_data, bitdata.width, bitdata.height)
     elif bitdata.encoding == ExtendedEncoding.EXT_ARGB_8888_32:
@@ -463,6 +471,8 @@ def decode_bitmap(coll_header, bitdata, bitmap_data, color_table=None):
         )
     elif BitmapFlags.TRANSPARENCY_ENCODED_4BIT in bitdata.flags:
         return decode_4bit_transparent_raw_bitmap(coll_header, color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags)
+    elif force_gray or not force_raw and BitmapFlags.GRAYSCALE_BITMAP in bitdata.flags:
+        return decode_grayscale_bitmap(coll_header, color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags)
     else:
         return decode_raw_bitmap(coll_header, color_table, bitmap_data, bitdata.width, bitdata.height, bitdata.flags)
 
@@ -477,6 +487,20 @@ def decode_4bit_transparent_raw_bitmap(coll_header, color_table, bitmap_data, wi
             alpha, b_ix = row_data[i:i+2]
             (r, g, b, _) = color_table[b_ix]
             row.append((r, g, b, decode_alpha(alpha)))
+        rows.append(row)
+    return rows
+
+def decode_grayscale_bitmap(coll_header, color_table, bitmap_data, width, height, flags):
+    rows = []
+    for row_i in range(height):
+        row_start = row_i * width
+        row_end = row_start + width
+        row = []
+        row_data = bitmap_data[row_start:row_end]
+        for value in bytearray(row_data):
+            r = g = b = value
+            alpha = 255
+            row.append((r, g, b, alpha))
         rows.append(row)
     return rows
 
@@ -708,15 +732,15 @@ def parse_d256_bitmaps(data, head):
     total_ref_data = data[total_ref_start:total_ref_end]
 
     ret = []
-    for ref in codec.iter_decode(
+    for i, ref in enumerate(codec.iter_decode(
         0, head.ref_count,
         D256RefFmt, total_ref_data
-    ):
+    )):
         if DEBUG_COLL:
             print(f'{ref.name:<64} {ref.width:>3}x{ref.height:<3} orig={ref.original_width:>2}x{ref.original_height:<2} {ref.flags}')
         bitmap_meta_start = head_end + ref.offset
         (bitmap_meta, bitmap_data) = parse_bitmap_data(ref.size, bitmap_meta_start, data)
-        rows = decode_bitmap(None, bitmap_meta, bitmap_data)
+        rows = decode_bitmap(i, None, bitmap_meta, bitmap_data)
         if DEBUG_COLL:
             print(bitmap_meta, 'datalen:', len(bitmap_data))
             render_terminal(rows)
