@@ -748,6 +748,9 @@ def has_single_player_story(game_version, data):
 def is_single_player(header):
     return MeshFlags.SINGLE_PLAYER_MAP in header.flags
 
+def is_complete(header):
+    return MeshFlags.IS_COMPLETE in header.flags
+
 def is_vtfl(header):
     return MeshFlags.USES_VTFL in header.flags
 

@@ -23,6 +23,7 @@ GAME_TYPE = os.environ.get('GAME_TYPE')
 STATS = os.environ.get('STATS')
 TIME = os.environ.get('TIME')
 TEAM = os.environ.get('TEAM')
+SKIP_INCOMPLETE = os.environ.get('SKIP_INCOMPLETE')
 DIFFICULTY = int(os.environ.get('DIFFICULTY', 2))
 
 CSV = os.environ.get('CSV')
@@ -75,6 +76,10 @@ def main(game_directory, level, plugin_names):
         if level and level != 'list':
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 mesh_header, mesh_tag_data, mesh_tag_location = parse_mesh_header(tags, data_map, mesh_id)
+
+                if SKIP_INCOMPLETE and not mesh_tag.is_complete(mesh_header):
+                    continue
+
                 if mesh_tag.is_single_player(mesh_header):
                     continue
 
@@ -211,48 +216,73 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
                         game_type_items[scoring_key].append({
                             'game_types': scen_game_types,
                             'min_difficulty': marker['min_difficulty'],
+                            'invis': mesh_tag.MarkerFlag.IS_INVISIBLE in marker['flags'],
+                            'marker_flags': marker['flags'],
                             'flag_number': flag_number,
                             'team': scenery['team_index'],
                         })
     for gt in ['fr', 'scav']:
         # Check only one item of each number, and at least one item total
         if 'all' in game_types or gt in game_types:
-            flag_counts = {}
+            invis_flag_counts = {}
+            vis_flag_counts = {}
             max_flag_num = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
+                    fc = invis_flag_counts if item['invis'] else vis_flag_counts
                     if item['min_difficulty'] > 0:
                         test_difficulties.append(item['min_difficulty'])
                     max_flag_num = max(max_flag_num, item['flag_number'])
-                    if item['flag_number'] not in flag_counts:
-                        flag_counts[item['flag_number']] = 0
-                    flag_counts[item['flag_number']] += 1
+                    if item['flag_number'] not in fc:
+                        fc[item['flag_number']] = 0
+                    fc[item['flag_number']] += 1
             target = mesh_tag.netgame_location_type(gt, True)
-            if not len(flag_counts):
+            if not len(invis_flag_counts) and not len(vis_flag_counts):
                 print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: No {target}s -\x1b[0m")
             else:
                 for flag_num in range(1, max_flag_num + 1):
-                    count = flag_counts.get(flag_num, 0)
-                    if count != 1:
-                        print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: {target} {flag_num} unexpected count: {count} -\x1b[0m")
+                    invis_count = invis_flag_counts.get(flag_num, 0)
+                    vis_count = vis_flag_counts.get(flag_num, 0)
+                    total_count = invis_count + vis_count
+                    if total_count != 1:
+                        print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: {target} {flag_num} unexpected count: {total_count} -\x1b[0m")
 
     for gt in ['ctf', 'balls']:
         # Check only one item for each team
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            flag_counts = {}
+            invis_flag_counts = {}
+            vis_flag_counts = {}
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
+                    fc = invis_flag_counts if item['invis'] else vis_flag_counts
                     if item['min_difficulty'] > 0:
                         test_difficulties.append(item['min_difficulty'])
-                    if item['team'] not in flag_counts:
-                        flag_counts[item['team']] = 0
-                    flag_counts[item['team']] += 1
+                    if item['team'] not in fc:
+                        fc[item['team']] = 0
+                    fc[item['team']] += 1
             target = mesh_tag.netgame_location_type(gt, True)
+            team_counts_invis = []
+            team_counts_vis = []
+            neutral_count_invis = invis_flag_counts.get(-1, 0)
+            neutral_count_vis = vis_flag_counts.get(-1, 0)
+            neutral_count_total = neutral_count_invis + neutral_count_vis
             for team in team_ids:
-                count = flag_counts.get(team, 0)
-                if count != 1:
-                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} unexpected {target} count: {count} -\x1b[0m")
+                invis_count = invis_flag_counts.get(team, 0)
+                vis_count = vis_flag_counts.get(team, 0)
+                total_count = invis_count + vis_count
+                team_counts_invis.append(invis_count)
+                team_counts_vis.append(vis_count)
+                if not neutral_count_total and total_count != 1:
+                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} unexpected {target} count: {total_count} neutral count: {neutral_count_total} -\x1b[0m")
+            for (label, team_count, fc) in [
+                ('hidden', team_counts_invis, invis_flag_counts),
+                ('visible', team_counts_vis, vis_flag_counts)
+            ]:
+                if min(team_count) != max(team_count):
+                    for team in team_ids:
+                        count = fc.get(team, 0)
+                        print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} mismatched {label} {target}: {count} -\x1b[0m")
 
     for gt in ['stb', 'lmoth', 'koth']:
         # Check only one item total
@@ -261,6 +291,7 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
             count = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
+                    # TODO count vis and invis separately
                     if item['min_difficulty'] > 0:
                         test_difficulties.append(item['min_difficulty'])
                     count += 1
@@ -275,6 +306,7 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
             count = 0
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
+                    # TODO count vis and invis separately
                     if item['min_difficulty'] > 0:
                         test_difficulties.append(item['min_difficulty'])
                     count += 1
@@ -286,25 +318,37 @@ def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
         # Check same items per team
         if 'all' in game_types or gt in game_types:
             team_ids = game_type_units.get(gt, game_type_units.get('all', {})).keys()
-            flag_counts = {}
+            invis_flag_counts = {}
+            vis_flag_counts = {}
             for item in game_type_items.get(gt, []):
                 if 'all' in item['game_types'] or gt in item['game_types']:
+                    fc = invis_flag_counts if item['invis'] else vis_flag_counts
                     if item['min_difficulty'] > 0:
                         test_difficulties.append(item['min_difficulty'])
-                    if item['team'] not in flag_counts:
-                        flag_counts[item['team']] = 0
-                    flag_counts[item['team']] += 1
-            neutral_count = flag_counts.get(-1, 0)
-            team_counts = []
+                    if item['team'] not in fc:
+                        fc[item['team']] = 0
+                    fc[item['team']] += 1
+            neutral_count_invis = invis_flag_counts.get(-1, 0)
+            neutral_count_vis = vis_flag_counts.get(-1, 0)
+            neutral_count_total = neutral_count_invis + neutral_count_vis
+            team_counts_invis = []
+            team_counts_vis = []
             for team in team_ids:
-                count = flag_counts.get(team, 0)
-                team_counts.append(count)
-                if not neutral_count and not count:
+                invis_count = invis_flag_counts.get(team, 0)
+                vis_count = vis_flag_counts.get(team, 0)
+                total_count = invis_count + vis_count
+                team_counts_invis.append(invis_count)
+                team_counts_vis.append(vis_count)
+                if not neutral_count_total and not total_count:
                     print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} missing flags -\x1b[0m")
-            if min(team_counts) != max(team_counts):
-                for team in team_ids:
-                    count = flag_counts.get(team, 0)
-                    print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} mismatched flags: {count} -\x1b[0m")
+            for (label, team_count, fc) in [
+                ('hidden', team_counts_invis, invis_flag_counts),
+                ('visible', team_counts_vis, vis_flag_counts)
+            ]:
+                if min(team_count) != max(team_count):
+                    for team in team_ids:
+                        count = fc.get(team, 0)
+                        print(f"\x1b[91m- {mesh_tag.NetgameNames[gt]}: Team {team} mismatched flags: {count} -\x1b[0m")
 
     if len(test_difficulties):
         print('TODO check difficulties', set(test_difficulties), len(test_difficulties))
@@ -511,11 +555,11 @@ def parse_game_type_units(
                     if tag_id not in game_type_units[netgame][team]:
                         game_type_dict = mons_dict | game_type_counts(mesh_header, netgame, mons_dict)
                         game_type_units[netgame][team][tag_id] = game_type_dict
-                        is_target = 'netgame_targ' in marker['flags']
-                        if is_target and netgame == 'stamp':
-                            team_has_stampede_targets[team] = True
-                        if is_target and netgame == 'ass':
-                            team_has_assassin_targets[team] = True
+                    is_target = 'netgame_targ' in marker['flags']
+                    if is_target and netgame == 'stamp':
+                        team_has_stampede_targets[team] = True
+                    if is_target and netgame == 'ass':
+                        team_has_assassin_targets[team] = True
 
     enabled_game_types = mesh_tag.enabled_netgames(mesh_header)
     if 'all' in game_type_units:
