@@ -34,9 +34,9 @@ def parse_mesh_markers(game_version, tags, data_map, mesh_id):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
 
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans)
+    print_markers(game_version, mesh_tag_location, mesh_id, mesh_tag_header, tags, data_map, palette, orphans)
 
-def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_map, palette, orphans):
+def print_markers(game_version, mesh_tag_location, mesh_id, mesh_tag_header, tags, data_map, palette, orphans):
     mismatched_unit_collections = {}
     for palette_type, p_list in palette.items():
         for palette_index, p_val in enumerate(p_list):
@@ -55,6 +55,7 @@ def print_markers(game_version, mesh_tag_location, mesh_tag_header, tags, data_m
             netgame_info = mesh_tag.netgame_flag_info(p_val['netgame_flags'])
             netgame = f'(netgame={'/'.join(netgame_info)}) ' if len(netgame_info) else ''
             print(
+                f'{mesh_id} '
                 f'{palette_type} {palette_index:<2} '
                 f'[{tag_id}] {tag_header_print}'
                 f'team={p_val['team_index']} '
