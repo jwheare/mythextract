@@ -328,7 +328,7 @@ class SoundTypes(enum.Enum):
     CAUSED_ENEMY_DEATH = enum.auto()
     CAUSED_FRIENDLY_DEATH = enum.auto()
     CAUSED_DEATH_OF_ENEMY_UNDEAD = enum.auto()
-    # CAUSED_MULTIPLE_ENEMY_DEATHS = 16 # commented in oak
+    UNUSED = enum.auto() # CAUSED_MULTIPLE_ENEMY_DEATHS = 16 # commented in oak
 
 MonsTagFmt = ('MonsTag', [
     ('L', 'flags', MonsFlag),
