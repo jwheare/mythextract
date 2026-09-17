@@ -18,19 +18,24 @@ def main(game_directory, mons_id, plugin_names):
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     try:
-        if mons_id and mons_id != 'all':
-            mons = parse_mons_tag(game_version, tags, data_map, mons_id)
-
-            locations = tags['mons'][mons_id]
-            (location, tag_header) = locations[-1]
-            print(mons_id, tag_header.name)
-            print(location)
-            print_tag(game_version, mons, tags, data_map)
+        if mons_id == 'all':
+            for mons_id, mons_headers in tags['mons'].items():
+                print_mons_tag(game_version, tags, data_map, mons_id)
+        elif mons_id:
+            print_mons_tag(game_version, tags, data_map, mons_id)
         else:
             # print_mons_debug(game_version, tags, data_map)
             print_mons_tags(tags)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
+
+def print_mons_tag(game_version, tags, data_map, mons_id):
+    mons = parse_mons_tag(game_version, tags, data_map, mons_id)
+    locations = tags['mons'][mons_id]
+    (location, tag_header) = locations[-1]
+    print(mons_id, tag_header.name)
+    print(location)
+    print_tag(game_version, mons_id, mons, tags, data_map)
 
 def print_mons_debug(game_version, tags, data_map):
     for mons_id, mons_headers in tags['mons'].items():
@@ -51,10 +56,11 @@ def parse_mons_tag(game_version, tags, data_map, mons_id):
 def coll_sequences(tags, data_map, coll_tag):
     collection = codec.decode_string(coll_tag)
     (location, header, data) = loadtags.get_tag_info(tags, data_map, '.256', collection)
-    coll_header = myth_collection.parse_collection_header(data, header)
-    return myth_collection.parse_sequences(data, coll_header)
+    if data:
+        coll_header = myth_collection.parse_collection_header(data, header)
+        return myth_collection.parse_sequences(data, coll_header)
 
-def print_tag(game_version, mons, tags=None, data_map=None):
+def print_tag(game_version, mons_id, mons, tags=None, data_map=None):
     for i, (f, val) in enumerate(mons._asdict().items()):
         if f == 'attacks':
             for attack_i in range(mons.number_of_attacks):
@@ -104,7 +110,9 @@ def print_tag(game_version, mons, tags=None, data_map=None):
             for seq, idx in enumerate(val):
                 print(f'{f:<42} [{seq:>2}]: {mons_tag.sequence_name(seq):<16} {idx:>3} ', end='')
                 sequence = None
-                if idx > -1:
+                if not sequence:
+                    print(f'<missing collection>')
+                elif idx > -1:
                     sequence = sequences[idx]
                     print(f'{sequence['name']}')
                 else:
