@@ -229,7 +229,7 @@ def extended_flags(mons_tag):
     rocky_unsigned = codec.unsigned8(mons_tag.terrain_costs.rocky)
     marsh_unsigned = codec.unsigned8(mons_tag.terrain_costs.marsh)
     return {
-        'flags1': ExtendedFlagsSloped(mons_tag.terrain_costs.sloped),
+        'flags_sloped': ExtendedFlagsSloped(mons_tag.terrain_costs.sloped if mons_tag.terrain_costs.sloped != -1 else 0),
         # Default block_timer_cost is 30 ticks, this lets you modify it
         # We need to reinterpret this as a signed int
         # down to 1 ticks (30-29)
@@ -240,8 +240,8 @@ def extended_flags(mons_tag):
         # example: -29 -> (-29+30)/30 = 0.033
         # example: 127 -> (127+30)/30 = 5.233
         'block_timer_cost': (max(-29, mons_tag.terrain_costs.steep) + 30) / 30,
-        'flags2': ExtendedFlagsGrass(mons_tag.terrain_costs.grass),
-        'flags3': ExtendedFlagsDesert(mons_tag.terrain_costs.desert),
+        'flags_grass': ExtendedFlagsGrass(mons_tag.terrain_costs.grass if mons_tag.terrain_costs.grass != -1 else 0),
+        'flags_desert': ExtendedFlagsDesert(mons_tag.terrain_costs.desert if mons_tag.terrain_costs.desert != -1 else 0),
         # For running units, by default their distance travelled per tick is doubled (100% increase)
         # This value lets you modify the distance (therefore speed)
         # The value is a percentage from 1-255         (distance += distance * (value / 100))
@@ -262,14 +262,17 @@ def extended_flags(mons_tag):
         'charge_range': min(1, mons_tag.terrain_costs.snow),
     }
 
+
+
 def terrain_passability(mons_tag):
     # Based on Myth code
     gameplay_lte_170 = False
     gameplay_gt_130 = True
+    gameplay_lte_151 = False
 
     # IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY is not on for stock monsters
     # but Fear post 1.4 force it to be on when saving a monster
-    ignore_costs = use_extended(mons_tag) or MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
+    ignore_costs = MonsFlag.IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY in mons_tag.flags
     
     # Given the above, this will be true for stock monsters, even though we're above 1.7.0
     # but false for anything saved by a post 1.4 Fear
@@ -281,10 +284,21 @@ def terrain_passability(mons_tag):
     passability = {}
     for terrain_type, terrain_cost in mons_tag.terrain_costs._asdict().items():
         movement_modifier = getattr(mons_tag.movement_modifiers, terrain_type)
+        # grass, desert, sloped: these are special cased to make sure they don't become impassable
+        # when they're clobbered by extended flags without the IGNORES_TERRAIN_COSTS_FOR_IMPASSABILITY
+        # flag set. Clobbered is anything other than -1
+        # An example is slbo from TFL multipack
+        if terrain_type in ['grass', 'desert'] and terrain_cost != -1:
+            terrain_cost = 0
+        if terrain_type == 'sloped' and terrain_cost != -1:
+            if gameplay_lte_151:
+                terrain_cost = 0
+            else:
+                terrain_cost = min(terrain_cost, 0)
 
         if (
             (use_terrain_costs and terrain_cost < 0) or
-            (use_movement_modifiers and movement_modifier == 0)
+            (use_movement_modifiers and movement_modifier <= 0)
         ):
             passability[terrain_type] = False
         else:
