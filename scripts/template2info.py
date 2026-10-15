@@ -74,9 +74,10 @@ def print_template_info(action_template_data):
         if len(data['params']):
             print()
         for i, (param_field, param) in enumerate(data['params'].items()):
-            field = f'  {param_field}'
+            full_field = f"{data['header'].tag_id.upper()}.{param_field}"
+            field = f'  {full_field}'
             if param['requirement'] == 'required':
-                field = f'* \x1b[1m{param_field}\x1b[0m'
+                field = f'* \x1b[1m{full_field}\x1b[0m'
             param_name = param['name']
             param_type = param['type']
             md = [f'{k} = {v}' for k, v in param['metadata'].items()]
