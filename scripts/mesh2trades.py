@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from collections import OrderedDict
 import copy
+import math
 import os
 import re
 import struct
@@ -75,7 +76,7 @@ def main(game_directory, level, plugin_names):
     try:
         if level and level != 'list':
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
-                mesh_header, mesh_tag_data, mesh_tag_location = parse_mesh_header(tags, data_map, mesh_id)
+                mesh_tag_header, mesh_header, mesh_tag_data, mesh_tag_location = parse_mesh_header(tags, data_map, mesh_id)
 
                 if SKIP_INCOMPLETE and not mesh_tag.is_complete(mesh_header):
                     continue
@@ -99,16 +100,24 @@ def main(game_directory, level, plugin_names):
 
                 for game_type in game_types:
                     if not CSV and not JSON:
-                        print_game_info(mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
+                        print_game_info(mesh_tag_header, mesh_header, level_name, game_type, DIFFICULTY, game_time=TIME)
+
+                    team_ids = game_type_units.get(game_type, game_type_units.get('all', {})).keys()
+                    ambient_markers = get_ambients(game_type, palette)
+                    total_ambient = sum(ambient_markers.values())
 
                     game_teams = parse_game_teams(
                         game_type, game_type_units,
-                        counts, team_choice=TEAM
+                        counts, team_choice=TEAM,
+                        total_ambient=total_ambient
                     )
                     if not game_teams:
                         continue
 
                     (trade_info, units, mismatch) = game_teams
+
+                    detect_marker_issues(team_ids, game_type, units, ambient_markers)
+
                     (diffs, trade, trade_data) = trade_info
                     (mismatch_team, mismatch_rows) = mismatch
                     if JSON:
@@ -171,7 +180,7 @@ def main(game_directory, level, plugin_names):
                     else:
                         print('\n'.join(trade))
                         if not NO_TRADING:
-                            input_loop(game_type, units, diffs)
+                            input_loop(game_type, units, diffs, team_ids, total_ambient)
         else:
             mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
             mesh_input = input('Choose a mesh id: ')
@@ -195,6 +204,71 @@ def main(game_directory, level, plugin_names):
             if csvfile.tell() == 0:
                 csvwriter.writerow(csv_header())
             csvwriter.writerows(csv_rows)
+
+def get_ambients(game_type, palette):
+    ambient_markers = {}
+    if mesh_tag.MarkerType.UNIT in palette:
+        for unit in palette[mesh_tag.MarkerType.UNIT]:
+            netgame_info = mesh_tag.netgame_flag_info(unit['netgame_flags'])
+            team = unit['team_index']
+            tag_id = unit['tag']
+            if team == -1 and len(netgame_info):
+                if 'all' in netgame_info or game_type in netgame_info:
+                    num_markers = len([
+                        m for m in unit['markers'].values()
+                        if mesh_tag.MarkerFlag.IS_INVISIBLE not in m['flags']
+                    ])
+                    if tag_id not in ambient_markers:
+                        ambient_markers[tag_id] = 0
+                    ambient_markers[tag_id] += num_markers
+    return ambient_markers
+
+def detect_marker_issues(team_ids, game_type, units, ambient_markers):
+    unit_markers = {}
+    for tag_id, u in reversed(units.items()):
+        num_markers = u['count'] * len(team_ids)
+        if tag_id not in unit_markers:
+            unit_markers[tag_id] = 0
+        unit_markers[tag_id] += num_markers
+
+    default_total = print_missing_markers(game_type, unit_markers, ambient_markers, 'Default')
+    if True or default_total < 400:
+        # Try a worst case trade
+        unit_markers = {}
+        points = sum(u['cost']*u['initial_count'] for u in units.values())
+
+        for tag_id, u in reversed(units.items()):
+            num_markers = 0
+            points -= (num_markers * u['cost'])
+            if u['tradeable']:
+                if points > 0:
+                    num_markers = min(points // u['cost'], u['max'])
+                    points -= (num_markers * u['cost'])
+            else:
+                num_markers = u['count']
+                points -= (num_markers * u['cost'])
+
+            num_markers *= len(team_ids)
+            if tag_id not in unit_markers:
+                unit_markers[tag_id] = 0
+            unit_markers[tag_id] += num_markers
+
+        print_missing_markers(game_type, unit_markers, ambient_markers, f'Default safe: {default_total} - Worst case')
+
+def print_missing_markers(game_type, unit_markers, ambient_markers, label):
+    total_ambient = sum(ambient_markers.values())
+    total_units = sum(unit_markers.values())
+    total_markers = total_units + total_ambient
+    if total_markers > 400:
+        print(f'\x1b[91m- More than 400 markers [{game_type}] -\x1b[0m', label, total_markers)
+        print(f'{game_type:>8} markers TOTAL {total_markers}')
+        print(f'{game_type:>8}    unit TOTAL {total_units}')
+        print(f'{game_type:>8} ambient TOTAL {total_ambient}')
+        for tag_id, count in unit_markers.items():
+            print(f'{game_type:>8}    unit  {tag_id} {count}')
+        for tag_id, count in ambient_markers.items():
+            print(f'{game_type:>8} ambient  {tag_id} {count}')
+    return total_markers
 
 def detect_flag_issues(game_types, game_type_units, palette, tags, data_map):
     game_type_items = {}
@@ -363,7 +437,7 @@ def parse_mesh_header(tags, data_map, mesh_id):
         print("Error loading mesh")
         sys.exit(1)
 
-    return mesh_header, mesh_tag_data, mesh_tag_location
+    return mesh_tag_header, mesh_header, mesh_tag_data, mesh_tag_location
 
 def rekey_units(units, limit=True):
     rekeyed = OrderedDict()
@@ -450,7 +524,7 @@ def game_type_counts(mesh_header, game_type, unit):
 def parse_units(
     game_version,
     tags, data_map, palette, mesh_header,
-    level_name
+    level_name, difficulty
 ):
     all_units = {}
 
@@ -496,6 +570,8 @@ def parse_units(
                 must_use_vet = False
                 for marker_id, marker in unit['markers'].items():
                     palette_index = marker['palette_index']
+                    if marker['min_difficulty'] > difficulty:
+                        continue
                     if mesh_tag.MarkerFlag.IS_INVISIBLE_OBSERVER in marker['flags']:
                         continue
                     marker_tradeable = mesh_tag.MarkerPaletteFlag.MAY_BE_TRADED in unit['flags']
@@ -541,7 +617,7 @@ def parse_game_type_units(
     all_units = parse_units(
         game_version,
         tags, data_map, palette, mesh_header,
-        level_name
+        level_name, difficulty
     )
 
     for team, team_units in all_units.items():
@@ -631,7 +707,8 @@ def rekey_teams_all(mesh_header, all_units):
 
 def parse_game_teams(
     game_type, game_type_units,
-    counts=[], team_choice=None, adjust=False
+    counts=[], team_choice=None, adjust=False,
+    total_ambient=None
 ):
     shared_units = game_type_units.get('all', {})
     teams = game_type_units.get(game_type, shared_units)
@@ -646,7 +723,7 @@ def parse_game_teams(
         
         rekeyed_units = rekey_units(merged_units)
         counted_units = set_initial_counts(rekeyed_units, counts)
-        trades[team] = team_trade_parts(game_type, counted_units)
+        trades[team] = team_trade_parts(game_type, counted_units, teams.keys(), total_ambient)
 
     mismatch = (None, None)
     first_trade_s = diff_sort_units(trades[list(trades.keys())[0]][2])
@@ -695,16 +772,17 @@ def parse_game_teams(
         final_merged_units = shared_units[team_choice] | teams[team_choice]
     final_units = rekey_units(final_merged_units)
     trade = trades[team_choice]
+    final_counted_units = set_initial_counts(final_units, counts)
     if adjust:
-        if auto_adjust_counts(final_units):
-            trade = team_trade_parts(game_type, final_units)
-    return (trade, final_units, mismatch)
+        if auto_adjust_counts(final_counted_units):
+            trade = team_trade_parts(game_type, final_counted_units, teams.keys(), total_ambient)
+    return (trade, final_counted_units, mismatch)
 
-def print_game_info(mesh_header, level_name, game_type, difficulty, game_time=None):
-    info = mesh_tag.get_game_info(mesh_header, level_name, game_type, difficulty, game_time)
+def print_game_info(mesh_tag_header, mesh_header, level_name, game_type, difficulty, game_time=None):
+    info = mesh_tag.get_game_info(mesh_tag_header, mesh_header, level_name, game_type, difficulty, game_time)
     print(f"\n---\n\n{info}\n")
 
-def input_loop(game_type, unit_dict, diffs):
+def input_loop(game_type, unit_dict, diffs, team_ids, total_ambient):
     units = list(unit_dict.values())
     print("\n\x1b[1A", end='')
     while True:
@@ -759,7 +837,7 @@ def input_loop(game_type, unit_dict, diffs):
             else:
                 valid_input = False
 
-        (diffs, trade, trade_data) = team_trade_parts(game_type, unit_dict)
+        (diffs, trade, trade_data) = team_trade_parts(game_type, unit_dict, team_ids, total_ambient)
         # Move cursor up
         print(f"\x1b[{len(trade)+2}A", end='')
         for line in trade:
@@ -802,7 +880,7 @@ def team_trade_parts_export(game_type, units):
 
     return rows
 
-def team_trade_parts(game_type, units):
+def team_trade_parts(game_type, units, team_ids = None, total_ambient = None):
     trade_data = team_trade_parts_export(game_type, units)
     if CSV or JSON:
         return ([], [], trade_data)
@@ -812,6 +890,7 @@ def team_trade_parts(game_type, units):
     suffix = []
     class_distribution = {}
     total = sum(u['cost']*u['count'] for u in units.values())
+    total_units = sum(u['count'] for u in units.values())
     class_total = 0
     diff = 0
     diffs = []
@@ -881,6 +960,19 @@ def team_trade_parts(game_type, units):
             afford = 0
         diffs.append(afford)
     suffix.append("")
+
+    total_units_line = f"Total units: {total_units}"
+    if team_ids is not None and total_ambient is not None:
+        num_teams = len(team_ids)
+        total_team_markers = total_units * num_teams
+        total_markers = total_team_markers + total_ambient
+        total_markers_line = f' - markers: {num_teams}x teams ({total_team_markers}) + ambient ({total_ambient}) = {total_markers}'
+        total_units_line += f'{total_markers_line}'
+        if total_markers > 400:
+            diff = math.ceil((total_markers - 400) / num_teams)
+            total_units_line += f' \x1b[91mover 400 - reduce by {diff}\x1b[0m'
+    suffix.append(total_units_line)
+
     total_points = f"Total points: {total}"
     total_points += f'/{max_points}'
     if not NO_TRADING:

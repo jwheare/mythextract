@@ -516,6 +516,9 @@ def netgame_scoring_key(scoring):
 def netgame_scoring_name(scoring):
     return NetgameNames[netgame_scoring_key(scoring)]
 
+def netgame_name(flag):
+    return NetgameNames[NetgameFlagInfo[flag]]
+
 def netgame_flag_info(flag):
     actual_flag = flag
     # These flags don't work, we just use the terries and koth_tfl values
@@ -863,14 +866,14 @@ def assemble_colormap(mesh_header, cmap_data):
 
     return (pixel_width, pixel_height, final_rows, shadow_rows)
 
-def get_game_info(mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
+def get_game_info(mesh_tag_header, mesh_header, level_name, game_type_choice, difficulty_level, game_time=None):
     game_time_mins = ''
     if game_time:
         game_time_mins = f' - {game_time} mins'
     game_type = NetgameNames[game_type_choice]
     diff = difficulty(difficulty_level)
     size = mesh_size(mesh_header)
-    return f"{game_type}: {level_name} [{diff}] ({size}){game_time_mins}"
+    return f"{game_type}: {level_name} ({mesh_tag_header.tag_id}) [{diff}] ({size}){game_time_mins}"
 
 def parse_oak_editor_data(mesh_header, data):
     editor_data_start = get_offset(mesh_header.editor_data_offset)
@@ -1159,7 +1162,7 @@ def parse_markers(mesh_header, data):
     if DEBUG_MARKERS:
         print('Palette')
         for m_type, type_palette in palette.items():
-            print(m_type, len(type_palette))
+            print('DEBUG_MARKERS', m_type, len(type_palette))
             # for palette_entry in type_palette:
             #     print(palette_entry['tag'])
 
@@ -1167,11 +1170,13 @@ def parse_markers(mesh_header, data):
     marker_end = marker_start + mesh_header.markers_size
     marker_data = data[marker_start:marker_end]
 
-    for mhead in codec.iter_decode(
+    for idx, mhead in enumerate(codec.iter_decode(
         0, mesh_header.marker_count,
         MarkerHeadFmt, marker_data
-    ):
-        (marker, palette_item) = parse_marker_head(mhead, palette)
+    )):
+        (marker, palette_item) = parse_marker_head(mhead, palette, idx)
+        if DEBUG_MARKERS:
+            print('DEBUG_MARKERS', palette_item['type'], idx, palette_item['team_index'], palette_item['tag'], marker['marker_id'])
         if palette_item:
             palette_item['markers'][marker['marker_id']] = marker
         else:
@@ -1182,7 +1187,7 @@ def parse_markers(mesh_header, data):
 
     return (palette, orphans)
 
-def parse_marker_head(mhead, palette):
+def parse_marker_head(mhead, palette, idx):
     palette_item = None
     if (mhead.type in palette) and (mhead.palette_index < len(palette[mhead.type])):
         palette_item = palette[mhead.type][mhead.palette_index]
@@ -1191,6 +1196,7 @@ def parse_marker_head(mhead, palette):
         'marker_id': mhead.id,
         'type': mhead.type,
         'palette_index': mhead.palette_index,
+        'idx': idx,
         'tag': palette_item['tag'] if palette_item else None,
         'flags': mhead.flags,
         'min_difficulty': mhead.min_difficulty,
