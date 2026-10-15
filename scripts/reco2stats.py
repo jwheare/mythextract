@@ -17,7 +17,7 @@ def main(game_directory, reco_file):
         (
             reco_header, players, players_idx, monsters,
             teams, teams_idx, alliances, dropped_players,
-            plugins, mesh_header, level_name, game_time, game_type_choice, difficulty,
+            plugins, mesh_tag_header, mesh_header, level_name, game_time, game_type_choice, difficulty,
             overhead_map_data, cmap_export, chat_lines, movement_data, trades, splits, game_stats
         ) = reco_tag.parse_reco_file(game_directory, reco_file)
 

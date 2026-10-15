@@ -561,19 +561,23 @@ def prompt(text):
     ).strip().lower()
     return response in {"", "y", "yes"}
 
-def parse_reco_file(
-    game_directory, reco_file,
-    metaserver_stats=None
-):
-    (header, reco_data, reco, game_param, game_data, save_game) = parse_reco_head(game_directory, reco_file)
-
+def get_plugins(game_directory, game_param):
     plugin_names = [codec.decode_string(p[0]) for p in game_param.plugin_data]
     for plugin in plugin_names:
         while not pathlib.Path(game_directory, 'plugins', plugin).exists():
             print(f'Missing plugin: {plugin}')
             game_headers.print_plugins(game_param.plugin_data, True)
             if not prompt("Reload?"):
-                return
+                raise ValueError(f'Missing plugin: {plugin}')
+    return plugin_names
+
+
+def parse_reco_file(
+    game_directory, reco_file,
+    metaserver_stats=None
+):
+    (header, reco_data, reco, game_param, game_data, save_game) = parse_reco_head(game_directory, reco_file)
+    plugin_names = get_plugins(game_directory, game_param)
     (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
     return parse_timeline(
@@ -640,7 +644,7 @@ def format_alliances(alliances):
     return ''
 
 
-def print_teams(teams, players, players_idx, alliances=[], dropped_players=[]):
+def print_teams(teams, players, players_idx, alliances={}, dropped_players=[]):
     print('Teams\n')
     for cap_id, team_players in teams.items():
         cap = players[cap_id]
@@ -877,6 +881,7 @@ def get_trades(
         game_type, game_type_units,
         unit_counts, captain.team_index, adjust=True
     )
+    (_diffs, _trade_info, trade_data) = trade_info
 
     team_markers = {}
     # Build monster index
@@ -897,6 +902,17 @@ def get_trades(
                             if selected >= u['count']:
                                 break
     return (trade_info, units, team_markers)
+
+def get_marker(marker_id, units):
+    for game_type, team in units.items():
+        for team_id, team_units in team.items():
+            for tag_id, unit in team_units.items():
+                for marker in unit['markers']:
+                    if marker['marker_id'] == marker_id:
+                        return (tag_id, team_id, marker)
+    return (None, None, None)
+
+
 
 def get_computers(tags, data_map, palette, mesh_header):
     computer_markers = {}
@@ -993,6 +1009,8 @@ def parse_timeline(
     block_offset = reco.data_offset
     splits = None
     game_type = mesh_tag.NetgameNames[game_type_choice]
+    game_type_ambients = mesh2trades.get_ambients(game_type_choice, palette)
+    num_ambients = sum(game_type_ambients.values())
     map_name = mesh_tag.get_level_name(mesh_header, tags, data_map, strip_format=True)
     game_type_map_slug = f'{utils.slugify(game_type, strip_bracketed=False)}-{utils.slugify(map_name, strip_bracketed=False)}'
     game_header = {
@@ -1001,7 +1019,7 @@ def parse_timeline(
         'game_type': game_type,
         'map_name': map_name,
         'game_type_map_slug': game_type_map_slug,
-        'mesh_id': mesh_tag_header.tag_id,
+        'mesh_id': str(mesh_tag_header.tag_id),
         'plugins': game_headers.plugin_details(game_param.plugin_data, find=True),
         'difficulty': mesh_tag.difficulty(game_param.difficulty_level),
         'host': None,
@@ -1046,6 +1064,7 @@ def parse_timeline(
     game_stats = {
         'header': {
             'game': game_header,
+            'num_ambients': num_ambients,
             'teams': {
                 team_index: {
                     'name': utils.strip_format(players[cap_id].appearance.team_name),
@@ -1101,16 +1120,16 @@ def parse_timeline(
     
     for team_index, cap_id in enumerate(teams_idx):
         if cap_id is not None:
-            (trade_info, units, team_markers) = get_trades(
+            (trade_info, team_units, team_markers) = get_trades(
                 palette, mesh_header,
                 parse_game_type, game_type_units,
                 level_name, game_param, game_time,
                 [], players_idx, players[cap_id]
             )
             monsters[team_index] = team_markers
-            trades[team_index] = (trade_info, units)
+            trades[team_index] = (trade_info, team_units)
             if DEBUG:
-                print('trades', team_index, units.keys())
+                print('trades', team_index, team_units.keys())
     if DEBUG:
         print_trades(teams_idx, trades)
     
@@ -1171,16 +1190,16 @@ def parse_timeline(
             if command_header.verb == Commands.UNIT_ADJUSTMENT:
                 (unit_adjust_flags, unit_count) = struct.unpack('>h h', command_data[:4])
                 unit_counts = codec.list_pack('unit_counts', unit_count, '>h')(command_data[4:])
-                (trade_info, units, team_markers) = get_trades(
+                (trade_info, team_units, team_markers) = get_trades(
                     palette, mesh_header,
                     parse_game_type, game_type_units,
                     level_name, game_param, game_time,
                     unit_counts, players_idx, player
                 )
                 monsters[player.team_index] = team_markers
-                trades[player.team_index] = (trade_info, units)
+                trades[player.team_index] = (trade_info, team_units)
                 if DEBUG:
-                    print('trades', player.team_index, units.keys())
+                    print('trades', player.team_index, team_units.keys())
                 if DEBUG_CMDS:
                     print(
                         f'{tick_to_time(pt, command_header.time)}: '
@@ -1188,7 +1207,7 @@ def parse_timeline(
                         f'Adjust Units={unit_counts} '
                         f'{player_name(player)}'
                     )
-                    ((diffs, trade, trade_data), units) = trades[player.team_index]
+                    (diffs, trade, trade_data) = trade_info
                     print('\n'.join(trade))
 
             elif command_header.verb == Commands.DETACH:
@@ -1210,7 +1229,13 @@ def parse_timeline(
                         monsters[player.team_index][monster_id]['player_index'] = player_index
                         detached.append(str(monsters[player.team_index][monster_id]['tag']))
                     else:
-                        print(f'! {monster_id} missing from team {player.team_index} monsters')
+                        (marker_tag, marker_team, marker) = get_marker(monster_id, game_type_units)
+                        print(
+                            f'{tick_to_time(pt, command_header.time)}: '
+                            f'! {monster_id} {marker_tag}({marker_team}) '
+                            f'{command_header.player_index:<2} {command_header.verb} '
+                            f'missing from team {player.team_index} monsters'
+                        )
                 if DEBUG_CMDS:
                     to_player = player_name(players[players_idx[player_index]])
                     print(
@@ -1284,7 +1309,10 @@ def parse_timeline(
                     if player:
                         (
                             movement_command, command_monsters, waypoints, centerpoint
-                        ) = parse_movement(command_data, monsters, computer_markers, player)
+                        ) = parse_movement(
+                            pt, command_header,
+                            command_data, monsters, game_type_units, computer_markers, player
+                        )
                         if len(waypoints):
                             wp = waypoints[-1]
                             position = [wp.x, wp.y]
@@ -1304,9 +1332,9 @@ def parse_timeline(
                             })
                 if command_header.time > planning_ticks:
                     cmd = log_command(
-                        mesh_header, players, observers, player_id, monsters,
+                        mesh_header, players, observers, player_id, monsters, game_type_units,
                         computer_markers, computer_monsters, trades,
-                        command_header, command_data, position, self_heal_kill_dmg, planning_ticks
+                        command_header, command_data, position, self_heal_kill_dmg, pt, planning_ticks
                     )
                     if cmd:
                         if cmd.get('self_heal_kill'):
@@ -1381,7 +1409,7 @@ def parse_timeline(
             if pt_over(prev_command_time, command_header.time, game_param):
                 splits = get_splits(monsters, trades)
                 if DEBUG_CMDS:
-                    print_splits(players, players_idx, teams_idx, trades, splits)
+                    print_splits(players, players_idx, teams_idx, trades, splits, num_ambients)
 
             prev_command_time = command_header.time
             command_offset = command_data_end
@@ -1400,7 +1428,7 @@ def parse_timeline(
     return (
         reco_header, players, players_idx, monsters,
         teams, teams_idx, alliances, dropped_players,
-        game_param.plugin_data, mesh_header, level_name,
+        game_param.plugin_data, mesh_tag_header, mesh_header, level_name,
         game_time, game_type_choice, game_param.difficulty_level,
         overhead_map_data, cmap_export, chat_lines, movement_data, trades, splits, game_stats
     )
@@ -1671,7 +1699,7 @@ def process_counters(game_stats, players, counters, self_heal_kill_dmg):
             game_stats['header']['teams'][player.team_index]['players'][player_id]['medals'].append(medal_stat)
 
 
-def parse_command_monsters(data, monsters, computer_markers, player=None):
+def parse_command_monsters(pt, command_header, game_type_units, data, monsters, computer_markers, player=None):
     command_monsters = {}
     (monster_count,) = struct.unpack('>h', data[:2])
     end = 2 + (monster_count * 2)
@@ -1687,14 +1715,22 @@ def parse_command_monsters(data, monsters, computer_markers, player=None):
             command_monsters['custom']['Frenzied'] += 1
         elif player:
             if monster_id in monsters[player.team_index]:
-                tag_id = monsters[player.team_index][monster_id]['tag']
+                monster = monsters[player.team_index][monster_id]
+                monster['used'] = True
+                tag_id = monster['tag']
                 if tag_id not in command_monsters:
                     command_monsters[tag_id] = 0
                 command_monsters[tag_id] += 1
             else:
                 # This can happen if you have allied units selected when issuing a command
                 if DEBUG:
-                    print(f'! {monster_id} missing from team {player.team_index} monsters {data.hex()}')
+                    (marker_tag, marker_team, marker) = get_marker(monster_id, game_type_units)
+                    print(
+                        f'{tick_to_time(pt, command_header.time)}: '
+                        f'! {monster_id} {marker_tag}({marker_team}) '
+                        f'{command_header.player_index:<2} {command_header.verb} '
+                        f'missing from team {player.team_index} monsters'
+                    )
                 if 'invalid' not in command_monsters:
                     command_monsters['invalid'] = []
                 command_monsters['invalid'].append(monster_id)
@@ -1703,8 +1739,10 @@ def parse_command_monsters(data, monsters, computer_markers, player=None):
             for team_index, team_monsters in monsters.items():
                 if monster_id in team_monsters:
                     found = True
-                    tag_id = team_monsters[monster_id]['tag']
-                    target_player = team_monsters[monster_id]['player_id']
+                    monster = team_monsters[monster_id]
+                    monster['used'] = True
+                    tag_id = monster['tag']
+                    target_player = monster['player_id']
                     if target_player not in command_monsters:
                         command_monsters[target_player] = {}
                     if tag_id not in command_monsters[target_player]:
@@ -1719,7 +1757,13 @@ def parse_command_monsters(data, monsters, computer_markers, player=None):
                         command_monsters['ambient'][tag_id] = 0
                     command_monsters['ambient'][tag_id] += 1
                 else:
-                    print(f'! {monster_id} missing from all team monsters and computers {data.hex()}')
+                    (marker_tag, marker_team, marker) = get_marker(monster_id, game_type_units)
+                    print(
+                        f'{tick_to_time(pt, command_header.time)}: '
+                        f'! {monster_id} {marker_tag}({marker_team}) '
+                        f'{command_header.player_index:<2} {command_header.verb} '
+                        f'missing from all team monsters and computers'
+                    )
                     if 'invalid' not in command_monsters:
                         command_monsters['invalid'] = []
                     command_monsters['invalid'].append(monster_id)
@@ -1743,10 +1787,11 @@ MovementCommandFmt = ('MovementCommand', [
     ('2x', None)
 ])
 
-def parse_movement(command_data, monsters, computer_markers, player):
+def parse_movement(pt, command_header, command_data, monsters, game_type_units, computer_markers, player):
     movement_command = codec.codec(MovementCommandFmt)(command_data[:8])
 
     (command_monsters, offset) = parse_command_monsters(
+        pt, command_header, game_type_units,
         command_data[8:], monsters, computer_markers, player
     )
 
@@ -1767,9 +1812,9 @@ def parse_movement(command_data, monsters, computer_markers, player):
     return movement_command, command_monsters, waypoints, centerpoint
 
 def log_command(
-    mesh_header, players, observers, player_id, monsters,
+    mesh_header, players, observers, player_id, monsters, game_type_units,
     computer_markers, computer_monsters, trades,
-    command_header, command_data, position, self_heal_kill_dmg, planning_ticks=0
+    command_header, command_data, position, self_heal_kill_dmg, pt, planning_ticks=0
 ):
     if player_id not in players:
         if DEBUG_CMDS:
@@ -1789,7 +1834,10 @@ def log_command(
             action = GeneralCommands(general_type).name
             if action == 'TAUNT':
                 return
-            (command_monsters, _offset) = parse_command_monsters(command_data[4:], monsters, computer_markers, player)
+            (command_monsters, _offset) = parse_command_monsters(
+                pt, command_header, game_type_units,
+                command_data[4:], monsters, computer_markers, player
+            )
         case Commands.TARGET:
             (target_flags,) = struct.unpack('>h', command_data[:2])
             target_flags = TargetFlags(target_flags)
@@ -1799,24 +1847,39 @@ def log_command(
             #     action = 'ATTACK_ONE'
             else:
                 action = 'ATTACK'
-            (command_monsters, offset) = parse_command_monsters(command_data[2:], monsters, computer_markers, player)
-            (target_monsters, _offset2) = parse_command_monsters(command_data[offset+2:], monsters, computer_markers)
+            (command_monsters, offset) = parse_command_monsters(
+                pt, command_header, game_type_units,
+                command_data[2:], monsters, computer_markers, player
+            )
+            (target_monsters, _offset2) = parse_command_monsters(
+                pt, command_header, game_type_units,
+                command_data[offset+2:], monsters, computer_markers
+            )
         case Commands.ATTACK_LOCATION:
             (attack_location_flags, x, y, z) = struct.unpack('>h 2x L L L', command_data[:16])
             position = [codec.World(x), codec.World(y)]
             attack_location_flags = AttackLocationFlags(attack_location_flags)
-            (command_monsters, _offset) = parse_command_monsters(command_data[16:], monsters, computer_markers, player)
+            (command_monsters, _offset) = parse_command_monsters(
+                pt, command_header, game_type_units,
+                command_data[16:], monsters, computer_markers, player
+            )
             if AttackLocationFlags.SPECIAL_ABILITY in attack_location_flags:
                 action = 'GROUND_SPECIAL'
             else:
                 action = 'GROUND'
         case Commands.PICK_UP:
             (pickup_flags, object_idx, object_id) = struct.unpack('>h 2x H H', command_data[:8])
-            (command_monsters, _offset) = parse_command_monsters(command_data[8:], monsters, computer_markers, player)
+            (command_monsters, _offset) = parse_command_monsters(
+                pt, command_header, game_type_units,
+                command_data[8:], monsters, computer_markers, player
+            )
         case Commands.ROTATION:
             action = 'MOVEMENT'
     if action == 'MOVEMENT':
-        (command_monsters, _offset) = parse_command_monsters(command_data[8:], monsters, computer_markers, player)
+        (command_monsters, _offset) = parse_command_monsters(
+            pt, command_header, game_type_units,
+            command_data[8:], monsters, computer_markers, player
+        )
     if len(command_monsters):
         (trade_info, units) = trades[player.team_index]
         expanded_monsters = {}
@@ -1929,13 +1992,24 @@ def print_team_split(trade, cap, team_split, players, players_idx):
         )
     print('\n---\n')
 
-def print_splits(players, players_idx, teams_idx, trades, splits):
+def print_splits(players, players_idx, teams_idx, trades, splits, num_ambients):
     if not splits:
         return
     for team_index, team_split in splits.items():
         print_team_split(
             trades[team_index], players[teams_idx[team_index]], team_split, players, players_idx
         )
+
+    total_units = 0
+    for team_id, ((diffs, trade, trade_data), units) in trades.items():
+        total_team_units = sum([tt['count'] for tt in trade_data])
+        total_units += total_team_units
+
+    total_markers = total_units + num_ambients
+    total_marker_warning = ''
+    if total_markers > 400:
+        total_marker_warning = f' \x1b[91mover 400 - check for unused units\x1b[0m'
+    print(f'Total units (all teams): {total_units} + ambients ({num_ambients}) = total markers: {total_markers}{total_marker_warning}')
 
 def print_combined_stats(reco_header, players, players_idx, teams, teams_idx, alliances, dropped_players, game_stats):
     print('Stats\n')
