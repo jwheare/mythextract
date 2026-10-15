@@ -114,14 +114,15 @@ def print_tag(game_version, mons_id, tag_header, mons, tags=None, data_map=None)
             sequences = coll_sequences(tags, data_map, mons.collection_tag)
             for seq, idx in enumerate(val):
                 print(f'{f:<42} [{seq:>2}]: {mons_tag.sequence_name(seq):<16} {idx:>3} ', end='')
-                sequence = None
-                if not sequence:
+                if not sequences:
                     print(f'<missing collection>')
-                elif idx > -1:
-                    sequence = sequences[idx]
-                    print(f'{sequence['name']}')
                 else:
-                    print()
+                    sequence = None
+                    if idx > -1:
+                        sequence = sequences[idx]
+                        print(f'{sequence['name']}')
+                    else:
+                        print()
         else:
             print(f'{f:<42} {utils.val_repr(val)}')
 
