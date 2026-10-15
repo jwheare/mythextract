@@ -75,6 +75,7 @@ def get_mons_dict(game_version, tags, data_map, mons_header, mons_data, mons_loc
         'can_block': can_block,
         'heal_kills': heal_kills,
         'stone': mons_tag.MonsFlag.TURNS_TO_STONE_WHEN_KILLED in mons.flags,
+        'experience_proportional_to_damage': mons_tag.MonsFlag.EXPERIENCE_PROPORTIONAL_TO_DAMAGE in mons.flags,
         'min_vitality': obje_tag.vitality_lower_bound,
         'max_vitality': obje_tag.vitality_delta.upper_bound(obje_tag),
         'special_heals': special_heals,
@@ -200,6 +201,7 @@ def process_attacks(mons, tags, data_map):
                 avg_time_s = 1/30
             else:
                 seq_times = []
+                # 0.5s delay between evaluating attacks
                 recov_s = attack.recovery_time.decode() + 0.5 + 0.2 # random between 0 and 0.2
                 for attack_si, attack_s in enumerate(attack.sequences):
                     if not attack_s:
@@ -236,6 +238,12 @@ def process_attacks(mons, tags, data_map):
 
             if avg_time_s:
                 avg_dps = dmg / avg_time_s
+                if recov_s < 0:
+                    vat_max_attack = 0
+                else:
+                    vat_max_attack = min(
+                        math.ceil(recov_s/attack.recovery_time_experience_delta), vet_max
+                    ) if attack.recovery_time_experience_delta else vet_max
                 attacks.append({
                     'name': proj_header.name,
                     'throw': False,
@@ -261,7 +269,7 @@ def process_attacks(mons, tags, data_map):
                     'velocity_error': attack.initial_velocity_error,
                     'vet_recovery': attack.recovery_time_experience_delta,
                     'vet_velocity': attack.velocity_improvement_with_experience,
-                    'vet_max': min(math.ceil(recov_s/attack.recovery_time_experience_delta), vet_max) if attack.recovery_time_experience_delta else vet_max,
+                    'vet_max': vat_max_attack,
                     'primary': mons_tag.AttackFlag.IS_PRIMARY_ATTACK in attack.flags,
                 })
     return (attacks, special_heals)
@@ -321,6 +329,8 @@ def mons_stats(mons_dict):
         lines.append(f'{indent}can \x1b[92mblock\x1b[0m')
     if mons_dict['heal_kills']:
         lines.append(f'{indent}\x1b[91mkilled by heal\x1b[0m')
+    if mons_dict['experience_proportional_to_damage']:
+        lines.append(f'{indent}\x1b[92mgains exp\x1b[0m at low health')
     mods = mons_dict['modifiers']._asdict()
     paralysis_mod = mods['paralysis_duration']
     paralysis_min = round(7 * paralysis_mod)
