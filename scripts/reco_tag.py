@@ -1738,8 +1738,8 @@ class MovementFlags(enum.Flag):
 
 MovementCommandFmt = ('MovementCommand', [
     ('h', 'flags', MovementFlags),
-    ('h', 'formation_index'),
-    ('h', 'final_facing', codec.Angle),
+    ('H', 'formation_index'),
+    ('H', 'final_facing', codec.Angle),
     ('2x', None)
 ])
 

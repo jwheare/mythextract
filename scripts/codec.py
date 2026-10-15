@@ -9,8 +9,8 @@ SHORT_FIXED_SF = 1 << 8 # 256
 ANGLE_SF = FIXED_SF / 360
 ANGULAR_VELOCITY_SF = FIXED_SF / (360 * 30)
 TIME_SF = 30
-PERCENT_SF = 0xffff # 65535
-SHORT_PERCENT_SF = 0xff # 255
+SHORT_PERCENT_SF = 0xffff # 65535
+BYTE_PERCENT_SF = 0xff # 255
 
 def iter_unpack(start, count, fmt, data):
     end = start + (count * struct.calcsize(fmt))
@@ -630,14 +630,17 @@ class Simple:
 class Fixed(Simple):
     SF = FIXED_SF
 
+class Short(Simple):
+    INT = True
+
 class ShortFixed(Simple):
     SF = SHORT_FIXED_SF
 
-class Percent(Simple):
-    SF = PERCENT_SF
-
-class ShortPercent(Percent):
+class ShortPercent(Simple):
     SF = SHORT_PERCENT_SF
+
+class BytePercent(ShortPercent):
+    SF = BYTE_PERCENT_SF
 
 class Angle(Simple):
     SF = ANGLE_SF
@@ -755,22 +758,28 @@ def fixed_delta(lower_bound):
         'TYPE': Fixed,
     })
 
+def short_delta(lower_bound):
+    return type('ShortDelta', (_Delta,), {
+        'LOWER_BOUND': lower_bound,
+        'TYPE': Short,
+    })
+
 def short_fixed_delta(lower_bound):
     return type('ShortFixedDelta', (_Delta,), {
         'LOWER_BOUND': lower_bound,
         'TYPE': ShortFixed,
     })
 
-def percent_delta(lower_bound):
-    return type('PercentDelta', (_Delta,), {
-        'LOWER_BOUND': lower_bound,
-        'TYPE': Percent,
-    })
-
 def short_percent_delta(lower_bound):
     return type('ShortPercentDelta', (_Delta,), {
         'LOWER_BOUND': lower_bound,
         'TYPE': ShortPercent,
+    })
+
+def byte_percent_delta(lower_bound):
+    return type('BytePercentDelta', (_Delta,), {
+        'LOWER_BOUND': lower_bound,
+        'TYPE': BytePercent,
     })
 
 
