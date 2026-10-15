@@ -9,6 +9,8 @@ import mono2tag
 import myth_tags
 import loadtags
 import collmismatch
+import utils
+import myth_headers
 
 DEBUG = (os.environ.get('DEBUG') == '1')
 
@@ -23,7 +25,12 @@ def main(game_directory, level, plugin_names):
             mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
             mesh_input = input('Choose a mesh id: ')
             main(game_directory, f'mesh={mesh_input}', plugin_names)
+        elif level.startswith('file='):
+            file = level[5:]
+            mesh_tag_data = utils.load_file(file)
+            print_markers(game_version, file, mesh_tag_data, tags, data_map)
         else:
+
             for mesh_id in mesh2info.mesh_entries(game_version, level, entrypoint_map, tags, plugin_names):
                 parse_mesh_markers(game_version, tags, data_map, mesh_id)
     except (struct.error, UnicodeDecodeError) as e:
@@ -31,12 +38,13 @@ def main(game_directory, level, plugin_names):
 
 def parse_mesh_markers(game_version, tags, data_map, mesh_id):
     (mesh_tag_location, mesh_tag_header, mesh_tag_data) = loadtags.get_tag_info(tags, data_map, 'mesh', mesh_id)
+    print_markers(game_version, mesh_tag_location, mesh_tag_data, tags, data_map)
+
+def print_markers(game_version, mesh_tag_location, mesh_tag_data, tags, data_map):
     mesh_header = mesh_tag.parse_header(mesh_tag_data)
-
     (palette, orphans) = mesh_tag.parse_markers(mesh_header, mesh_tag_data)
-    print_markers(game_version, mesh_tag_location, mesh_id, mesh_tag_header, tags, data_map, palette, orphans)
-
-def print_markers(game_version, mesh_tag_location, mesh_id, mesh_tag_header, tags, data_map, palette, orphans):
+    mesh_tag_header = myth_headers.parse_header(mesh_tag_data)
+    mesh_id = mesh_tag_header.tag_id
     mismatched_unit_collections = {}
     for palette_type, p_list in palette.items():
         for palette_index, p_val in enumerate(p_list):
@@ -80,7 +88,7 @@ def print_markers(game_version, mesh_tag_location, mesh_id, mesh_tag_header, tag
                 print(
                     f'{palette_type} {palette_index:<2} '
                     f'[{tag_id}] {tag_header_print}'
-                    f'- {marker_id:<5} '
+                    f'- {marker_id:<5} ({marker['idx']}) '
                     f'{flags}'
                     f'{difficulty}'
                     f'{scen_info}'
