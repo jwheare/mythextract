@@ -21,6 +21,7 @@ def main(input_file):
     """
     tag_data = utils.load_file(input_file)
     try:
+        print(input_file)
         print_tag_info(tag_data)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
@@ -91,6 +92,7 @@ def print_tag_info(tag_data):
             print_tag_obj(myth_collection.parse_d256_header(tag_data))
         case _:
             print(f"Unhandled tag type: {tag_header.tag_type}")
+            print(tag_data.hex())
             sys.exit(1)
 
 if __name__ == "__main__":
