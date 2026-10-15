@@ -89,7 +89,7 @@ def print_actions(actions, tag_header, action_templates, plugin_names):
         else:
             print(f'{tag_prefix}{line}')
         for p in act['parameters']:
-            print(f'{tag_prefix}        {indent_space}- {p['name']} {p['type'].name}={p['elements']}')
+            print(f'{tag_prefix}        {indent_space}- {prefix}{p['name']} {p['type'].name}={p['elements']}')
             param_name = p['name']
             element_count = len(p['elements'])
             if DEBUG_LINK:
