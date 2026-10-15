@@ -123,10 +123,13 @@ def find_plugin(plugin):
         },
     )
 
-    with urllib.request.urlopen(req) as response:
-        result = response.read().decode('utf-8')
-        if result.startswith('http://') or result.startswith('https://'):
-            return result
+    try:
+        with urllib.request.urlopen(req) as response:
+            result = response.read().decode('utf-8')
+            if result.startswith('http://') or result.startswith('https://'):
+                return result
+    except urllib.error.HTTPError as exc:
+        print(exc)
 
 def print_plugins(plugins, find=False):
     for p in plugins:
