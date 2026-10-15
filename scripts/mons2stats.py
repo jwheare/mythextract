@@ -7,6 +7,7 @@ import sys
 import codec
 import loadtags
 import mons_tag
+import mons2info
 import myth_projectile
 import myth_collection
 import utils
@@ -23,8 +24,14 @@ def main(game_directory, mons_id, plugin_names):
         if mons_id == 'all':
             for mons_id, locations in tags['mons'].items():
                 print_mons_stats(game_version, tags, data_map, mons_id)
+        elif mons_id and mons_id != 'list':
+            if len(mons_id) > 4 and ',' in mons_id:
+                for m_id in mons_id.split(','):
+                    print_mons_stats(game_version, tags, data_map, m_id)
+            else:
+                print_mons_stats(game_version, tags, data_map, mons_id)
         else:
-            print_mons_stats(game_version, tags, data_map, mons_id)
+            mons2info.print_mons_tags(tags)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 

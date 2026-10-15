@@ -21,8 +21,13 @@ def main(game_directory, mons_id, plugin_names):
         if mons_id == 'all':
             for mons_id, mons_headers in tags['mons'].items():
                 print_mons_tag(game_version, tags, data_map, mons_id)
-        elif mons_id:
-            print_mons_tag(game_version, tags, data_map, mons_id)
+        elif mons_id and mons_id != 'list':
+            if len(mons_id) > 4 and ',' in mons_id:
+                for m_id in mons_id.split(','):
+                    print('================================')
+                    print_mons_tag(game_version, tags, data_map, m_id)
+            else:
+                print_mons_tag(game_version, tags, data_map, mons_id)
         else:
             # print_mons_debug(game_version, tags, data_map)
             print_mons_tags(tags)
@@ -35,7 +40,7 @@ def print_mons_tag(game_version, tags, data_map, mons_id):
     (location, tag_header) = locations[-1]
     print(mons_id, tag_header.name)
     print(location)
-    print_tag(game_version, mons_id, mons, tags, data_map)
+    print_tag(game_version, mons_id, tag_header, mons, tags, data_map)
 
 def print_mons_debug(game_version, tags, data_map):
     for mons_id, mons_headers in tags['mons'].items():
@@ -60,7 +65,7 @@ def coll_sequences(tags, data_map, coll_tag):
         coll_header = myth_collection.parse_collection_header(data, header)
         return myth_collection.parse_sequences(data, coll_header)
 
-def print_tag(game_version, mons_id, mons, tags=None, data_map=None):
+def print_tag(game_version, mons_id, tag_header, mons, tags=None, data_map=None):
     for i, (f, val) in enumerate(mons._asdict().items()):
         if f == 'attacks':
             for attack_i in range(mons.number_of_attacks):
