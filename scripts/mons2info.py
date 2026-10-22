@@ -124,7 +124,14 @@ def print_tag(game_version, mons_id, tag_header, mons, tags=None, data_map=None)
                     else:
                         print()
         else:
-            print(f'{f:<42} {utils.val_repr(val)}')
+            print(f'{f:<42} {utils.val_repr(val, mons)}')
+            if f == 'attack_frequency_delta':
+                post_delta = max(val.decode(), val.lower_bound_field(mons))
+                post_lower = min(val.lower_bound_field(mons), val.decode())
+                post_delay = post_delta - post_lower
+                print(f'{"  attack_frequency_delta (post)":<42} {codec.fmt(post_delta, False, 3)}')
+                print(f'{"  attack_frequency_lower_bound (post)":<42} {codec.fmt(post_lower, False, 3)}')
+                print(f'{"  attack_frequency MAX delay":<42} {codec.fmt(post_delay, False, 3)} ({val.upper_bound_str(mons)})')
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

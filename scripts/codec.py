@@ -681,16 +681,22 @@ class _Delta:
     def delta(self):
         return max(0, self.wrapped.value - 1)
 
+    def lower_bound_field(self, nt):
+        if self.LOWER_BOUND:
+            return getattr(nt, self.LOWER_BOUND).decode()
+        else:
+            None
+
     def upper_bound(self, nt):
         if self.LOWER_BOUND:
-            uppper = getattr(nt, self.LOWER_BOUND).decode() + self.decode()
+            uppper = self.lower_bound_field(nt) + self.decode()
             return scale(uppper, 1, self.TYPE.INT)
         else:
             return None
 
     def lower_bound(self, nt):
         if self.LOWER_BOUND:
-            lower = getattr(nt, self.LOWER_BOUND).decode()
+            lower = self.lower_bound_field(nt)
             return scale(lower, 1, self.TYPE.INT)
         else:
             return None

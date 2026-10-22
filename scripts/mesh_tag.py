@@ -332,7 +332,7 @@ MeshHeaderFmtTFL = ('MeshHeader', [
     ('L', 'mesh_LOD_data_offset'),
     ('L', 'mesh_LOD_data_size'),
     ('4x', None), # runtime: mesh_LOD_data_ptr
-    ('8s', 'global_tint_color'),
+    ('8s', 'global_tint_color', codec.Color),
     ('h', 'global_tint_fraction'),
     ('H', 'pad'),
     ('4s', 'wind_tag'),
