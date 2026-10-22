@@ -134,10 +134,7 @@ def name2color(text):
 
 def format_entry_name(long_name, name):
     color = name2color(name)
-    text = utils.ansi_format(long_name)
-    if color:
-        return f'\x1b[38;5;{color}m{text:<64}\x1b[0m'
-    return f'{text:<64}'
+    return utils.ansi_format(long_name, color, rpad=64)
 
 def print_entrypoint_map(entrypoint_map, suffix='', plugin_names=None):
     print(

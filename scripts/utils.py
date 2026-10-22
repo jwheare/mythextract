@@ -63,11 +63,19 @@ def iter_unpack(start, count, fmt, data):
 def cap_title(string):
     return ' '.join([w.title() for w in string.split('_')])
 
-def ansi_format(text):
-    italic = re.sub(r'[\|]i', '\x1b[3m', str(text), flags=re.IGNORECASE)
+def ansi_format(text, color=None, lpad=None, rpad=None):
+    text = str(text)
+    stripped_len = len(strip_format(text))
+    color_fmt = f'\x1b[38;5;{color}m' if color is not None else ''
+    italic = re.sub(r'[\|]i', '\x1b[3m', text, flags=re.IGNORECASE)
     bold = re.sub(r'[\|]b', '\x1b[1m', italic, flags=re.IGNORECASE)
-    plain = re.sub(r'[\|]p', '\x1b[0m', bold, flags=re.IGNORECASE)
-    return f'{plain}\x1b[0m'
+    plain = re.sub(r'[\|]p', f'\x1b[0m{color_fmt}', bold, flags=re.IGNORECASE)
+    output = f'{color_fmt}{plain}\x1b[0m'
+    if lpad is not None and lpad > stripped_len:
+        output = (lpad - stripped_len) * ' ' + output
+    if rpad is not None and rpad > stripped_len:
+        output = output + (rpad - stripped_len) * ' '
+    return output
 
 def strip_format(text):
     return re.sub(r'([\|].)|[\n\r]', '', str(text), flags=re.IGNORECASE)
