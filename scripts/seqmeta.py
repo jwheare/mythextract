@@ -40,28 +40,34 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
     sequences = myth_collection.parse_sequences(tag_data, coll_header)
     bitmap_instances = myth_collection.parse_bitmap_instance(tag_data, coll_header)
     shadow_maps = myth_collection.parse_shadow_maps(tag_data, coll_header)
-    for sequence in sequences:
-
-        print(coll_id, sequence['name'])
+    for seq_idx, sequence in enumerate(sequences):
+        seq_info = f"{coll_id}: {seq_idx:<3} {sequence['name']}"
+        print(seq_info)
         for f, val in sequence['metadata']._asdict().items():
             if type(val) is bytes and codec.all_on(val):
                 val = 'None'
-            print(f'{f:<42} {val}')
+            print(f"{f:<42} {str(val):<62}{seq_info}")
         for seq_i, (seq_frame, seq_views) in enumerate(sequence['frames']):
             instance_parts = [
-                f'Frame {seq_i}',
-                f'key_x={seq_frame.key_point_x:<3}',
-                f'key_y={seq_frame.key_point_y:<3}',
-                f'key_z={seq_frame.key_point_z:<3}',
+                f'Frame {seq_i:<2}',
+                f'key_x={seq_frame.key_point_x:<2}',
+                f'key_y={seq_frame.key_point_y:<2}',
+                f'key_z={seq_frame.key_point_z:<2}',
                 f'sm_index={seq_frame.shadow_map_index:<3}',
             ]
             if seq_frame.shadow_map_index > -1 and seq_frame.shadow_map_index < len(shadow_maps):
                 shadow_map = shadow_maps[seq_frame.shadow_map_index]
                 instance_parts += [
-                    f'sm_flags={shadow_map.flags.value}',
+                    f'sm_flags={shadow_map.flags.value:<2}',
                     f'sm_reg_x={round(shadow_map.reg_point_x, 2):<4}',
                     f'sm_reg_y={round(shadow_map.reg_point_y, 2):<4}',
-                    f'sm_bm_index={shadow_map.bitmap_index:<4}',
+                    f'sm_bm_index={shadow_map.bitmap_index:<3}',
+                    seq_info
+                ]
+            else:
+                instance_parts += [
+                    ' ' * 55,
+                    seq_info
                 ]
             print(' '.join(instance_parts))
             for view_i in range(sequence['metadata'].number_of_views):
@@ -69,13 +75,15 @@ def parse_coll_tag(game_version, tags, data_map, coll_id):
                 if view_idx > -1 and view_idx < len(bitmap_instances):
                     bitmap_instance = bitmap_instances[view_idx]
                     print(
-                        f'Frame {seq_i} View {view_i:<2} '
-                        f'bm_flags={bitmap_instance.flags.value} '
+                        f'Frame {seq_i:<2} View {view_i:<2} '
+                        f'bm_flags={bitmap_instance.flags.value:<3} '
                         f'bm_reg_x={bitmap_instance.reg_point_x:<3} '
                         f'bm_reg_y={bitmap_instance.reg_point_y:<3} '
                         f'bm_key_x={bitmap_instance.key_point_x:<3} '
                         f'bm_key_y={bitmap_instance.key_point_y:<3} '
-                        f'bm_index={bitmap_instance.bitmap_index}'
+                        f'bm_index={bitmap_instance.bitmap_index:<3} '
+                        f"{' ' * 9}",
+                        f'{seq_info}'
                     )
         print('---')
 
