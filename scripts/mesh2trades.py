@@ -524,7 +524,7 @@ def game_type_counts(mesh_header, game_type, unit):
 def parse_units(
     game_version,
     tags, data_map, palette, mesh_header,
-    level_name, difficulty
+    level_name, difficulty=2
 ):
     all_units = {}
 

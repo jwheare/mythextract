@@ -94,13 +94,13 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
         entry_tag_count += 1
     new_size = entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE
     size_diff = current_size - new_size
-    sb_mono_header._replace(
+    new_mono_header = sb_mono_header._replace(
         entry_tag_count=entry_tag_count,
         size=sb_mono_header.size - size_diff
     )
     tag_list_start = myth_headers.SB_MONO_HEADER_SIZE + new_size
     tag_list_data = data[tag_list_start:]
-    return myth_headers.encode_sb_mono_header(sb_mono_header) + entry_tag_data + tag_list_data
+    return myth_headers.encode_sb_mono_header(new_mono_header) + entry_tag_data + tag_list_data
 
 def get_entrypoints(data, mono_header):
     entrypoints = []

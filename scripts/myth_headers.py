@@ -338,11 +338,6 @@ def parse_mono_header(filename, data):
         flags=header.flags,
         checksum=header.checksum,
     )
-    return (
-        version, header, header_size,
-        entry_tag_count, entry_tag_list_start,
-        tag_count, tag_list_start, tag_list_size
-    )
 
 def tag_has_data(data):
     return len(data) > 64
