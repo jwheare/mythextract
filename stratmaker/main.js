@@ -91,7 +91,7 @@ function fetchIndex () {
       });
       mapData.forEach(map => {
         const mapItem = dce('div', 'mapList__map');
-        const mapLink = dce('a', 'mapList__link', map.name);
+        const mapLink = dce('a', 'mapList__link', map.name || map.mesh_name);
         if (map.plugins.length) {
           mapLink.append(dce('span', 'mapList__plugins', map.plugins.join(', ')));
         }
@@ -526,7 +526,7 @@ function getGameType () {
 }
 
 function setTitle () {
-  let title = STATE.meshData.name;
+  let title = STATE.meshData.name || STATE.meshData.mesh_name;
   if (STRAT.game_type) {
     title += ` - ${getGameType().game_type_long}`;
   }
@@ -1026,14 +1026,14 @@ function slugify(name) {
 
 function slugifyMapGt (map, gt) {
   let typeSlug = slugify(gt.game_type_long);
-  let mapSlug = slugify(map.name);
+  let mapSlug = slugify(map.name || map.mesh_name);
   return `${typeSlug}-${mapSlug}`;
 }
 
 async function buildMap () {
   initLocalState();
 
-  document.querySelector('.map__title').innerText = STATE.meshData.name;
+  document.querySelector('.map__title').innerText = STATE.meshData.name || STATE.meshData.mesh_name;
   if (STATE.meshData.plugins && STATE.meshData.plugins.length) {
     document.querySelector('.map__plugin').innerText = `Plugins: ${STATE.meshData.plugins.join(', ')}`;
   }
