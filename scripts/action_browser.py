@@ -21,7 +21,7 @@ def main(game_directory, level, plugin_names):
     try:
         (game_version, tags, entrypoint_map, data_map, cutscenes) = loadtags.load_tags(game_directory, plugin_names)
 
-        if level:
+        if level and level != 'list':
             if level.startswith('file='):
                 file = level[5:]
                 mesh_tag_data = utils.load_file(file)
@@ -33,6 +33,8 @@ def main(game_directory, level, plugin_names):
                     tree_curses.enter(parse_mesh_actions(tags, data_map, mesh_tag_data))
         else:
             mono2tag.print_entrypoint_map(entrypoint_map, plugin_names=plugin_names)
+            mesh_input = input('Choose a mesh id: ')
+            main(game_directory, f'mesh={mesh_input}', plugin_names)
     except (struct.error, UnicodeDecodeError) as e:
         raise ValueError(f"Error processing binary data: {e}")
 
