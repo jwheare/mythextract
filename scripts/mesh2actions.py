@@ -88,7 +88,7 @@ def print_actions(actions, tag_header, action_templates, plugin_names):
             print(f'{tag_prefix}\x1b[1m{line}\x1b[0m')
         else:
             print(f'{tag_prefix}{line}')
-        for p in act['parameters']:
+        for p in sorted(act['parameters'], key=lambda k: (k['name'])):
             print(f'{tag_prefix}        {indent_space}- {prefix}{p['name']} {p['type'].name}={p['elements']}')
             param_name = p['name']
             element_count = len(p['elements'])
