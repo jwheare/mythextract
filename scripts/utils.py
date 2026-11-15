@@ -47,6 +47,8 @@ def val_repr(val, nt=None):
         return f'0x{val.hex()}'
     elif type(val) is float:
         return f'{val:.03f}'
+    elif isinstance(val, codec.Color):
+        return f'\x1b[48;2;{int(val.r)};{int(val.g)};{int(val.b)}m \x1b[0m {repr(val)}'
     elif nt and isinstance(val, codec._Delta):
         upper = val.upper_bound(nt)
         if upper:
