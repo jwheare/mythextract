@@ -731,6 +731,9 @@ def align(align_bytes, value):
 def parse_header(data):
     return myth_headers.parse_tag(MeshHeaderFmt, data)
 
+def parse_header_version(game_version, data):
+    return myth_headers.parse_tag(MeshHeaderFmt if game_version == 2 else MeshHeaderFmtTFL, data)
+
 def required_plugin(mesh_header):
     if MeshFlags.REQUIRES_PLUGIN in mesh_header.flags and mesh_header.plugin_name:
         return mesh_header.plugin_name

@@ -45,7 +45,7 @@ def print_tag_info(tag_data):
     print(f'data size: {len(tag_data)}')
     match tag_header.tag_type:
         case 'mesh':
-            mesh_header = mesh_tag.parse_header(tag_data)
+            mesh_header = mesh_tag.parse_header_version(game_version, tag_data)
             print_tag_obj(mesh_header)
         case 'soun':
             print_tag_obj(myth_sound.parse_soun_header(tag_data))
