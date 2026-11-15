@@ -11,7 +11,7 @@ DEBUG = (os.environ.get('DEBUG') == '1')
 
 def main(input_file):
     """
-    Prints header info for an extracted tag file
+    Converts an extracted TFL tag to SB header format generically
     """
     tag_data = utils.load_file(input_file)
     try:

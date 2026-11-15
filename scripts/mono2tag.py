@@ -84,6 +84,9 @@ def debug_mono_header(mono_header, data):
 
 def encode_entrypoints(data, sb_mono_header, entrypoints):
     current_size = sb_mono_header.entry_tag_count * myth_headers.ENTRY_TAG_HEADER_SIZE
+    tag_list_start = myth_headers.SB_MONO_HEADER_SIZE + current_size
+    tag_list_data = data[tag_list_start:]
+
     entry_tag_count = 0
     entry_tag_data = b''
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
@@ -98,8 +101,6 @@ def encode_entrypoints(data, sb_mono_header, entrypoints):
         entry_tag_count=entry_tag_count,
         size=sb_mono_header.size - size_diff
     )
-    tag_list_start = myth_headers.SB_MONO_HEADER_SIZE + new_size
-    tag_list_data = data[tag_list_start:]
     return myth_headers.encode_sb_mono_header(new_mono_header) + entry_tag_data + tag_list_data
 
 def get_entrypoints(data, mono_header):
@@ -161,7 +162,7 @@ def entrypoint_entry(entry_id, entrypoint):
         f' {format_entry_name(entry_long_name, entry_name)}'
     )
 
-def seek_tag(tags, tag_type, tag_id, data, mono_header):
+def seek_tag(tags, tag_type, tag_id, data):
     for tag_header in tags:
         if (
             tag_header.tag_type == tag_type and

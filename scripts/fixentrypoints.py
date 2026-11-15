@@ -25,7 +25,7 @@ def main(mono_path, output_file):
         mono2tag.debug_mono_header(mono_header, data)
         entrypoints = mono2tag.get_entrypoints(data, mono_header)
         if len(entrypoints):
-            mono2tag.print_entrypoint_map(entrypoints, ': Current')
+            mono2tag.print_entrypoint_map(entrypoints, ': Current', plugin_names=plugin_names)
             new_mono_data = fix_entrypoint_map(entrypoints, data, mono_header)
             if not new_mono_data:
                 print("Entrypoints up to date")
@@ -62,11 +62,11 @@ Mismatching entries that need fixing are marked with an x
     tags = myth_headers.get_mono_tags(data, mono_header)
     fixed = False
     for entry_id, (entry_name, entry_long_name, archive_list) in entrypoints.items():
-        mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data, mono_header)
+        mesh_data = mono2tag.seek_tag(tags, 'mesh', entry_id, data)
         if mesh_data:
             mesh_header = mesh_tag.parse_header(mesh_data)
             desc_tag = codec.decode_string(mesh_header.map_description_string_list_tag)
-            desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data, mono_header)
+            desc_data = mono2tag.seek_tag(tags, 'stli', desc_tag, data)
             if desc_data:
                 (_, desc_text) = myth_headers.parse_text_tag(desc_data)
                 level_name = myth_headers.parse_stli(desc_text)[0]
