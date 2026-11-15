@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import enum
 from collections import namedtuple
+import struct
 
 import codec
 import utils
+import mesh_tag
 
 GOR_HEADER_SIZE = 64
 SB_MONO_HEADER_SIZE = 128
@@ -265,6 +267,65 @@ def parse_halo_mono_header(header):
 
 def encode_sb_mono_header(mono):
     return mono.value
+
+def make_plugin(tag_list, plugin_name, plugin_desc):
+    entrypoint_mesh_headers = []
+    for (tag_header, tag_data) in tag_list:
+        if tag_header.tag_type == 'mesh':
+            entrypoint_mesh_headers.append(mesh_tag.parse_header(tag_data))
+
+    entrypoint_data = b''
+    for mesh_header in entrypoint_mesh_headers:
+        long_name = tag_header.name
+        desc_tag = codec.decode_string(mesh_header.map_description_string_list_tag)
+        for (tag_header, tag_data) in tag_list:
+            if (
+                tag_header.tag_type == 'stli' and
+                tag_header.tag_id == desc_tag and
+                tag_data
+            ):
+                (_, desc_text) = parse_text_tag(tag_data)
+                long_name = parse_stli(desc_text)[0]
+                break
+        entrypoint_data += struct.pack(
+            '>16s 32s 64s',
+            codec.encode_string(tag_header.tag_id),
+            codec.encode_string(tag_header.name),
+            codec.encode_string(long_name)
+        )
+
+    entrypoint_size = len(entrypoint_mesh_headers) * ENTRY_TAG_HEADER_SIZE
+    tag_header_data = b''
+    tag_list_data = b''
+    initial_tag_data_offset = SB_MONO_HEADER_SIZE + entrypoint_size + len(tag_list) * TAG_HEADER_SIZE
+    tag_data_offset = initial_tag_data_offset
+
+    for (tag_header, tag_data) in tag_list:
+        tag_header = tag_header._replace(
+            tag_data_offset = tag_data_offset
+        )
+        tag_header_data += tag_header.value
+        tag_body = tag_data[TAG_HEADER_SIZE:]
+        tag_list_data += tag_body
+
+        tag_data_offset += len(tag_body)
+
+    SBMonoHeaderT = codec.make_nt(SBMonoHeaderFmt)
+    sb_mono_header_values = SBMonoHeaderT(
+        type=ArchiveType.PLUGIN.value,
+        version=0,
+        name=codec.encode_string(plugin_name[:32]),
+        description=codec.encode_string(plugin_desc[:64]),
+        entry_tag_count=len(entrypoint_mesh_headers),
+        tag_list_count=len(tag_list),
+        checksum=b'aaaa',
+        flags=0,
+        size=initial_tag_data_offset + len(tag_list_data),
+        header_checksum=b'bbbb',
+        signature=b'dng2',
+    )
+    sb_mono_header = SBMonoHeader(values=sb_mono_header_values)
+    return sb_mono_header.value + entrypoint_data + tag_header_data + tag_list_data
 
 def mono_header_size(header):
     if type(header).__name__ == 'GORHeader':
