@@ -80,7 +80,7 @@ def parse_mesh_tag(game_version, tags, data_map, mesh_id):
 def print_header(mesh_header, mesh_id, locations=None):
     for i, (f, val) in enumerate(mesh_header._asdict().items()):
         print(f'{f:<42} {utils.val_repr(val)}')
-        # print(f'[{mesh_id}] {f} {val} {locations}')
+        # print(f'[{mesh_id}] {f:<42} {utils.val_repr(val)} {locations}')
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

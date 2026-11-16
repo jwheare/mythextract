@@ -67,9 +67,13 @@ def print_tag_info(tag_data):
             (prgr_head, proj_list) = myth_projectile.parse_prgr(tag_data)
             print_tag_obj(prgr_head)
         case 'mode':
-            print_tag_obj(myth_tags.parse_model(tag_data))
+            model = myth_tags.parse_model(tag_data)
+            print_tag_obj(model)
+            myth_tags.print_model_info(model, tag_data)
         case 'geom':
-            print_tag_obj(myth_tags.parse_geom(tag_data))
+            geom = myth_tags.parse_geom(tag_data)
+            print_tag_obj(geom)
+            myth_tags.print_geom_info(geom, tag_data)
         case 'mons':
             mons_obj = mons_tag.parse_tag(game_version, tag_data)
             mons2info.print_tag(game_version, tag_header.tag_id, tag_header, mons_obj)
